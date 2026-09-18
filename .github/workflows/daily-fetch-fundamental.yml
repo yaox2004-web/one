@@ -1,0 +1,72 @@
+name: 每日拉基本面
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 12 * * *'
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: 装 akshare
+        run: pip install akshare -q
+
+      - name: 拉基本面
+        run: |
+          python3 << 'PYEOF'
+          import akshare as ak
+          import json, os, time
+          from datetime import datetime, timezone, timedelta
+
+          os.makedirs('data/fundamental', exist_ok=True)
+          bj_now = datetime.now(timezone.utc) + timedelta(hours=8)
+          today = bj_now.strftime('%Y%m%d')
+
+          codes = [
+              '601138', '300476', '603516', '002156',
+              '603283', '601231', '300394', '600584',
+          ]
+
+          result = {
+              'date': today,
+              'updated': bj_now.strftime('%Y-%m-%d %H:%M:%S BJT'),
+              'stocks': {}
+          }
+
+          for code in codes:
+              try:
+                  df = ak.stock_financial_abstract(symbol=code)
+                  if df is not None and len(df) > 0:
+                      result['stocks'][code] = df.head(20).to_dict('records')
+                      print(f'OK {code}: {len(df)} 行')
+                  else:
+                      print(f'⚠️  {code}: 空')
+              except Exception as e:
+                  print(f'FAIL {code}: {type(e).__name__} {e}')
+              time.sleep(1)
+
+          with open(f'data/fundamental/{today}.json', 'w') as f:
+              json.dump(result, f, ensure_ascii=False, default=str)
+          PYEOF
+
+      - name: 提交 + 推送
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/fundamental/
+          if git diff --cached --quiet; then
+            echo "无变化"
+          else
+            git commit -m "data: 基本面 $(date -u +%Y%m%d)"
+            git push
+          fi
