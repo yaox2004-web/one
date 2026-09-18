@@ -1,0 +1,84 @@
+name: 每日拉北向资金
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '20 12 * * *'
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: 拉北向资金
+        run: |
+          python3 << 'PYEOF'
+          import requests, json, os
+          from datetime import datetime, timezone, timedelta
+
+          HEADERS = {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Referer': 'https://data.eastmoney.com/hsgt/index.html',
+              'Accept': 'application/json, text/plain, */*',
+          }
+
+          os.makedirs('data/north', exist_ok=True)
+
+          bj_now = datetime.now(timezone.utc) + timedelta(hours=8)
+          today = bj_now.strftime('%Y-%m-%d')
+
+          url = "https://datacenter-web.eastmoney.com/api/data/v1/get"
+          params = {
+              'reportName': 'RPT_MUTUAL_DEAL_HISTORY',
+              'columns': 'ALL',
+              'filter': f"(TRADE_DATE='{today}')",
+              'pageNumber': '1',
+              'pageSize': '100',
+              'source': 'WEB',
+              'client': 'WEB',
+          }
+
+          try:
+              r = requests.get(url, params=params, headers=HEADERS, timeout=30)
+              data = r.json()
+              result = data.get('result')
+              rows = result.get('data', []) if result else []
+              if not rows:
+                  print(f'无北向数据（{today}）')
+                  print(f'原始返回: {str(data)[:300]}')
+                  exit(0)
+
+              out = {
+                  'date': today,
+                  'updated': bj_now.strftime('%Y-%m-%d %H:%M:%S BJT'),
+                  'count': len(rows),
+                  'rows': rows
+              }
+              with open(f'data/north/{today}.json', 'w') as f:
+                  json.dump(out, f, ensure_ascii=False)
+              print(f'OK {today}: {len(rows)} 条记录')
+
+          except Exception as e:
+              print(f'FAIL: {type(e).__name__} {e}')
+              raise
+          PYEOF
+
+      - name: 提交 + 推送
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/north/
+          if git diff --cached --quiet; then
+            echo "无变化，跳过提交"
+          else
+            git commit -m "data: 北向 $(date -u +%Y%m%d)"
+            git push
+          fi
