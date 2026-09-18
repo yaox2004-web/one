@@ -1,0 +1,56 @@
+name: 探测融资融券报表名
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: 探测
+        run: |
+          python3 << 'PYEOF'
+          import requests
+
+          HEADERS = {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0',
+              'Referer': 'https://data.eastmoney.com/rzrq/total.html',
+          }
+
+          names = [
+              'RPT_MARGIN_DAILY_SUM',
+              'RPT_MARGIN_DAILYSUMDETAIL',
+              'RPT_MARGIN_DAILY_STOCK',
+              'RPT_MARGIN_DAILY_TRADE_DETAIL',
+              'RPT_MARGIN_DETAIL',
+              'RPT_MARGIN_DAILYSUM',
+              'RPT_RZRQ_DETAIL',
+              'RPT_MARGIN_TRADE_DETAIL',
+          ]
+
+          url = "https://datacenter-web.eastmoney.com/api/data/v1/get"
+
+          for n in names:
+              params = {
+                  'reportName': n,
+                  'columns': 'ALL',
+                  'pageNumber': '1',
+                  'pageSize': '1',
+                  'source': 'WEB',
+                  'client': 'WEB',
+              }
+              try:
+                  r = requests.get(url, params=params, headers=HEADERS, timeout=15)
+                  d = r.json()
+                  if d.get('success'):
+                      cnt = d.get('result', {}).get('count', 0) if d.get('result') else 0
+                      print(f'✅ {n}  数据量={cnt}')
+                  else:
+                      print(f'❌ {n}  code={d.get("code")} msg={d.get("message")}')
+              except Exception as e:
+                  print(f'⚠️  {n}  {type(e).__name__}: {e}')
+          PYEOF
