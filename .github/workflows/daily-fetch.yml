@@ -1,0 +1,79 @@
+name: 每日拉数据
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 12 * * *'
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: 拉日线数据
+        run: |
+          python3 << 'PYEOF'
+          import requests, json, os, time
+          from datetime import datetime
+
+          codes = [
+              ('sh601138', '工业富联'),
+              ('sz300476', '胜宏科技'),
+              ('sh603516', '淳中科技'),
+              ('sz002156', '通富微电'),
+              ('sh603283', '赛腾股份'),
+              ('sh601231', '环旭电子'),
+              ('sz300394', '天孚通信'),
+              ('sh600584', '长电科技'),
+              ('sh000001', '上证指数'),
+          ]
+
+          os.makedirs('data/kline', exist_ok=True)
+          ok, fail = 0, 0
+          index_codes = ['sh000001', 'sz399001', 'sz399006']
+
+          for code, name in codes:
+              url = f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={code},day,,,500,qfq"
+              try:
+                  r = requests.get(url, timeout=30)
+                  data = r.json()
+                  key = 'day' if code in index_codes else 'qfqday'
+                  klines = data['data'][code].get(key, [])
+                  out = {
+                      'code': code,
+                      'name': name,
+                      'updated': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC'),
+                      'count': len(klines),
+                      'klines': klines
+                  }
+                  with open(f'data/kline/{code}.json', 'w') as f:
+                      json.dump(out, f, ensure_ascii=False)
+                  print(f'OK {code} {name}: {len(klines)} 条')
+                  ok += 1
+              except Exception as e:
+                  print(f'FAIL {code} {name}: {type(e).__name__} {e}')
+                  fail += 1
+              time.sleep(0.5)
+
+          print(f'\n总计: {ok} 成功, {fail} 失败')
+          PYEOF
+
+      - name: 提交 + 推送
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          if git diff --cached --quiet; then
+            echo "无变化，跳过提交"
+          else
+            git commit -m "data: 每日更新 $(date -u +%Y%m%d)"
+            git push
+          fi
