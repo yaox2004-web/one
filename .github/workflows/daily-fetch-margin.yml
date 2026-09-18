@@ -25,7 +25,7 @@ jobs:
         run: |
           python3 << 'PYEOF'
           import akshare as ak
-          import json, os
+          import json, os, time
           from datetime import datetime, timezone, timedelta
 
           os.makedirs('data/margin', exist_ok=True)
@@ -35,24 +35,29 @@ jobs:
           result = {
               'date': today,
               'updated': bj_now.strftime('%Y-%m-%d %H:%M:%S BJT'),
-              'data': {}
+              'data': {'sse': [], 'szse': []}
           }
 
-          try:
-              df = ak.stock_margin_detail_sse(date=today)
-              result['data']['sse'] = df.to_dict('records')
-              print(f'OK 沪市: {len(df)} 条')
-          except Exception as e:
-              print(f'FAIL 沪市: {type(e).__name__} {e}')
-              result['data']['sse'] = []
-
-          try:
-              df = ak.stock_margin_detail_szse(date=today)
-              result['data']['szse'] = df.to_dict('records')
-              print(f'OK 深市: {len(df)} 条')
-          except Exception as e:
-              print(f'FAIL 深市: {type(e).__name__} {e}')
-              result['data']['szse'] = []
+          for market, fn in [('sse', ak.stock_margin_detail_sse),
+                              ('szse', ak.stock_margin_detail_szse)]:
+              success = False
+              for attempt in range(3):
+                  try:
+                      df = fn(date=today)
+                      if df is None or len(df) == 0:
+                          print(f'⚠️  {market}: 今天数据未生成（{today}）')
+                          success = True
+                          break
+                      result['data'][market] = df.to_dict('records')
+                      print(f'OK {market}: {len(df)} 条')
+                      success = True
+                      break
+                  except Exception as e:
+                      wait = 5 * (attempt + 1)
+                      print(f'  重试 {attempt+1}/3 {market}: {type(e).__name__}，等 {wait}s')
+                      time.sleep(wait)
+              if not success:
+                  print(f'FAIL {market}: 3 次重试均失败')
 
           with open(f'data/margin/{today}.json', 'w') as f:
               json.dump(result, f, ensure_ascii=False, default=str)
