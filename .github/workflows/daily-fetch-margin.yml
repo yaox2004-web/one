@@ -3,10 +3,14 @@ name: 每日拉融资融券
 on:
   workflow_dispatch:
   schedule:
-    - cron: '30 13 * * *'
+    - cron: '0 14 * * *'
 
 permissions:
   contents: write
+
+concurrency:
+  group: data-push
+  cancel-in-progress: false
 
 jobs:
   fetch:
@@ -37,6 +41,20 @@ jobs:
               'updated': bj_now.strftime('%Y-%m-%d %H:%M:%S BJT'),
               'data': {'sse': [], 'szse': []}
           }
+
+          # 探测：沪深数据都没出直接退出
+          probe_ok = 0
+          for probe_fn in [ak.stock_margin_detail_sse, ak.stock_margin_detail_szse]:
+              try:
+                  probe_df = probe_fn(date=today)
+                  if probe_df is not None and len(probe_df) > 0:
+                      probe_ok += 1
+              except Exception:
+                  pass
+          if probe_ok == 0:
+              print(f'沪深融资融券数据均未生成（{today}），跳过')
+              import sys
+              sys.exit(0)
 
           for market, fn in [('sse', ak.stock_margin_detail_sse),
                               ('szse', ak.stock_margin_detail_szse)]:
