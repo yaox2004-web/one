@@ -16,35 +16,26 @@ jobs:
         with:
           token: ${{ secrets.GH_TOKEN }}
 
+      - name: 装 akshare
+        run: pip install akshare -q
+
       - name: 拉全市场日线
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           python3 << 'PYEOF'
+          import akshare as ak
           import requests, json, os, time, subprocess
 
-          HEADERS = {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0',
-          }
-
-          print('=== 第 1 步：拉全市场股票清单 ===')
-          url = "http://80.push2.eastmoney.com/api/qt/clist/get"
-          params = {
-              'pn': '1', 'pz': '6000', 'po': '1', 'np': '1',
-              'fltt': '2', 'invt': '2', 'fid': 'f3',
-              'fs': 'm:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81+s:2048',
-              'fields': 'f12,f14',
-          }
-          r = requests.get(url, params=params, headers=HEADERS, timeout=30)
-          data = r.json()
-          stocks = data['data']['diff']
-          print(f'共 {len(stocks)} 只')
+          print('=== 第 1 步：akshare 拉全市场股票清单 ===')
+          df = ak.stock_zh_a_spot_em()
+          print(f'akshare 返回 {len(df)} 只')
 
           codes = []
-          for s in stocks:
-              code = s['f12']
-              name = s['f14']
+          for _, r in df.iterrows():
+              code = str(r['代码'])
+              name = str(r['名称'])
               if code.startswith('6'):
                   tx = 'sh' + code
               elif code.startswith(('0', '3')):
@@ -60,13 +51,13 @@ jobs:
               json.dump({'count': len(codes), 'stocks': codes}, f, ensure_ascii=False)
 
           subprocess.run(['git', 'add', 'data/kline/_stock_list.json'])
-          subprocess.run(['git', 'commit', '-m', 'data: 全市场股票清单'])
+          subprocess.run(['git', 'commit', '-m', f'data: 全市场清单 {len(codes)} 只'])
           subprocess.run(['git', 'push'])
 
           print('=== 第 2 步：分批拉日线 ===')
           BATCH = 500
           total = (len(codes) + BATCH - 1) // BATCH
-          ok, fail = 0, 0
+          ok, fail, skip = 0, 0, 0
 
           for i in range(total):
               batch = codes[i*BATCH:(i+1)*BATCH]
@@ -77,6 +68,7 @@ jobs:
                   os.makedirs(f'data/kline/{sub}', exist_ok=True)
                   fp = f'data/kline/{sub}/{tx}.json'
                   if os.path.exists(fp):
+                      skip += 1
                       continue
                   try:
                       url = "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get"
@@ -95,12 +87,12 @@ jobs:
                       ok += 1
                   except Exception as e:
                       fail += 1
-                  time.sleep(0.2)
-              print(f'批次 {i+1} 完成：累计 ok={ok} fail={fail}')
+                  time.sleep(0.15)
+              print(f'批次 {i+1} 完成：累计 ok={ok} skip={skip} fail={fail}')
 
               subprocess.run(['git', 'add', 'data/kline/'])
               subprocess.run(['git', 'commit', '-m', f'data: 全市场日线 批次{i+1}'])
               subprocess.run(['git', 'push'])
 
-          print(f'\n=== 全部完成：{ok} 成功, {fail} 失败 ===')
+          print(f'\n=== 全部完成：{ok} 新拉, {skip} 跳过, {fail} 失败 ===')
           PYEOF
