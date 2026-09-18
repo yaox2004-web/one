@@ -11,64 +11,51 @@ permissions:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GH_TOKEN }}
 
+      - name: 装 akshare
+        run: pip install akshare -q
+
       - name: 拉融资融券
         run: |
           python3 << 'PYEOF'
-          import requests, json, os
+          import akshare as ak
+          import json, os
           from datetime import datetime, timezone, timedelta
 
-          HEADERS = {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Referer': 'https://data.eastmoney.com/rzrq/total.html',
-              'Accept': 'application/json, text/plain, */*',
-          }
-
           os.makedirs('data/margin', exist_ok=True)
-
           bj_now = datetime.now(timezone.utc) + timedelta(hours=8)
-          today = bj_now.strftime('%Y-%m-%d')
+          today = bj_now.strftime('%Y%m%d')
 
-          url = "https://datacenter-web.eastmoney.com/api/data/v1/get"
-          params = {
-              'reportName': 'RPT_MARGIN_DAILY_STOCK',
-              'columns': 'ALL',
-              'filter': f"(TRADE_DATE='{today}')",
-              'pageNumber': '1',
-              'pageSize': '500',
-              'source': 'WEB',
-              'client': 'WEB',
+          result = {
+              'date': today,
+              'updated': bj_now.strftime('%Y-%m-%d %H:%M:%S BJT'),
+              'data': {}
           }
 
           try:
-              r = requests.get(url, params=params, headers=HEADERS, timeout=60)
-              data = r.json()
-              result = data.get('result')
-              if not result or not result.get('data'):
-                  print(f'无数据（{today}）')
-                  print(f'原始返回: {str(data)[:300]}')
-                  exit(0)
-
-              rows = result['data']
-              out = {
-                  'date': today,
-                  'updated': bj_now.strftime('%Y-%m-%d %H:%M:%S BJT'),
-                  'count': len(rows),
-                  'rows': rows
-              }
-              with open(f'data/margin/{today}.json', 'w') as f:
-                  json.dump(out, f, ensure_ascii=False)
-              print(f'OK {today}: {len(rows)} 条记录')
-
+              df = ak.stock_margin_detail_sse(date=today)
+              result['data']['sse'] = df.to_dict('records')
+              print(f'OK 沪市: {len(df)} 条')
           except Exception as e:
-              print(f'FAIL: {type(e).__name__} {e}')
-              raise
+              print(f'FAIL 沪市: {type(e).__name__} {e}')
+              result['data']['sse'] = []
+
+          try:
+              df = ak.stock_margin_detail_szse(date=today)
+              result['data']['szse'] = df.to_dict('records')
+              print(f'OK 深市: {len(df)} 条')
+          except Exception as e:
+              print(f'FAIL 深市: {type(e).__name__} {e}')
+              result['data']['szse'] = []
+
+          with open(f'data/margin/{today}.json', 'w') as f:
+              json.dump(result, f, ensure_ascii=False, default=str)
           PYEOF
 
       - name: 提交 + 推送
