@@ -1,0 +1,26 @@
+name: 保活
+
+on:
+  schedule:
+    - cron: '0 0 1,15 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+      - name: 更新心跳
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          mkdir -p .keepalive
+          date -u +"%Y-%m-%d %H:%M:%S UTC" > .keepalive/heartbeat.txt
+          git add .keepalive/
+          git commit -m "chore: keepalive $(date -u +%Y%m%d)"
+          git push
