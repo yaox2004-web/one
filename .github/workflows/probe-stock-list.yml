@@ -1,0 +1,29 @@
+name: 探测股票清单接口
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: 探测
+        run: |
+          echo "=== 候选 1：新浪分页接口 ==="
+          curl -s -m 20 "http://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/Market_Center.getHQNodeData?page=1&num=5&sort=symbol&asc=1&node=hs_a" | head -c 300
+          echo ""
+          echo "---"
+
+          echo "=== 候选 2：东财 datacenter RPT_STOCK_BASIC ==="
+          curl -s -m 20 "https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_STOCK_BASIC&columns=ALL&pageNumber=1&pageSize=5&source=WEB&client=WEB" | head -c 300
+          echo ""
+          echo "---"
+
+          echo "=== 候选 3：腾讯 clist 备用端点 ==="
+          curl -s -m 20 "http://web.ifzq.gtimg.cn/appstock/app/kline/mkline?param=sh601138,m5,,5" | head -c 200
+          echo ""
+          echo "---"
+
+          echo "=== 候选 4：东财 clist 主端点 ==="
+          curl -s -m 20 "http://push2.eastmoney.com/api/qt/clist/get?pn=1&pz=5&po=1&np=1&fltt=2&invt=2&fid=f3&fs=m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23&fields=f12,f14" | head -c 300
