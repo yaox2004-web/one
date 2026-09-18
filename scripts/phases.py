@@ -1,3 +1,4 @@
+```python
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -30,8 +31,8 @@
   - 标注【原著】      → 来自知识库总纲/战法篇原文或明确规则
   - 标注【工程参数】  → 为实现可计算而自行设定的参数（如窗口、阈值），非原著
 
-输入：SQLite daily_<code> 日线表（前复权 qfq）
-输出：/var/minis/workspace/astock/phase_log.csv
+输入：data/kline/<market>/<tx>.json 日线（前复权 qfq）
+输出：data/analysis/phase_log.csv
 
 注意事项：
 1. 基于日线数据的近似判断，实盘需结合分时图和盘后龙虎榜人工二次确认。
@@ -41,16 +42,16 @@
    因置信度 = 条件命中数/条件总数，与资金流无关）。
 """
 import gc
-import sqlite3
+import os
 import warnings
 
 import numpy as np
 import pandas as pd
 
-from data_fetcher import DB_PATH, FUND_FLOW_AVAILABLE
+from data_fetcher import ANALYSIS_DIR, load_kline_json, FUND_FLOW_AVAILABLE
 
 # ============ 全局配置 ============
-PHASE_LOG_PATH = "/var/minis/workspace/astock/phase_log.csv"
+PHASE_LOG_PATH = os.path.join(ANALYSIS_DIR, "phase_log.csv")
 
 STOCKS = {
     "601138": "工业富联",
@@ -134,7 +135,6 @@ BEIFENG_WINDOW = 20
 # 缩量回踩黄金线/20MA（第12章黄金线 / 第27章）：缩量 + 回踩不破20MA附近
 MA20_TOL = 0.02
 
-
 # ============ 工具：位置分类（保留已改好的120日分位法） ============
 def classify_position(close, lo120, hi120):
     """
@@ -155,7 +155,6 @@ def classify_position(close, lo120, hi120):
     if pos_pct < POS_LOW_PCT:
         return "低位"
     return "中位"
-
 
 # ============ 一、量柱六元素+七因子识别（第9/10章·就近对比） ============
 def identify_volume_columns(df):
@@ -225,7 +224,6 @@ def identify_volume_columns(df):
     df["量柱形态"] = df.apply(label, axis=1)
 
     return df
-
 
 # ============ 二、三日定性：将军柱 / 黄金柱（第11章·量学的命根子） ============
 def three_day_confirm(df):
@@ -302,7 +300,6 @@ def three_day_confirm(df):
     # 已天然保证每根候选柱单独判断，无需合并相邻柱。
     return df
 
-
 # ============ 三、量性九种标注（第11章） ============
 def label_xing(pos, xing, is_jj, is_gj, close_up):
     """
@@ -333,7 +330,6 @@ def label_xing(pos, xing, is_jj, is_gj, close_up):
             return "拉升柱"      # 高位放量仍可能拉升，但需警惕（位置决定性质）
         return "补仓柱"
     return "试探柱"
-
 
 # ============ 四、日内基因识别 ============
 def identify_genes(df):
@@ -404,7 +400,6 @@ def identify_genes(df):
 
     return df
 
-
 # ============ 五、量价配合（第10章量价对比 / 第6章量价一体） ============
 def classify_vp(close_t, close_y, vol_t, vol_y):
     """
@@ -423,7 +418,6 @@ def classify_vp(close_t, close_y, vol_t, vol_y):
     if not up and not vol_up:
         return "价跌量缩"
     return "量增价跌"
-
 
 # ============ 六、三要素组合判定（替代打分表） ============
 def judge_phase(day, d_yest, idx_ret):
@@ -531,20 +525,17 @@ def judge_phase(day, d_yest, idx_ret):
 
     return stage, confidence, main_reason
 
-
 # ============ 七、单只股票分析 ============
 def analyze_stock(code, name):
     """
     对单只股票跑阶段识别，返回 phase_log DataFrame。
-    需要大盘指数(index_000001)判断"该跌不跌/该涨不涨"。
+    需要大盘指数(sh000001)判断"该跌不跌/该涨不涨"。
     """
-    conn = sqlite3.connect(DB_PATH)
-    df = pd.read_sql_query(f"SELECT * FROM daily_{code} ORDER BY 日期", conn)
-    idx = pd.read_sql_query("SELECT * FROM index_000001 ORDER BY 日期", conn)
-    conn.close()
+    df = load_kline_json(code)
+    idx = load_kline_json("sh000001")
 
     if df.empty:
-        warnings.warn(f"[phases] daily_{code} 无数据")
+        warnings.warn(f"[phases] {code} 日线 JSON 无数据")
         return _empty_df()
 
     df["日期"] = pd.to_datetime(df["日期"])
@@ -635,14 +626,12 @@ def analyze_stock(code, name):
     result["确认状态"] = confirmed
     return result
 
-
 def _empty_df():
     """返回空的 phase_log DataFrame"""
     return pd.DataFrame(columns=[
         "日期", "代码", "名称", "当前阶段", "置信度", "位置", "命中的量性",
         "量柱形态", "量价配合", "主要依据", "备注", "持续天数", "确认状态",
     ])
-
 
 # ============ 八、主流程 ============
 def run_all(stock_list=None, output_path=None, verbose=True):
@@ -698,6 +687,7 @@ def run_all(stock_list=None, output_path=None, verbose=True):
         final = pd.concat(all_frames, ignore_index=True)
         # 可复现性修复（2026-09-17）：输出强制按 (代码,日期) 排序，行序与跑的次数/进程无关
         final = final.sort_values(["代码", "日期"]).reset_index(drop=True)
+        os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
         final.to_csv(output_path, index=False, encoding="utf-8-sig")
         print(f"\n{'='*60}")
         print(f"结果已写入: {output_path}")
@@ -708,6 +698,8 @@ def run_all(stock_list=None, output_path=None, verbose=True):
         print("无任何有效结果")
         return None
 
-
 if __name__ == "__main__":
     run_all()
+```
+
+This is the complete 712-line file. Waiting for your confirmation before posting `scripts/signal_engine.py`.
