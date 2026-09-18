@@ -1,3 +1,4 @@
+```python
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -14,7 +15,7 @@
 
 输入：phases.py 产出的 phase_log.csv（阶段、置信度、位置、量柱形态等）
       加上 data_fetcher.py 的日线/龙虎榜数据
-输出：/var/minis/workspace/astock/signal_log.csv
+输出：data/analysis/signal_log.csv
       字段：日期、代码、名称、阶段、信号、置信度、信号依据、触发时间、
             信号强度、备注
 
@@ -29,7 +30,7 @@
   - 席位维度若接口失败返回 None，不阻塞其他维度
   - 每个维度有独立降级机制
 """
-import sqlite3
+import os
 import time
 import warnings
 from datetime import datetime
@@ -38,7 +39,7 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
-from data_fetcher import DB_PATH, fetch_lhb_history, fetch_index_daily, FUND_FLOW_AVAILABLE, fetch_daily
+from data_fetcher import ANALYSIS_DIR, load_kline_json, fetch_lhb_history, fetch_index_daily, FUND_FLOW_AVAILABLE, fetch_daily
 from phases import STOCKS_4, STOCKS_GROUP, PHASE_LOG_PATH
 from dim_wash import (
     get_float_shares,
@@ -52,7 +53,7 @@ from dim_wash import (
 FUND_FLOW_AVAILABLE_NOTE = not FUND_FLOW_AVAILABLE
 
 # ============ 全局配置 ============
-SIGNAL_LOG_PATH = "/var/minis/workspace/astock/signal_log.csv"
+SIGNAL_LOG_PATH = os.path.join(ANALYSIS_DIR, "signal_log.csv")
 
 # 大盘趋势窗口（上证指数 20 日均线判断牛熊）
 INDEX_TREND_WINDOW = 20
@@ -65,7 +66,6 @@ SIGNAL_THRESHOLDS = {
     "中信号": 2,   # 至少 2 个命中
     "弱信号": 1,   # 仅 1 个命中（记录但不强调）
 }
-
 
 # ============ 维度1：量价形态 ============
 def dim_volume_price(day_row) -> bool:
@@ -87,7 +87,6 @@ def dim_volume_price(day_row) -> bool:
     vp = day_row.get("量价配合", "")
     return (zhuang in ("倍量柱", "梯量柱")) or (vp in ("价升量缩", "量价齐升"))
 
-
 # ============ 维度2：大盘共振 ============
 def dim_market(index_ma_up: bool, day_row) -> bool:
     """
@@ -104,7 +103,6 @@ def dim_market(index_ma_up: bool, day_row) -> bool:
         return pos in POSITIVE_POS
     else:
         return pos in ("凹底", "低位")
-
 
 # ============ 维度3：龙虎榜席位 ============
 def dim_lhb(code: str, date_str: str, lhb_df: Optional[pd.DataFrame]) -> Optional[bool]:
@@ -134,7 +132,6 @@ def dim_lhb(code: str, date_str: str, lhb_df: Optional[pd.DataFrame]) -> Optiona
         return False
     return True
 
-
 # ============ 维度4：位置确认 ============
 def dim_position(day_row) -> bool:
     """
@@ -146,7 +143,6 @@ def dim_position(day_row) -> bool:
     """
     pos = day_row.get("位置", "")
     return pos in ("凹底", "低位", "中位")
-
 
 # ============ 第六步 4c 定稿：信号定性 + 统一备注 ============
 # 第六步 4c 配对检验收敛：系统定位=描述性工具+弱势提示，
@@ -199,7 +195,6 @@ def classify_signal_4c(stage: str, pos: str = "", strength: str = "") -> str:
         return "参考备注（洗盘 中性，无显著增量）"
     # 兜底：未知 stage
     return "参考备注"
-
 
 # ============ 主流程：信号判定 ============
 def compute_signals(phase_log: pd.DataFrame,
@@ -335,30 +330,22 @@ def compute_signals(phase_log: pd.DataFrame,
 
     return pd.DataFrame(out, columns=cols)
 
-
 # ============ 龙虎榜数据加载 ============
 def load_lhb_cache(codes: list) -> dict:
     """
-    预加载各股票的龙虎榜历史数据到缓存（只读 SQLite 表，不触发网络请求）。
-    表不存在（未初始化）的 code 置为空 DataFrame，维度3自动降级为"未上榜"。
-    返回：{code: DataFrame 或 None}
-      - DataFrame：该股票龙虎榜记录（可能为空）
-      - None：表存在但读取失败
+    预加载各股票的龙虎榜历史数据到缓存（当前已降级跳过，不读库、不触发网络）。
+    统一返回空 DataFrame，维度3 自动判定为"未上榜"，不阻塞主流程。
+    返回：{code: DataFrame（空）}
     """
     cache = {}
     for code in codes:
-        tbl = f"lhb_{code.lower().lstrip('shszbj')}"
+        # lhb 维度暂时降级跳过（龙虎榜改造后续单独做）：
+        # 读不到数据时返回空 DataFrame，维度3 判定"未上榜"，不阻塞主流程。
         try:
-            conn = sqlite3.connect(DB_PATH)
-            df = pd.read_sql_query(
-                f"SELECT * FROM {tbl} ORDER BY 上榜日", conn)
-            conn.close()
-            cache[code] = df  # 表存在，可能为空
+            cache[code] = pd.DataFrame(columns=["代码", "上榜日"])
         except Exception:
-            # 表不存在（未初始化龙虎榜历史），置空 DataFrame → 维度3 判定"未上榜"
             cache[code] = pd.DataFrame(columns=["代码", "上榜日"])
     return cache
-
 
 # ============ 大盘 MA 缓存 ============
 def build_index_ma_cache(phase_log: pd.DataFrame) -> dict:
@@ -389,7 +376,6 @@ def build_index_ma_cache(phase_log: pd.DataFrame) -> dict:
         warnings.warn(f"[build_index_ma_cache] 大盘MA计算失败: {e}")
         return cache
 
-
 # ============ 日线 + 换手率缓存（dim_wash 用）============
 def build_daily_cache(codes: list, phase_log: pd.DataFrame = None,
                       stock_list: dict = None) -> tuple:
@@ -407,7 +393,7 @@ def build_daily_cache(codes: list, phase_log: pd.DataFrame = None,
       float_shares_cache : {code: int}
 
     说明：
-      - 日线从 SQLite 读取（data_fetcher 已落库），不触发网络请求
+      - 日线从 data/kline 的 JSON 读取，不触发网络请求
       - '位置' 列需要 phases.py 已算好并写入 phase_log，这里从 phase_log 带过来
       - 流通股本调用 get_float_shares（东财 push2，带缓存）
     """
@@ -415,10 +401,7 @@ def build_daily_cache(codes: list, phase_log: pd.DataFrame = None,
     float_shares_cache = {}
     for code in codes:
         try:
-            conn = sqlite3.connect(DB_PATH)
-            tbl = f"daily_{code}"
-            df = pd.read_sql_query(f"SELECT * FROM {tbl} ORDER BY 日期", conn)
-            conn.close()
+            df = load_kline_json(code)
             # 把 phase_log 的位置/量柱形态等列 merge 进来（判据2 需要位置）
             if phase_log is not None:
                 sub = phase_log[phase_log["代码"].astype(str).str.zfill(6) == code]
@@ -444,7 +427,6 @@ def build_daily_cache(codes: list, phase_log: pd.DataFrame = None,
             daily_cache[code] = (None, None)
     return daily_cache, float_shares_cache
 
-
 # ============ 市场状态缓存（dim_wash 备注用）============
 def build_market_state_cache(phase_log: pd.DataFrame) -> dict:
     """
@@ -465,7 +447,6 @@ def build_market_state_cache(phase_log: pd.DataFrame) -> dict:
     except Exception as e:
         warnings.warn(f"[build_market_state_cache] 市场状态计算失败: {e}")
         return {}
-
 
 # ============ 主入口 ============
 def run_signal_engine(stock_list: dict = None,
@@ -523,6 +504,7 @@ def run_signal_engine(stock_list: dict = None,
     # 5) 输出
     # 可复现性修复（2026-09-17）：输出强制按 (代码,日期) 排序，行序与跑的次数/进程无关
     signal_log = signal_log.sort_values(["代码", "日期"]).reset_index(drop=True)
+    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
     signal_log.to_csv(output_path, index=False, encoding="utf-8-sig")
     print(f"\n{'='*60}")
     print(f"信号日志已写入: {output_path}")
@@ -540,6 +522,8 @@ def run_signal_engine(stock_list: dict = None,
             print(f"  {lvl:<12} {cnt} 条")
     return signal_log
 
-
 if __name__ == "__main__":
     run_signal_engine()
+```
+
+This is the complete 537-line file. Waiting for your confirmation before posting the last file (`scripts/dim_wash.py`) if needed.
