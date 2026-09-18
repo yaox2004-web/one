@@ -24,13 +24,6 @@ jobs:
           import requests, json, os, time
           from datetime import datetime, timezone
 
-          HEADERS = {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Referer': 'https://quote.eastmoney.com/',
-              'Accept': '*/*',
-              'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-          }
-
           codes = [
               ('sh601138', '工业富联'),
               ('sz300476', '胜宏科技'),
@@ -47,53 +40,29 @@ jobs:
           ok, fail = 0, 0
 
           for code, name in codes:
-              if code.startswith('sh'):
-                  secid = '1.' + code[2:]
-              else:
-                  secid = '0.' + code[2:]
-
-              url = "https://push2his.eastmoney.com/api/qt/stock/kline/get"
+              url = f"https://ifzq.gtimg.cn/appstock/app/kline/mkline"
               params = {
-                  'secid': secid,
-                  'fields1': 'f1,f2,f3,f4,f5',
-                  'fields2': 'f51,f52,f53,f54,f55,f56',
-                  'klt': '5',
-                  'fqt': '1',
-                  'end': '20500101',
-                  'lmt': '1000'
+                  'param': f'{code},m5,,320'
               }
-
-              success = False
-              for attempt in range(3):
-                  try:
-                      r = requests.get(url, params=params, headers=HEADERS, timeout=30)
-                      data = r.json()
-                      klines = data.get('data', {}).get('klines', [])
-                      if not klines:
-                          raise ValueError('返回空数据')
-                      out = {
-                          'code': code,
-                          'name': name,
-                          'updated': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC'),
-                          'count': len(klines),
-                          'klines': klines
-                      }
-                      with open(f'data/kline_5min/{code}.json', 'w') as f:
-                          json.dump(out, f, ensure_ascii=False)
-                      print(f'OK {code} {name}: {len(klines)} 条')
-                      ok += 1
-                      success = True
-                      break
-                  except Exception as e:
-                      wait = 5 * (attempt + 1)
-                      print(f'  重试 {attempt+1}/3: {code} {name} -> {type(e).__name__}，等 {wait}s')
-                      time.sleep(wait)
-
-              if not success:
-                  print(f'FAIL {code} {name}: 3 次重试均失败')
+              try:
+                  r = requests.get(url, params=params, timeout=30)
+                  data = r.json()
+                  klines = data.get('data', {}).get(code, {}).get('m5', [])
+                  out = {
+                      'code': code,
+                      'name': name,
+                      'updated': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC'),
+                      'count': len(klines),
+                      'klines': klines
+                  }
+                  with open(f'data/kline_5min/{code}.json', 'w') as f:
+                      json.dump(out, f, ensure_ascii=False)
+                  print(f'OK {code} {name}: {len(klines)} 条')
+                  ok += 1
+              except Exception as e:
+                  print(f'FAIL {code} {name}: {type(e).__name__} {e}')
                   fail += 1
-
-              time.sleep(2.5)
+              time.sleep(2)
 
           print(f'\n总计: {ok} 成功, {fail} 失败')
           PYEOF
