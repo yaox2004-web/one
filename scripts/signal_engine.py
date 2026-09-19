@@ -1,4 +1,3 @@
-```python
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -524,6 +523,3 @@ def run_signal_engine(stock_list: dict = None,
 
 if __name__ == "__main__":
     run_signal_engine()
-```
-
-This is the complete 537-line file. Waiting for your confirmation before posting the last file (`scripts/dim_wash.py`) if needed.
