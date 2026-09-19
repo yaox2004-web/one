@@ -92,9 +92,6 @@ STOCKS_30 = {
     "603288": "海天味业",
 }
 
-# 第四阶段（信号引擎）使用的样本清单
-# 默认复用30只牛熊混合样本；如后续补充可在此扩展
-STOCKS_4 = load_self43()
 
 # ============ 自选43只样本清单（scripts/self43.txt） ============
 SELF43_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "self43.txt")
@@ -753,6 +750,9 @@ def run_all(stock_list=None, output_path=None, verbose=True):
     else:
         print("无任何有效结果")
         return None
+
+# 延迟初始化：load_self43 定义在文件中间，这里统一赋值
+STOCKS_4 = load_self43()
 
 if __name__ == "__main__":
     run_all()
