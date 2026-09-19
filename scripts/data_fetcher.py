@@ -1,4 +1,3 @@
-```python
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -712,6 +711,3 @@ if __name__ == "__main__":
     print(f"    shape={df.shape}")
     if not df.empty:
         print(df[["day", "close"]].to_string(index=False))
-```
-
-This is the complete 742-line file. Waiting for your confirmation before posting `scripts/phases.py`.
