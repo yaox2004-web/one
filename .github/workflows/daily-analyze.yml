@@ -3,7 +3,7 @@ name: 每日跑阶段分析
 on:
   workflow_dispatch:
   schedule:
-    - cron: '30 12 * * *'
+    - cron: '0 13 * * *'
 
 permissions:
   contents: write
