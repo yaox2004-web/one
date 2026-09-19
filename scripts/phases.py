@@ -1,4 +1,3 @@
-```python
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -700,6 +699,3 @@ def run_all(stock_list=None, output_path=None, verbose=True):
 
 if __name__ == "__main__":
     run_all()
-```
-
-This is the complete 712-line file. Waiting for your confirmation before posting `scripts/signal_engine.py`.
