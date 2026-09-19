@@ -3,7 +3,7 @@ name: 每日跑信号引擎
 on:
   workflow_dispatch:
   schedule:
-    - cron: '35 12 * * *'
+    - cron: '5 13 * * *'
 
 permissions:
   contents: write
