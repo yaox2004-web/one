@@ -602,7 +602,7 @@ def analyze_stock(code, name):
 
     # 120日高低点
     df["lo120"] = df["最低"].rolling(POS_WINDOW, min_periods=1).min()
-    df["hi120"] = df["最高"].rolling(POS_WINDOW, min_periods=1).max()
+    df["hi120_prev"] = df["最高"].shift(1).rolling(POS_WINDOW, min_periods=1).max()
 
     # 大盘当日涨跌幅
     df["idx_ret"] = df["日期"].map(idx_map).pct_change().fillna(0.0)
@@ -614,7 +614,7 @@ def analyze_stock(code, name):
 
     # 位置分类（第4章）
     df["位置"] = [classify_position(c, l, h) for c, l, h
-                  in zip(df["收盘"], df["lo120"], df["hi120"])]
+                  in zip(df["收盘"], df["lo120"], df["hi120_prev"])]
 
     # 量价配合
     df["量价配合"] = [classify_vp(c, cy, v, vy)
