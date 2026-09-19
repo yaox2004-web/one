@@ -1,0 +1,41 @@
+name: 4c配对检验
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: data-push
+  cancel-in-progress: false
+
+jobs:
+  paired:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: 装 Python 依赖
+        run: pip install pandas numpy requests tenacity -q
+
+      - name: 跑4c配对
+        run: |
+          cd scripts
+          python3 backtest_paired.py
+
+      - name: 提交 + 推送
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/analysis/
+          if git diff --cached --quiet; then
+            echo "无变化"
+          else
+            git commit -m "data: 4c配对 $(date -u +%Y%m%d)"
+            git push
+          fi
