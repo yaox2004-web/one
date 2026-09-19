@@ -47,7 +47,21 @@ import warnings
 import numpy as np
 import pandas as pd
 
-from data_fetcher import ANALYSIS_DIR, load_kline_json, FUND_FLOW_AVAILABLE
+import gc
+import json
+import os
+import warnings
+
+import numpy as np
+import pandas as pd
+
+from data_fetcher import (
+    ANALYSIS_DIR,
+    KLINE_DIR,
+    load_kline_json,
+    to_tx,
+    FUND_FLOW_AVAILABLE,
+)
 
 # ============ 全局配置 ============
 PHASE_LOG_PATH = os.path.join(ANALYSIS_DIR, "phase_log.csv")
@@ -80,8 +94,51 @@ STOCKS_30 = {
 
 # 第四阶段（信号引擎）使用的样本清单
 # 默认复用30只牛熊混合样本；如后续补充可在此扩展
-STOCKS_4 = STOCKS_30
+STOCKS_4 = load_self43()
 
+# ============ 自选43只样本清单（scripts/self43.txt） ============
+SELF43_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "self43.txt")
+
+def load_self43():
+    """
+    读取 scripts/self43.txt（每行一个6位代码），返回 {code: name}。
+
+    名称取自 data/kline/<market>/<tx>.json 的 name 字段；
+    找不到 self43.txt 时回退 STOCKS_30（向后兼容）；
+    单只股票 JSON 缺失或读取失败时，该股名称为空字符串。
+    """
+    if not os.path.exists(SELF43_PATH):
+        warnings.warn(f"[load_self43] 未找到 {SELF43_PATH}，回退 STOCKS_30")
+        return dict(STOCKS_30)
+
+    stocks = {}
+    with open(SELF43_PATH, encoding="utf-8") as f:
+        for line in f:
+            code = line.strip()
+            if not code or code.startswith("#"):
+                continue
+            code = code.zfill(6)
+            tx = to_tx(code)
+            candidates = [
+                os.path.join(KLINE_DIR, tx[:2], f"{tx}.json"),
+                os.path.join(KLINE_DIR, f"{tx}.json"),
+            ]
+            name = ""
+            for path in candidates:
+                if os.path.exists(path):
+                    try:
+                        with open(path, encoding="utf-8") as jf:
+                            name = json.load(jf).get("name", "") or ""
+                    except Exception:
+                        name = ""
+                    break
+            stocks[code] = name
+
+    if not stocks:
+        warnings.warn("[load_self43] self43.txt 无有效代码，回退 STOCKS_30")
+        return dict(STOCKS_30)
+    return stocks
+  
 # 分组（用于逐股诊断）
 STOCKS_GROUP = {
     "大牛股": list(STOCKS_30.keys())[:10],
