@@ -1,4 +1,4 @@
-name: 抄底新规则验证
+name:抄底新规则验证
 
 on:
   workflow_dispatch:
