@@ -11,7 +11,7 @@ permissions:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
@@ -25,6 +25,7 @@ jobs:
           from datetime import datetime
 
           codes = [
+              # ===== 原有43只 =====
               ('sz001311', '丰元股份'),
               ('sz002050', '三花智控'),
               ('sz002130', '沃尔核材'),
@@ -68,7 +69,79 @@ jobs:
               ('sh688017', '绿的谐波'),
               ('sh688313', '仕佳光子'),
               ('sh688498', '源杰科技'),
+              # ===== 新增57只大盘蓝筹 =====
+              # 金融
+              ('sh600036', '招商银行'),
+              ('sh601318', '中国平安'),
+              ('sh601166', '兴业银行'),
+              ('sh601398', '工商银行'),
+              ('sh601288', '农业银行'),
+              ('sh601988', '中国银行'),
+              ('sh601628', '中国人寿'),
+              ('sh600030', '中信证券'),
+              # 消费
+              ('sh600519', '贵州茅台'),
+              ('sz000858', '五粮液'),
+              ('sh600887', '伊利股份'),
+              ('sz000333', '美的集团'),
+              ('sz000651', '格力电器'),
+              ('sh603288', '海天味业'),
+              ('sh600690', '海尔智家'),
+              ('sz002714', '牧原股份'),
+              # 医药
+              ('sh600276', '恒瑞医药'),
+              ('sz300760', '迈瑞医疗'),
+              ('sh603259', '药明康德'),
+              ('sz000538', '云南白药'),
+              # 科技/新能源
+              ('sz002594', '比亚迪'),
+              ('sz300750', '宁德时代'),
+              ('sh601012', '隆基绿能'),
+              ('sz002475', '立讯精密'),
+              ('sh603501', '韦尔股份'),
+              ('sz002415', '海康威视'),
+              ('sh688981', '中芯国际'),
+              ('sh688111', '金山办公'),
+              ('sz300059', '东方财富'),
+              ('sh600570', '恒生电子'),
+              ('sz002230', '科大讯飞'),
+              # 军工/制造
+              ('sh600760', '中航沈飞'),
+              ('sh600893', '航发动力'),
+              ('sh601899', '紫金矿业'),
+              ('sh601088', '中国神华'),
+              ('sh600028', '中国石化'),
+              ('sh601857', '中国石油'),
+              ('sh600900', '长江电力'),
+              ('sh601985', '中国核电'),
+              # 地产/基建
+              ('sh600048', '保利发展'),
+              ('sh601668', '中国建筑'),
+              # 汽车
+              ('sh600104', '上汽集团'),
+              ('sz000625', '长安汽车'),
+              ('sh601633', '长城汽车'),
+              # 交通
+              ('sh600009', '上海机场'),
+              ('sh601111', '中国国航'),
+              # 电子/半导体
+              ('sh603986', '兆易创新'),
+              ('sz002049', '紫光国微'),
+              ('sh603160', '汇顶科技'),
+              ('sz300661', '圣邦股份'),
+              # 通信
+              ('sh600050', '中国联通'),
+              ('sh601728', '中国电信'),
+              ('sh600941', '中国移动'),
+              # 周期
+              ('sh600019', '宝钢股份'),
+              ('sh601899', '紫金矿业'),
+              ('sh600309', '万华化学'),
+              ('sh601888', '中国中免'),
+              # 指数
               ('sh000001', '上证指数'),
+              ('sz399001', '深证成指'),
+              ('sz399006', '创业板指'),
           ]
 
           os.makedirs('data/kline', exist_ok=True)
@@ -85,14 +158,10 @@ jobs:
                 data = json.loads(text[start:end])
                 if not data:
                     raise Exception('empty')
-
-                # 必须用 list of lists 格式，不是逗号字符串
-                # 列顺序：日期,开盘,收盘,最高,最低,成交量
                 klines = []
                 for k in data:
                     row = [k['day'], k['open'], k['close'], k['high'], k['low'], k['volume']]
                     klines.append(row)
-
                 out = {'name': name, 'klines': klines}
                 with open(f'data/kline/{code}.json', 'w', encoding='utf-8') as f:
                     json.dump(out, f, ensure_ascii=False)
@@ -106,7 +175,7 @@ jobs:
           print(f'\n完成: 成功{ok} 失败{fail}')
 
           stock_list = {
-              'stocks': [{'tx': c, 'name': n} for c, n in codes],
+              'stocks': [{'tx': c, 'name': n} for c, n in codes if not c.startswith(('sh000', 'sz399'))],
               'updated_at': datetime.now().isoformat()
           }
           with open('data/kline/_stock_list.json', 'w', encoding='utf-8') as f:
@@ -121,6 +190,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "无变化"
           else
-            git commit -m "data: 日线 $(date -u +%Y%m%d)"
+            git commit -m "data: 日线100只 $(date -u +%Y%m%d)"
             git push
           fi
