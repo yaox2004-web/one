@@ -4,11 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>主力行为诊断报告 - 2026-09-20</title>
+    <title>主力行为诊断分析报告 - 2026-09-20</title>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; padding: 20px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; padding: 20px; line-height: 1.6; }
         .container { max-width: 1200px; margin: 0 auto; }
         .header { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; padding: 30px; border-radius: 12px; margin-bottom: 20px; }
         .header h1 { font-size: 28px; margin-bottom: 10px; }
@@ -17,6 +17,17 @@
         .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
         .card h2 { font-size: 18px; margin-bottom: 15px; color: #333; }
         #pieChart, #barChart { width: 100%; height: 300px; }
+        .analysis-section { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .analysis-section h2 { font-size: 20px; margin-bottom: 15px; color: #333; border-bottom: 2px solid #1e3c72; padding-bottom: 10px; }
+        .analysis-section p { margin-bottom: 10px; color: #555; }
+        .analysis-section ul { margin-left: 20px; margin-bottom: 10px; }
+        .stage-explain { background: white; border-radius: 12px; padding: 20px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .stage-explain h3 { font-size: 18px; margin-bottom: 10px; color: #333; }
+        .stage-explain .count { color: #666; font-size: 14px; }
+        .stage-explain .desc { color: #666; margin-bottom: 10px; }
+        .stage-explain .logic-box { background: #f8f9fa; padding: 15px; border-radius: 8px; }
+        .stage-explain .logic-box p { margin-bottom: 8px; }
+        .stage-explain .logic-box strong { color: #1e3c72; }
         .stage-section { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
         .stage-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         .stage-header h2 { font-size: 18px; padding-bottom: 10px; border-bottom: 2px solid #f0f0f0; }
@@ -24,6 +35,7 @@
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 10px; text-align: left; border-bottom: 1px solid #f0f0f0; }
         th { background: #fafafa; font-weight: 600; color: #666; }
+        td.reason { font-size: 12px; color: #666; }
         @media (max-width: 768px) {
             .grid { grid-template-columns: 1fr; }
         }
@@ -32,7 +44,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>主力行为诊断报告</h1>
+            <h1>主力行为诊断分析报告</h1>
             <div class="date">2026-09-20 | 共5114只股票</div>
         </div>
         
@@ -45,6 +57,76 @@
                 <h2>各阶段数量对比</h2>
                 <div id="barChart"></div>
             </div>
+        </div>
+        
+        
+    <div class="analysis-section">
+        <h2>市场整体分析</h2>
+        <p>今日共扫描5114只股票，主力阶段分布如下：</p>
+        <ul>
+            <li><strong>建仓阶段（初期+后期）：3897只，占比76.2%</strong></li>
+            <li>洗盘阶段：571只，占比11.2%</li>
+            <li>拉升阶段：479只，占比9.4%</li>
+            <li>出货阶段：167只，占比3.3%</li>
+        </ul>
+        <p><strong>结论：</strong>当前市场整体处于建仓阶段，大部分股票在低位，主力正在悄悄建仓。这说明市场可能处于底部区域，后续值得关注。</p>
+        <p><strong>操作建议：</strong>重点关注建仓初期和建仓后期的股票，这些股票后续可能进入拉升阶段。</p>
+    </div>
+    
+        
+        <div class="analysis-section">
+            <h2>各阶段详解</h2>
+            
+        <div class="stage-explain">
+            <h3>建仓初期 <span class="count">(661只)</span></h3>
+            <p class="desc">主力刚开始建仓阶段</p>
+            <div class="logic-box">
+                <p><strong>主力动作：</strong>主力在低位悄悄买入，不希望被市场发现</p>
+                <p><strong>市场机理：</strong>位置极低（<10%），量能萎缩，说明抛压已经很轻，主力在这个位置慢慢吸筹。这个阶段股价通常在低位震荡，不涨不跌。</p>
+                <p><strong>下一阶段：</strong>建仓后期</p>
+            </div>
+        </div>
+        
+        <div class="stage-explain">
+            <h3>建仓后期 <span class="count">(3236只)</span></h3>
+            <p class="desc">主力建仓接近尾声，准备拉升</p>
+            <div class="logic-box">
+                <p><strong>主力动作：</strong>主力开始放量买入，推高股价，不再隐藏</p>
+                <p><strong>市场机理：</strong>位置较低（10-30%），量能开始放大，说明主力已经吸够筹码，开始推高股价。这个阶段股价开始慢慢上涨，但还没有进入主升浪。</p>
+                <p><strong>下一阶段：</strong>洗盘</p>
+            </div>
+        </div>
+        
+        <div class="stage-explain">
+            <h3>洗盘 <span class="count">(571只)</span></h3>
+            <p class="desc">拉升前的最后洗盘</p>
+            <div class="logic-box">
+                <p><strong>主力动作：</strong>主力故意打压股价，洗掉不坚定的散户</p>
+                <p><strong>市场机理：</strong>位置中等（50-70%），量能萎缩，说明主力在洗盘，把散户吓出去，然后再拉升。这个阶段股价通常横盘震荡，或小幅回调。</p>
+                <p><strong>下一阶段：</strong>拉升</p>
+            </div>
+        </div>
+        
+        <div class="stage-explain">
+            <h3>拉升 <span class="count">(479只)</span></h3>
+            <p class="desc">主力开始拉升股价</p>
+            <div class="logic-box">
+                <p><strong>主力动作：</strong>主力放量拉升，快速推高股价</p>
+                <p><strong>市场机理：</strong>位置中等偏高（50-70%），量能放大，说明主力开始拉升。这个阶段股价快速上涨，成交量放大。</p>
+                <p><strong>下一阶段：</strong>出货</p>
+            </div>
+        </div>
+        
+        <div class="stage-explain">
+            <h3>出货 <span class="count">(167只)</span></h3>
+            <p class="desc">主力在高位出货</p>
+            <div class="logic-box">
+                <p><strong>主力动作：</strong>主力在高位把筹码卖给散户</p>
+                <p><strong>市场机理：</strong>位置极高（>70%），量能放大，说明主力在高位出货。这个阶段股价可能继续涨，但主力已经在悄悄卖了。</p>
+                <p><strong>下一阶段：</strong>下跌</p>
+            </div>
+        </div>
+        
         </div>
         
         
@@ -61,6 +143,7 @@
                         <th>价格</th>
                         <th>位置分位</th>
                         <th>置信度</th>
+                        <th>判断依据</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -71,6 +154,7 @@
                 <td>5.51</td>
                 <td>8.8%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位8.8%（极低位，近120日底部区域）, MA20之下（低位震荡）, MA60之下（长期低位）</td>
             </tr>
             
             <tr>
@@ -79,6 +163,7 @@
                 <td>36.12</td>
                 <td>6.7%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位6.7%（极低位，近120日底部区域）, MA20之下（低位震荡）, MA60之下（长期低位）</td>
             </tr>
             
             <tr>
@@ -87,6 +172,7 @@
                 <td>3.59</td>
                 <td>7.7%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位7.7%（极低位，近120日底部区域）, MA20之下（低位震荡）, MA60之下（长期低位）</td>
             </tr>
             
             <tr>
@@ -95,6 +181,7 @@
                 <td>39.77</td>
                 <td>6.3%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位6.3%（极低位，近120日底部区域）, 低位跌-16.0%（恐慌下跌，主力建仓机会）, MA20之下（低位震荡）, MA60之下（长期低位）</td>
             </tr>
             
             <tr>
@@ -103,6 +190,7 @@
                 <td>3.88</td>
                 <td>8.6%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位8.6%（极低位，近120日底部区域）, MA20之下（低位震荡）, MA60之下（长期低位）</td>
             </tr>
             
             <tr>
@@ -111,6 +199,7 @@
                 <td>4.29</td>
                 <td>7.2%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位7.2%（极低位，近120日底部区域）, MA20之下（低位震荡）, MA60之下（长期低位）</td>
             </tr>
             
             <tr>
@@ -119,6 +208,7 @@
                 <td>14.86</td>
                 <td>8.5%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位8.5%（极低位，近120日底部区域）, MA20之下（低位震荡）, MA60之下（长期低位）</td>
             </tr>
             
             <tr>
@@ -127,6 +217,7 @@
                 <td>3.61</td>
                 <td>6.1%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位6.1%（极低位，近120日底部区域）, MA20之下（低位震荡）, MA60之下（长期低位）</td>
             </tr>
             
             <tr>
@@ -135,6 +226,7 @@
                 <td>13.70</td>
                 <td>6.1%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位6.1%（极低位，近120日底部区域）, 低位缩量（量比0.55，主力悄悄建仓）, MA20之下（低位震荡）, MA60之下（长期低位）, 连续3天缩量（主力悄悄建仓）</td>
             </tr>
             
             <tr>
@@ -143,6 +235,7 @@
                 <td>29.54</td>
                 <td>3.4%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位3.4%（极低位，近120日底部区域）, MA20之下（低位震荡）, MA60之下（长期低位）</td>
             </tr>
             
             <tr>
@@ -151,6 +244,7 @@
                 <td>26.32</td>
                 <td>4.3%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位4.3%（极低位，近120日底部区域）, MA20之下（低位震荡）, MA60之下（长期低位）</td>
             </tr>
             
             <tr>
@@ -159,6 +253,7 @@
                 <td>8.04</td>
                 <td>9.2%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位9.2%（极低位，近120日底部区域）, MA20之下（低位震荡）, MA60之下（长期低位）</td>
             </tr>
             
             <tr>
@@ -167,6 +262,7 @@
                 <td>11.73</td>
                 <td>3.8%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位3.8%（极低位，近120日底部区域）, MA20之下（低位震荡）, MA60之下（长期低位）</td>
             </tr>
             
             <tr>
@@ -175,6 +271,7 @@
                 <td>10.82</td>
                 <td>6.0%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位6.0%（极低位，近120日底部区域）, MA20之下（低位震荡）, MA60之下（长期低位）</td>
             </tr>
             
             <tr>
@@ -183,6 +280,7 @@
                 <td>86.88</td>
                 <td>7.9%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位7.9%（极低位，近120日底部区域）, MA20之下（低位震荡）, MA60之下（长期低位）</td>
             </tr>
             
             <tr>
@@ -191,6 +289,7 @@
                 <td>13.82</td>
                 <td>8.5%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位8.5%（极低位，近120日底部区域）, MA20之下（低位震荡）, MA60之下（长期低位）</td>
             </tr>
             
             <tr>
@@ -199,6 +298,7 @@
                 <td>12.29</td>
                 <td>9.7%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位9.7%（极低位，近120日底部区域）, MA20之下（低位震荡）, MA60之下（长期低位）</td>
             </tr>
             
             <tr>
@@ -207,6 +307,7 @@
                 <td>37.62</td>
                 <td>7.2%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位7.2%（极低位，近120日底部区域）, MA20之下（低位震荡）, MA60之下（长期低位）</td>
             </tr>
             
             <tr>
@@ -215,6 +316,7 @@
                 <td>13.14</td>
                 <td>7.5%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位7.5%（极低位，近120日底部区域）, MA20之下（低位震荡）, MA60之下（长期低位）</td>
             </tr>
             
             <tr>
@@ -223,6 +325,7 @@
                 <td>10.38</td>
                 <td>5.1%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位5.1%（极低位，近120日底部区域）, MA20之下（低位震荡）, MA60之下（长期低位）</td>
             </tr>
             
                 </tbody>
@@ -242,6 +345,7 @@
                         <th>价格</th>
                         <th>位置分位</th>
                         <th>置信度</th>
+                        <th>判断依据</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -252,6 +356,7 @@
                 <td>20.17</td>
                 <td>17.6%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位17.6%（低位，底部抬升阶段）, 当日涨3.17%（建仓推高）, MA20之上（底部抬升）, 价升量增（建仓推高）</td>
             </tr>
             
             <tr>
@@ -260,6 +365,7 @@
                 <td>27.54</td>
                 <td>26.1%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位26.1%（低位，底部抬升阶段）, 低位涨14.4%（建仓推高）, MA20之上（底部抬升）</td>
             </tr>
             
             <tr>
@@ -268,6 +374,7 @@
                 <td>7.07</td>
                 <td>23.6%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位23.6%（低位，底部抬升阶段）, 低位放量（量比2.04，主力开始建仓）, 当日涨6.00%（建仓推高）, MA20之上（底部抬升）, 价升量增（建仓推高）</td>
             </tr>
             
             <tr>
@@ -276,6 +383,7 @@
                 <td>6.01</td>
                 <td>26.0%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位26.0%（低位，底部抬升阶段）, 低位涨6.9%（建仓推高）, MA20之上（底部抬升）</td>
             </tr>
             
             <tr>
@@ -284,6 +392,7 @@
                 <td>10.38</td>
                 <td>22.4%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位22.4%（低位，底部抬升阶段）, 低位涨8.8%（建仓推高）, MA20之上（底部抬升）</td>
             </tr>
             
             <tr>
@@ -292,6 +401,7 @@
                 <td>15.92</td>
                 <td>20.6%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位20.6%（低位，底部抬升阶段）, 当日涨3.38%（建仓推高）, MA20之上（底部抬升）, 价升量增（建仓推高）</td>
             </tr>
             
             <tr>
@@ -300,6 +410,7 @@
                 <td>9.44</td>
                 <td>16.4%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位16.4%（低位，底部抬升阶段）, 低位涨14.1%（建仓推高）, MA20之上（底部抬升）</td>
             </tr>
             
             <tr>
@@ -308,6 +419,7 @@
                 <td>5.00</td>
                 <td>25.0%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位25.0%（低位，底部抬升阶段）, MA20之上（底部抬升）</td>
             </tr>
             
             <tr>
@@ -316,6 +428,7 @@
                 <td>8.72</td>
                 <td>23.5%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位23.5%（低位，底部抬升阶段）, 低位放量（量比2.47，主力开始建仓）, 当日涨9.96%（建仓推高）, MA20之上（底部抬升）, 价升量增（建仓推高）</td>
             </tr>
             
             <tr>
@@ -324,6 +437,7 @@
                 <td>60.37</td>
                 <td>21.5%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位21.5%（低位，底部抬升阶段）, MA20之上（底部抬升）</td>
             </tr>
             
             <tr>
@@ -332,6 +446,7 @@
                 <td>16.36</td>
                 <td>28.0%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位28.0%（低位，底部抬升阶段）, MA20之上（底部抬升）</td>
             </tr>
             
             <tr>
@@ -340,6 +455,7 @@
                 <td>45.06</td>
                 <td>16.8%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位16.8%（低位，底部抬升阶段）, 低位涨8.6%（建仓推高）, 当日涨5.95%（建仓推高）, MA20之上（底部抬升）, 价升量增（建仓推高）</td>
             </tr>
             
             <tr>
@@ -348,6 +464,7 @@
                 <td>13.28</td>
                 <td>23.8%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位23.8%（低位，底部抬升阶段）, 低位涨11.4%（建仓推高）, MA20之上（底部抬升）</td>
             </tr>
             
             <tr>
@@ -356,6 +473,7 @@
                 <td>4.17</td>
                 <td>18.9%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位18.9%（低位，底部抬升阶段）, MA20之上（底部抬升）</td>
             </tr>
             
             <tr>
@@ -364,6 +482,7 @@
                 <td>31.40</td>
                 <td>29.7%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位29.7%（低位，底部抬升阶段）, MA20之上（底部抬升）</td>
             </tr>
             
             <tr>
@@ -372,6 +491,7 @@
                 <td>185.49</td>
                 <td>25.9%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位25.9%（低位，底部抬升阶段）, 低位涨13.6%（建仓推高）, 当日涨6.39%（建仓推高）, MA20之上（底部抬升）, 连续3天放量（主力建仓确认）, 价升量增（建仓推高）</td>
             </tr>
             
             <tr>
@@ -380,6 +500,7 @@
                 <td>7.36</td>
                 <td>18.9%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位18.9%（低位，底部抬升阶段）, 低位涨5.6%（建仓推高）, MA20之上（底部抬升）</td>
             </tr>
             
             <tr>
@@ -388,6 +509,7 @@
                 <td>46.91</td>
                 <td>29.0%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位29.0%（低位，底部抬升阶段）, 低位涨8.6%（建仓推高）, 当日涨3.33%（建仓推高）, MA20之上（底部抬升）, 价升量增（建仓推高）</td>
             </tr>
             
             <tr>
@@ -396,6 +518,7 @@
                 <td>9.63</td>
                 <td>24.0%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位24.0%（低位，底部抬升阶段）, 低位涨5.7%（建仓推高）, MA20之上（底部抬升）</td>
             </tr>
             
             <tr>
@@ -404,6 +527,7 @@
                 <td>24.49</td>
                 <td>28.8%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位28.8%（低位，底部抬升阶段）, 低位涨13.2%（建仓推高）, MA20之上（底部抬升）</td>
             </tr>
             
                 </tbody>
@@ -423,6 +547,7 @@
                         <th>价格</th>
                         <th>位置分位</th>
                         <th>置信度</th>
+                        <th>判断依据</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -433,6 +558,7 @@
                 <td>37.67</td>
                 <td>62.0%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位62.0%（中位，拉升前洗盘阶段）, 中位缩量（量比0.65，洗盘吸筹）</td>
             </tr>
             
             <tr>
@@ -441,6 +567,7 @@
                 <td>3.02</td>
                 <td>52.4%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位52.4%（中位，拉升前洗盘阶段）</td>
             </tr>
             
             <tr>
@@ -449,6 +576,7 @@
                 <td>8.44</td>
                 <td>59.4%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位59.4%（中位，拉升前洗盘阶段）</td>
             </tr>
             
             <tr>
@@ -457,6 +585,7 @@
                 <td>9.68</td>
                 <td>59.7%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位59.7%（中位，拉升前洗盘阶段）</td>
             </tr>
             
             <tr>
@@ -465,6 +594,7 @@
                 <td>39.80</td>
                 <td>58.8%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位58.8%（中位，拉升前洗盘阶段）</td>
             </tr>
             
             <tr>
@@ -473,6 +603,7 @@
                 <td>6.17</td>
                 <td>50.7%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位50.7%（中位，拉升前洗盘阶段）</td>
             </tr>
             
             <tr>
@@ -481,6 +612,7 @@
                 <td>54.14</td>
                 <td>63.5%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位63.5%（中位，拉升前洗盘阶段）</td>
             </tr>
             
             <tr>
@@ -489,6 +621,7 @@
                 <td>3.01</td>
                 <td>54.3%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位54.3%（中位，拉升前洗盘阶段）</td>
             </tr>
             
             <tr>
@@ -497,6 +630,7 @@
                 <td>61.14</td>
                 <td>54.2%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位54.2%（中位，拉升前洗盘阶段）, 中位缩量（量比0.48，洗盘吸筹）</td>
             </tr>
             
             <tr>
@@ -505,6 +639,7 @@
                 <td>51.97</td>
                 <td>59.3%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位59.3%（中位，拉升前洗盘阶段）</td>
             </tr>
             
             <tr>
@@ -513,6 +648,7 @@
                 <td>25.19</td>
                 <td>56.4%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位56.4%（中位，拉升前洗盘阶段）</td>
             </tr>
             
             <tr>
@@ -521,6 +657,7 @@
                 <td>4.75</td>
                 <td>50.6%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位50.6%（中位，拉升前洗盘阶段）</td>
             </tr>
             
             <tr>
@@ -529,6 +666,7 @@
                 <td>3.50</td>
                 <td>53.8%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位53.8%（中位，拉升前洗盘阶段）</td>
             </tr>
             
             <tr>
@@ -537,6 +675,7 @@
                 <td>15.90</td>
                 <td>56.1%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位56.1%（中位，拉升前洗盘阶段）</td>
             </tr>
             
             <tr>
@@ -545,6 +684,7 @@
                 <td>34.08</td>
                 <td>60.6%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位60.6%（中位，拉升前洗盘阶段）</td>
             </tr>
             
             <tr>
@@ -553,6 +693,7 @@
                 <td>20.68</td>
                 <td>54.3%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位54.3%（中位，拉升前洗盘阶段）</td>
             </tr>
             
             <tr>
@@ -561,6 +702,7 @@
                 <td>6.11</td>
                 <td>50.2%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位50.2%（中位，拉升前洗盘阶段）</td>
             </tr>
             
             <tr>
@@ -569,6 +711,7 @@
                 <td>32.17</td>
                 <td>54.6%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位54.6%（中位，拉升前洗盘阶段）</td>
             </tr>
             
             <tr>
@@ -577,6 +720,7 @@
                 <td>16.24</td>
                 <td>52.9%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位52.9%（中位，拉升前洗盘阶段）</td>
             </tr>
             
             <tr>
@@ -585,6 +729,7 @@
                 <td>21.70</td>
                 <td>51.2%</td>
                 <td>100.0%</td>
+                <td class="reason">位置分位51.2%（中位，拉升前洗盘阶段）</td>
             </tr>
             
                 </tbody>
@@ -604,6 +749,7 @@
                         <th>价格</th>
                         <th>位置分位</th>
                         <th>置信度</th>
+                        <th>判断依据</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -614,6 +760,7 @@
                 <td>35.30</td>
                 <td>55.9%</td>
                 <td>77.8%</td>
+                <td class="reason">中位放量（量比1.76，主力开始拉升）, 20日大涨19.2%（主力拉升阶段）, 当日大涨7.26%（拉升信号）, MA20之上（趋势向上）, MA60之上（长期趋势向上）, 连续3天放量（拉升确认）, 价升量增（健康上涨）</td>
             </tr>
             
             <tr>
@@ -622,6 +769,7 @@
                 <td>31.72</td>
                 <td>52.4%</td>
                 <td>77.8%</td>
+                <td class="reason">中位放量（量比1.69，主力开始拉升）, 20日大涨17.7%（主力拉升阶段）, 当日大涨10.99%（拉升信号）, MA20之上（趋势向上）, MA60之上（长期趋势向上）, 连续3天放量（拉升确认）, 价升量增（健康上涨）</td>
             </tr>
             
             <tr>
@@ -630,6 +778,7 @@
                 <td>2.89</td>
                 <td>65.1%</td>
                 <td>77.8%</td>
+                <td class="reason">中位放量（量比2.05，主力开始拉升）, 20日大涨34.4%（主力拉升阶段）, 当日大涨9.89%（拉升信号）, MA20之上（趋势向上）, MA60之上（长期趋势向上）, 连续3天放量（拉升确认）, 价升量增（健康上涨）</td>
             </tr>
             
             <tr>
@@ -638,6 +787,7 @@
                 <td>11.92</td>
                 <td>64.7%</td>
                 <td>77.8%</td>
+                <td class="reason">中位放量（量比1.98，主力开始拉升）, 20日大涨20.4%（主力拉升阶段）, 当日大涨9.96%（拉升信号）, MA20之上（趋势向上）, MA60之上（长期趋势向上）, 连续3天放量（拉升确认）, 价升量增（健康上涨）</td>
             </tr>
             
             <tr>
@@ -646,6 +796,7 @@
                 <td>13.90</td>
                 <td>63.4%</td>
                 <td>77.8%</td>
+                <td class="reason">中位放量（量比2.44，主力开始拉升）, 20日大涨16.8%（主力拉升阶段）, 当日大涨9.97%（拉升信号）, MA20之上（趋势向上）, MA60之上（长期趋势向上）, 连续3天放量（拉升确认）, 价升量增（健康上涨）</td>
             </tr>
             
             <tr>
@@ -654,6 +805,7 @@
                 <td>25.73</td>
                 <td>65.9%</td>
                 <td>76.0%</td>
+                <td class="reason">中位放量（量比1.82，主力开始拉升）, 20日涨9.3%（拉升初期）, 当日大涨3.33%（拉升信号）, MA20之上（趋势向上）, MA60之上（长期趋势向上）, 连续3天放量（拉升确认）, 价升量增（健康上涨）</td>
             </tr>
             
             <tr>
@@ -662,6 +814,7 @@
                 <td>28.97</td>
                 <td>63.5%</td>
                 <td>75.0%</td>
+                <td class="reason">中位放量（量比1.57，主力开始拉升）, 20日大涨34.7%（主力拉升阶段）, 当日大涨6.43%（拉升信号）, MA20之上（趋势向上）, MA60之上（长期趋势向上）, 价升量增（健康上涨）</td>
             </tr>
             
             <tr>
@@ -670,6 +823,7 @@
                 <td>5.34</td>
                 <td>56.7%</td>
                 <td>75.0%</td>
+                <td class="reason">中位放量（量比3.35，主力开始拉升）, 20日大涨21.6%（主力拉升阶段）, 当日大涨10.10%（拉升信号）, MA20之上（趋势向上）, MA60之上（长期趋势向上）, 价升量增（健康上涨）</td>
             </tr>
             
             <tr>
@@ -678,6 +832,7 @@
                 <td>31.20</td>
                 <td>51.8%</td>
                 <td>75.0%</td>
+                <td class="reason">中位放量（量比1.65，主力开始拉升）, 20日大涨26.0%（主力拉升阶段）, 当日大涨7.00%（拉升信号）, MA20之上（趋势向上）, MA60之上（长期趋势向上）, 价升量增（健康上涨）</td>
             </tr>
             
             <tr>
@@ -686,6 +841,7 @@
                 <td>56.10</td>
                 <td>63.9%</td>
                 <td>75.0%</td>
+                <td class="reason">中位放量（量比1.62，主力开始拉升）, 20日大涨28.5%（主力拉升阶段）, 当日大涨6.84%（拉升信号）, MA20之上（趋势向上）, MA60之上（长期趋势向上）, 价升量增（健康上涨）</td>
             </tr>
             
             <tr>
@@ -694,6 +850,7 @@
                 <td>20.54</td>
                 <td>69.8%</td>
                 <td>75.0%</td>
+                <td class="reason">中位放量（量比2.30，主力开始拉升）, 20日大涨22.9%（主力拉升阶段）, 当日大涨10.61%（拉升信号）, MA20之上（趋势向上）, MA60之上（长期趋势向上）, 价升量增（健康上涨）</td>
             </tr>
             
             <tr>
@@ -702,6 +859,7 @@
                 <td>10.43</td>
                 <td>57.7%</td>
                 <td>75.0%</td>
+                <td class="reason">中位放量（量比2.12，主力开始拉升）, 20日大涨26.4%（主力拉升阶段）, 当日大涨10.02%（拉升信号）, MA20之上（趋势向上）, MA60之上（长期趋势向上）, 价升量增（健康上涨）</td>
             </tr>
             
             <tr>
@@ -710,6 +868,7 @@
                 <td>21.49</td>
                 <td>67.6%</td>
                 <td>75.0%</td>
+                <td class="reason">中位放量（量比1.79，主力开始拉升）, 20日大涨23.9%（主力拉升阶段）, 当日大涨7.72%（拉升信号）, MA20之上（趋势向上）, MA60之上（长期趋势向上）, 价升量增（健康上涨）</td>
             </tr>
             
             <tr>
@@ -718,6 +877,7 @@
                 <td>9.75</td>
                 <td>63.8%</td>
                 <td>75.0%</td>
+                <td class="reason">中位放量（量比1.78，主力开始拉升）, 20日大涨21.1%（主力拉升阶段）, MA20之上（趋势向上）, MA60之上（长期趋势向上）, 连续3天放量（拉升确认）, 价升量增（健康上涨）</td>
             </tr>
             
             <tr>
@@ -726,6 +886,7 @@
                 <td>8.29</td>
                 <td>51.0%</td>
                 <td>75.0%</td>
+                <td class="reason">中位放量（量比1.86，主力开始拉升）, 20日大涨24.5%（主力拉升阶段）, 当日大涨9.95%（拉升信号）, MA20之上（趋势向上）, MA60之上（长期趋势向上）, 价升量增（健康上涨）</td>
             </tr>
             
             <tr>
@@ -734,6 +895,7 @@
                 <td>18.02</td>
                 <td>55.5%</td>
                 <td>75.0%</td>
+                <td class="reason">中位放量（量比2.12，主力开始拉升）, 20日大涨16.6%（主力拉升阶段）, 当日大涨7.20%（拉升信号）, MA20之上（趋势向上）, MA60之上（长期趋势向上）, 价升量增（健康上涨）</td>
             </tr>
             
             <tr>
@@ -742,6 +904,7 @@
                 <td>37.20</td>
                 <td>53.4%</td>
                 <td>75.0%</td>
+                <td class="reason">中位放量（量比2.52，主力开始拉升）, 20日大涨26.5%（主力拉升阶段）, MA20之上（趋势向上）, MA60之上（长期趋势向上）, 连续3天放量（拉升确认）, 价升量增（健康上涨）</td>
             </tr>
             
             <tr>
@@ -750,6 +913,7 @@
                 <td>15.40</td>
                 <td>55.8%</td>
                 <td>75.0%</td>
+                <td class="reason">中位放量（量比1.67，主力开始拉升）, 20日大涨16.0%（主力拉升阶段）, 当日大涨5.84%（拉升信号）, MA20之上（趋势向上）, MA60之上（长期趋势向上）, 价升量增（健康上涨）</td>
             </tr>
             
             <tr>
@@ -758,6 +922,7 @@
                 <td>33.05</td>
                 <td>56.1%</td>
                 <td>72.7%</td>
+                <td class="reason">中位放量（量比1.71，主力开始拉升）, 20日涨14.2%（拉升初期）, 当日大涨7.31%（拉升信号）, MA20之上（趋势向上）, MA60之上（长期趋势向上）, 价升量增（健康上涨）</td>
             </tr>
             
             <tr>
@@ -766,6 +931,7 @@
                 <td>10.64</td>
                 <td>67.1%</td>
                 <td>72.7%</td>
+                <td class="reason">中位放量（量比1.58，主力开始拉升）, 20日涨6.0%（拉升初期）, 当日大涨5.45%（拉升信号）, MA20之上（趋势向上）, MA60之上（长期趋势向上）, 价升量增（健康上涨）</td>
             </tr>
             
                 </tbody>
@@ -785,6 +951,7 @@
                         <th>价格</th>
                         <th>位置分位</th>
                         <th>置信度</th>
+                        <th>判断依据</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -795,6 +962,7 @@
                 <td>8.88</td>
                 <td>70.3%</td>
                 <td>93.3%</td>
+                <td class="reason">位置分位70.3%（中高位，拉升后高位震荡）, 高位放量（量比2.45，主力出货）, 当日大跌-8.55%（出货信号）</td>
             </tr>
             
             <tr>
@@ -803,6 +971,7 @@
                 <td>6.50</td>
                 <td>79.8%</td>
                 <td>90.9%</td>
+                <td class="reason">位置分位79.8%（中高位，拉升后高位震荡）, 高位缩量（量比0.64，出货尾声）, 价跌量缩（出货尾声）</td>
             </tr>
             
             <tr>
@@ -811,6 +980,7 @@
                 <td>4.10</td>
                 <td>70.2%</td>
                 <td>90.9%</td>
+                <td class="reason">位置分位70.2%（中高位，拉升后高位震荡）, 高位缩量（量比0.63，出货尾声）, 价跌量缩（出货尾声）</td>
             </tr>
             
             <tr>
@@ -819,6 +989,7 @@
                 <td>18.08</td>
                 <td>72.5%</td>
                 <td>88.9%</td>
+                <td class="reason">位置分位72.5%（中高位，拉升后高位震荡）, 高位缩量（量比0.45，出货尾声）</td>
             </tr>
             
             <tr>
@@ -827,6 +998,7 @@
                 <td>4.99</td>
                 <td>76.1%</td>
                 <td>88.9%</td>
+                <td class="reason">位置分位76.1%（中高位，拉升后高位震荡）, 价跌量缩（出货尾声）</td>
             </tr>
             
             <tr>
@@ -835,6 +1007,7 @@
                 <td>6.43</td>
                 <td>73.1%</td>
                 <td>88.9%</td>
+                <td class="reason">位置分位73.1%（中高位，拉升后高位震荡）, 价跌量缩（出货尾声）</td>
             </tr>
             
             <tr>
@@ -843,6 +1016,7 @@
                 <td>5.36</td>
                 <td>78.3%</td>
                 <td>85.7%</td>
+                <td class="reason">位置分位78.3%（中高位，拉升后高位震荡）</td>
             </tr>
             
             <tr>
@@ -851,6 +1025,7 @@
                 <td>66.05</td>
                 <td>71.3%</td>
                 <td>85.7%</td>
+                <td class="reason">位置分位71.3%（中高位，拉升后高位震荡）</td>
             </tr>
             
             <tr>
@@ -859,6 +1034,7 @@
                 <td>11.80</td>
                 <td>75.3%</td>
                 <td>85.7%</td>
+                <td class="reason">位置分位75.3%（中高位，拉升后高位震荡）</td>
             </tr>
             
             <tr>
@@ -867,6 +1043,7 @@
                 <td>6.47</td>
                 <td>77.2%</td>
                 <td>85.7%</td>
+                <td class="reason">位置分位77.2%（中高位，拉升后高位震荡）</td>
             </tr>
             
             <tr>
@@ -875,6 +1052,7 @@
                 <td>6.05</td>
                 <td>76.1%</td>
                 <td>85.7%</td>
+                <td class="reason">位置分位76.1%（中高位，拉升后高位震荡）</td>
             </tr>
             
             <tr>
@@ -883,6 +1061,7 @@
                 <td>35.22</td>
                 <td>74.7%</td>
                 <td>85.7%</td>
+                <td class="reason">位置分位74.7%（中高位，拉升后高位震荡）</td>
             </tr>
             
             <tr>
@@ -891,6 +1070,7 @@
                 <td>8.90</td>
                 <td>76.5%</td>
                 <td>85.7%</td>
+                <td class="reason">位置分位76.5%（中高位，拉升后高位震荡）</td>
             </tr>
             
             <tr>
@@ -899,6 +1079,7 @@
                 <td>8.08</td>
                 <td>79.7%</td>
                 <td>85.7%</td>
+                <td class="reason">位置分位79.7%（中高位，拉升后高位震荡）</td>
             </tr>
             
             <tr>
@@ -907,6 +1088,7 @@
                 <td>4.14</td>
                 <td>74.2%</td>
                 <td>85.7%</td>
+                <td class="reason">位置分位74.2%（中高位，拉升后高位震荡）</td>
             </tr>
             
             <tr>
@@ -915,6 +1097,7 @@
                 <td>5.88</td>
                 <td>75.5%</td>
                 <td>85.7%</td>
+                <td class="reason">位置分位75.5%（中高位，拉升后高位震荡）</td>
             </tr>
             
             <tr>
@@ -923,6 +1106,7 @@
                 <td>23.09</td>
                 <td>71.5%</td>
                 <td>85.7%</td>
+                <td class="reason">位置分位71.5%（中高位，拉升后高位震荡）</td>
             </tr>
             
             <tr>
@@ -931,6 +1115,7 @@
                 <td>11.70</td>
                 <td>81.8%</td>
                 <td>85.7%</td>
+                <td class="reason">位置分位81.8%（中高位，拉升后高位震荡）</td>
             </tr>
             
             <tr>
@@ -939,6 +1124,7 @@
                 <td>84.40</td>
                 <td>76.2%</td>
                 <td>85.7%</td>
+                <td class="reason">位置分位76.2%（中高位，拉升后高位震荡）</td>
             </tr>
             
             <tr>
@@ -947,6 +1133,7 @@
                 <td>7.10</td>
                 <td>75.7%</td>
                 <td>85.7%</td>
+                <td class="reason">位置分位75.7%（中高位，拉升后高位震荡）</td>
             </tr>
             
                 </tbody>
