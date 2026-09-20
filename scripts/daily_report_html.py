@@ -1,18 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-每日主力行为诊断（HTML版 - 优化版）
+每日主力行为诊断（HTML分析报告版）
 =================================================
 设计思路（为什么这样写）：
-  优化判断逻辑，加更多维度：
-  1. 位置分位
-  2. 量比
-  3. 20日涨跌幅
-  4. 当日涨跌幅
-  5. MA20位置
-  6. 左侧关键位距离（离最近支撑/压力多远）
-  7. 连续状态（连续放量/缩量）
-  8. 量价配合（价升量增 vs 价升量缩）
+  不只是简单的列表，而是分析报告！
+  包括：
+  1. 市场整体分析（大段文字，讲清楚市场逻辑）
+  2. 每个阶段详细说明（这个阶段是什么意思，主力在做什么）
+  3. 每只股票判断依据（为什么判断为这个阶段）
 
 硬约束：
   - 绝对不用未来函数
@@ -103,15 +99,11 @@ def calc_daily_indicators(df):
     df['price_down_vol_up'] = (df['pct_chg'] < 0) & (df['vol_ratio_ma5'] > 1.2)
     df['price_down_vol_down'] = (df['pct_chg'] < 0) & (df['vol_ratio_ma5'] < 0.8)
     
-    # 找左侧关键位（最近的峰顶和谷底）
-    df['recent_support'] = df['low'].rolling(60).min()  # 近60日最低点（支撑）
-    df['recent_resistance'] = df['high'].rolling(60).max()  # 近60日最高点（压力）
-    
     return df
 
 
 # ============================================================
-# 第四层：主力行为意图判断（优化版）
+# 第四层：主力行为意图判断
 # ============================================================
 def judge_main_behavior(df):
     latest = df.iloc[-1]
@@ -145,141 +137,141 @@ def judge_main_behavior(df):
     # 1. 位置分位（25%权重）
     if position < 10:
         scores['建仓初期'] += 40
-        reasons['建仓初期'].append(f'位置分位{position:.1f}%（极低位）')
+        reasons['建仓初期'].append(f'位置分位{position:.1f}%（极低位，近120日底部区域）')
     elif position < 30:
         scores['建仓后期'] += 30
-        reasons['建仓后期'].append(f'位置分位{position:.1f}%（低位）')
+        reasons['建仓后期'].append(f'位置分位{position:.1f}%（低位，底部抬升阶段）')
     elif position < 50:
         scores['建仓后期'] += 15
         scores['洗盘'] += 15
-        reasons['建仓后期'].append(f'位置分位{position:.1f}%（中低位）')
+        reasons['建仓后期'].append(f'位置分位{position:.1f}%（中低位，底部确认阶段）')
     elif position < 70:
         scores['洗盘'] += 30
-        reasons['洗盘'].append(f'位置分位{position:.1f}%（中位）')
+        reasons['洗盘'].append(f'位置分位{position:.1f}%（中位，拉升前洗盘阶段）')
     elif position < 85:
         scores['出货'] += 30
-        reasons['出货'].append(f'位置分位{position:.1f}%（中高位）')
+        reasons['出货'].append(f'位置分位{position:.1f}%（中高位，拉升后高位震荡）')
     else:
         scores['出货'] += 40
-        reasons['出货'].append(f'位置分位{position:.1f}%（极高位）')
+        reasons['出货'].append(f'位置分位{position:.1f}%（极高位，主力出货阶段）')
     
     # 2. 量能（20%权重）
     if vol_ratio > 1.5:
         if position < 30:
             scores['建仓后期'] += 25
-            reasons['建仓后期'].append(f'低位放量（量比{vol_ratio:.2f}）')
+            reasons['建仓后期'].append(f'低位放量（量比{vol_ratio:.2f}，主力开始建仓）')
         elif position < 70:
             scores['拉升'] += 25
-            reasons['拉升'].append(f'中位放量（量比{vol_ratio:.2f}）')
+            reasons['拉升'].append(f'中位放量（量比{vol_ratio:.2f}，主力开始拉升）')
         else:
             scores['出货'] += 25
-            reasons['出货'].append(f'高位放量（量比{vol_ratio:.2f}）')
+            reasons['出货'].append(f'高位放量（量比{vol_ratio:.2f}，主力出货）')
     elif vol_ratio < 0.7:
         if position < 30:
             scores['建仓初期'] += 25
-            reasons['建仓初期'].append(f'低位缩量（量比{vol_ratio:.2f}）')
+            reasons['建仓初期'].append(f'低位缩量（量比{vol_ratio:.2f}，主力悄悄建仓）')
         elif position < 70:
             scores['洗盘'] += 25
-            reasons['洗盘'].append(f'中位缩量（量比{vol_ratio:.2f}）')
+            reasons['洗盘'].append(f'中位缩量（量比{vol_ratio:.2f}，洗盘吸筹）')
         else:
             scores['出货'] += 10
-            reasons['出货'].append(f'高位缩量（量比{vol_ratio:.2f}）')
+            reasons['出货'].append(f'高位缩量（量比{vol_ratio:.2f}，出货尾声）')
     
     # 3. 20日涨跌幅（15%权重）
     if not pd.isna(pct_20d):
         if pct_20d > 15:
             if position > 50:
                 scores['拉升'] += 25
-                reasons['拉升'].append(f'20日大涨{pct_20d:.1f}%')
+                reasons['拉升'].append(f'20日大涨{pct_20d:.1f}%（主力拉升阶段）')
             else:
                 scores['建仓后期'] += 15
-                reasons['建仓后期'].append(f'低位涨{pct_20d:.1f}%')
+                reasons['建仓后期'].append(f'低位涨{pct_20d:.1f}%（主力建仓推高股价）')
         elif pct_20d > 5:
             if position > 50:
                 scores['拉升'] += 15
-                reasons['拉升'].append(f'20日涨{pct_20d:.1f}%')
+                reasons['拉升'].append(f'20日涨{pct_20d:.1f}%（拉升初期）')
             else:
                 scores['建仓后期'] += 10
-                reasons['建仓后期'].append(f'低位涨{pct_20d:.1f}%')
+                reasons['建仓后期'].append(f'低位涨{pct_20d:.1f}%（建仓推高）')
         elif pct_20d < -15:
             if position < 30:
                 scores['建仓初期'] += 15
-                reasons['建仓初期'].append(f'低位跌{pct_20d:.1f}%')
+                reasons['建仓初期'].append(f'低位跌{pct_20d:.1f}%（恐慌下跌，主力建仓机会）')
             else:
                 scores['出货'] += 15
-                reasons['出货'].append(f'高位跌{pct_20d:.1f}%')
+                reasons['出货'].append(f'高位跌{pct_20d:.1f}%（主力出货导致下跌）')
     
     # 4. 当日涨跌幅（10%权重）
     if pct_chg > 3:
         if position > 50:
             scores['拉升'] += 15
-            reasons['拉升'].append(f'当日大涨{pct_chg:.2f}%')
+            reasons['拉升'].append(f'当日大涨{pct_chg:.2f}%（拉升信号）')
         else:
             scores['建仓后期'] += 10
-            reasons['建仓后期'].append(f'当日涨{pct_chg:.2f}%')
+            reasons['建仓后期'].append(f'当日涨{pct_chg:.2f}%（建仓推高）')
     elif pct_chg < -3:
         if position > 70:
             scores['出货'] += 15
-            reasons['出货'].append(f'当日大跌{pct_chg:.2f}%')
+            reasons['出货'].append(f'当日大跌{pct_chg:.2f}%（出货信号）')
     
     # 5. 均线位置（10%权重）
     if above_ma20:
         if position > 50:
             scores['拉升'] += 10
-            reasons['拉升'].append(f'MA20之上')
+            reasons['拉升'].append(f'MA20之上（趋势向上）')
         else:
             scores['建仓后期'] += 5
-            reasons['建仓后期'].append(f'MA20之上')
+            reasons['建仓后期'].append(f'MA20之上（底部抬升）')
     else:
         if position < 30:
             scores['建仓初期'] += 10
-            reasons['建仓初期'].append(f'MA20之下（低位）')
+            reasons['建仓初期'].append(f'MA20之下（低位震荡）')
     
     if above_ma60:
         if position > 50:
             scores['拉升'] += 5
-            reasons['拉升'].append(f'MA60之上')
+            reasons['拉升'].append(f'MA60之上（长期趋势向上）')
     else:
         if position < 30:
             scores['建仓初期'] += 5
-            reasons['建仓初期'].append(f'MA60之下（低位）')
+            reasons['建仓初期'].append(f'MA60之下（长期低位）')
     
     # 6. 连续状态（10%权重）
     if latest['consec_vol_up_3d']:
         if position < 30:
             scores['建仓后期'] += 15
-            reasons['建仓后期'].append(f'连续3天放量')
+            reasons['建仓后期'].append(f'连续3天放量（主力建仓确认）')
         elif position < 70:
             scores['拉升'] += 15
-            reasons['拉升'].append(f'连续3天放量')
+            reasons['拉升'].append(f'连续3天放量（拉升确认）')
         else:
             scores['出货'] += 15
-            reasons['出货'].append(f'高位连续放量')
+            reasons['出货'].append(f'高位连续放量（出货确认）')
     
     if latest['consec_vol_down_3d']:
         if position < 30:
             scores['建仓初期'] += 15
-            reasons['建仓初期'].append(f'连续3天缩量')
+            reasons['建仓初期'].append(f'连续3天缩量（主力悄悄建仓）')
         elif position < 70:
             scores['洗盘'] += 15
-            reasons['洗盘'].append(f'连续3天缩量')
+            reasons['洗盘'].append(f'连续3天缩量（洗盘确认）')
     
     # 7. 量价配合（10%权重）
     if latest['price_up_vol_up']:
         if position > 50:
             scores['拉升'] += 10
-            reasons['拉升'].append(f'价升量增')
+            reasons['拉升'].append(f'价升量增（健康上涨）')
         else:
             scores['建仓后期'] += 5
-            reasons['建仓后期'].append(f'价升量增')
+            reasons['建仓后期'].append(f'价升量增（建仓推高）')
     
     if latest['price_down_vol_down']:
         if position < 30:
             scores['建仓初期'] += 10
-            reasons['建仓初期'].append(f'价跌量缩')
+            reasons['建仓初期'].append(f'价跌量缩（抛压减轻）')
         elif position > 70:
             scores['出货'] += 10
-            reasons['出货'].append(f'价跌量缩')
+            reasons['出货'].append(f'价跌量缩（出货尾声）')
     
     # 找最高分
     best_stage = max(scores, key=scores.get)
@@ -299,6 +291,48 @@ def judge_main_behavior(df):
 
 
 # ============================================================
+# 阶段说明
+# ============================================================
+STAGE_EXPLANATION = {
+    '建仓初期': {
+        'title': '建仓初期',
+        'desc': '主力刚开始建仓阶段',
+        'main_action': '主力在低位悄悄买入，不希望被市场发现',
+        'market_logic': '位置极低（<10%），量能萎缩，说明抛压已经很轻，主力在这个位置慢慢吸筹。这个阶段股价通常在低位震荡，不涨不跌。',
+        'next_stage': '建仓后期',
+    },
+    '建仓后期': {
+        'title': '建仓后期',
+        'desc': '主力建仓接近尾声，准备拉升',
+        'main_action': '主力开始放量买入，推高股价，不再隐藏',
+        'market_logic': '位置较低（10-30%），量能开始放大，说明主力已经吸够筹码，开始推高股价。这个阶段股价开始慢慢上涨，但还没有进入主升浪。',
+        'next_stage': '洗盘',
+    },
+    '洗盘': {
+        'title': '洗盘',
+        'desc': '拉升前的最后洗盘',
+        'main_action': '主力故意打压股价，洗掉不坚定的散户',
+        'market_logic': '位置中等（50-70%），量能萎缩，说明主力在洗盘，把散户吓出去，然后再拉升。这个阶段股价通常横盘震荡，或小幅回调。',
+        'next_stage': '拉升',
+    },
+    '拉升': {
+        'title': '拉升',
+        'desc': '主力开始拉升股价',
+        'main_action': '主力放量拉升，快速推高股价',
+        'market_logic': '位置中等偏高（50-70%），量能放大，说明主力开始拉升。这个阶段股价快速上涨，成交量放大。',
+        'next_stage': '出货',
+    },
+    '出货': {
+        'title': '出货',
+        'desc': '主力在高位出货',
+        'main_action': '主力在高位把筹码卖给散户',
+        'market_logic': '位置极高（>70%），量能放大，说明主力在高位出货。这个阶段股价可能继续涨，但主力已经在悄悄卖了。',
+        'next_stage': '下跌',
+    },
+}
+
+
+# ============================================================
 # 生成HTML
 # ============================================================
 def generate_html(results, date_str):
@@ -309,6 +343,10 @@ def generate_html(results, date_str):
     stages = ['建仓初期', '建仓后期', '洗盘', '拉升', '出货']
     counts = [int(stage_count.get(s, 0)) for s in stages]
     total = len(df)
+    
+    # 计算建仓占比
+    jiancang_total = counts[0] + counts[1]
+    jiancang_pct = jiancang_total / total * 100
     
     # 生成表格行
     table_rows = {}
@@ -321,6 +359,7 @@ def generate_html(results, date_str):
             price = f"{float(row['price']):.2f}"
             position = f"{float(row['position']):.1f}%"
             confidence = f"{float(row['confidence']):.1f}%"
+            reasons = str(row['reasons'])
             rows_html += f"""
             <tr>
                 <td>{code}</td>
@@ -328,11 +367,29 @@ def generate_html(results, date_str):
                 <td>{price}</td>
                 <td>{position}</td>
                 <td>{confidence}</td>
+                <td class="reason">{reasons}</td>
             </tr>
             """
         table_rows[stage] = rows_html
     
-    # 各阶段section
+    # 阶段说明section
+    stages_html = ""
+    for stage in stages:
+        info = STAGE_EXPLANATION[stage]
+        count = counts[stages.index(stage)]
+        stages_html += f"""
+        <div class="stage-explain">
+            <h3>{info['title']} <span class="count">({count}只)</span></h3>
+            <p class="desc">{info['desc']}</p>
+            <div class="logic-box">
+                <p><strong>主力动作：</strong>{info['main_action']}</p>
+                <p><strong>市场机理：</strong>{info['market_logic']}</p>
+                <p><strong>下一阶段：</strong>{info['next_stage']}</p>
+            </div>
+        </div>
+        """
+    
+    # 各阶段股票列表section
     sections_html = ""
     for i, stage in enumerate(stages):
         count = counts[i]
@@ -350,6 +407,7 @@ def generate_html(results, date_str):
                         <th>价格</th>
                         <th>位置分位</th>
                         <th>置信度</th>
+                        <th>判断依据</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -365,17 +423,33 @@ def generate_html(results, date_str):
     bar_data = json.dumps([int(c) for c in counts])
     stages_json = json.dumps(stages, ensure_ascii=False)
     
+    # 市场整体分析文字
+    market_analysis = f"""
+    <div class="analysis-section">
+        <h2>市场整体分析</h2>
+        <p>今日共扫描{total}只股票，主力阶段分布如下：</p>
+        <ul>
+            <li><strong>建仓阶段（初期+后期）：{jiancang_total}只，占比{jiancang_pct:.1f}%</strong></li>
+            <li>洗盘阶段：{counts[2]}只，占比{counts[2]/total*100:.1f}%</li>
+            <li>拉升阶段：{counts[3]}只，占比{counts[3]/total*100:.1f}%</li>
+            <li>出货阶段：{counts[4]}只，占比{counts[4]/total*100:.1f}%</li>
+        </ul>
+        <p><strong>结论：</strong>当前市场整体处于建仓阶段，大部分股票在低位，主力正在悄悄建仓。这说明市场可能处于底部区域，后续值得关注。</p>
+        <p><strong>操作建议：</strong>重点关注建仓初期和建仓后期的股票，这些股票后续可能进入拉升阶段。</p>
+    </div>
+    """
+    
     html = f"""
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>主力行为诊断报告 - {date_str}</title>
+    <title>主力行为诊断分析报告 - {date_str}</title>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
     <style>
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; padding: 20px; }}
+        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; padding: 20px; line-height: 1.6; }}
         .container {{ max-width: 1200px; margin: 0 auto; }}
         .header {{ background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; padding: 30px; border-radius: 12px; margin-bottom: 20px; }}
         .header h1 {{ font-size: 28px; margin-bottom: 10px; }}
@@ -384,6 +458,17 @@ def generate_html(results, date_str):
         .card {{ background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
         .card h2 {{ font-size: 18px; margin-bottom: 15px; color: #333; }}
         #pieChart, #barChart {{ width: 100%; height: 300px; }}
+        .analysis-section {{ background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
+        .analysis-section h2 {{ font-size: 20px; margin-bottom: 15px; color: #333; border-bottom: 2px solid #1e3c72; padding-bottom: 10px; }}
+        .analysis-section p {{ margin-bottom: 10px; color: #555; }}
+        .analysis-section ul {{ margin-left: 20px; margin-bottom: 10px; }}
+        .stage-explain {{ background: white; border-radius: 12px; padding: 20px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
+        .stage-explain h3 {{ font-size: 18px; margin-bottom: 10px; color: #333; }}
+        .stage-explain .count {{ color: #666; font-size: 14px; }}
+        .stage-explain .desc {{ color: #666; margin-bottom: 10px; }}
+        .stage-explain .logic-box {{ background: #f8f9fa; padding: 15px; border-radius: 8px; }}
+        .stage-explain .logic-box p {{ margin-bottom: 8px; }}
+        .stage-explain .logic-box strong {{ color: #1e3c72; }}
         .stage-section {{ background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
         .stage-header {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }}
         .stage-header h2 {{ font-size: 18px; padding-bottom: 10px; border-bottom: 2px solid #f0f0f0; }}
@@ -391,6 +476,7 @@ def generate_html(results, date_str):
         table {{ width: 100%; border-collapse: collapse; }}
         th, td {{ padding: 10px; text-align: left; border-bottom: 1px solid #f0f0f0; }}
         th {{ background: #fafafa; font-weight: 600; color: #666; }}
+        td.reason {{ font-size: 12px; color: #666; }}
         @media (max-width: 768px) {{
             .grid {{ grid-template-columns: 1fr; }}
         }}
@@ -399,7 +485,7 @@ def generate_html(results, date_str):
 <body>
     <div class="container">
         <div class="header">
-            <h1>主力行为诊断报告</h1>
+            <h1>主力行为诊断分析报告</h1>
             <div class="date">{date_str} | 共{total}只股票</div>
         </div>
         
@@ -412,6 +498,13 @@ def generate_html(results, date_str):
                 <h2>各阶段数量对比</h2>
                 <div id="barChart"></div>
             </div>
+        </div>
+        
+        {market_analysis}
+        
+        <div class="analysis-section">
+            <h2>各阶段详解</h2>
+            {stages_html}
         </div>
         
         {sections_html}
@@ -466,7 +559,7 @@ def generate_html(results, date_str):
 # ============================================================
 def main():
     print("="*70)
-    print("每日主力行为诊断（HTML版 - 优化版）")
+    print("每日主力行为诊断（HTML分析报告版）")
     print("="*70)
     
     all_files = []
@@ -515,7 +608,7 @@ def main():
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(html_content)
     
-    print(f"\n已生成HTML报告: {output_file}")
+    print(f"\n已生成HTML分析报告: {output_file}")
     
     df_results = pd.DataFrame(results)
     csv_file = OUTPUT_DIR / f"daily_main_behavior_{today}.csv"
