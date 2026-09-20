@@ -1,16 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-黄金柱深挖 v2 (golden_deep_dive.py) —— 2026量化时代修正
+黄金柱深挖 v3 (golden_deep_dive.py) —— 全市场版+断点续跑
 =================================================================
-v2 变更：
-  1. T+1约束：次日开盘买
-  2. 交易成本1.1%
-  3. 大盘MA20过滤：只统计大盘MA20之上的黄金柱
-  4. 多周期5/10/20日对比
-  5. 按位置/市场状态/右确认三维分组
-
-v1问题：HOLD=20、无T+1、无成本，数字偏乐观
+v3 变更：
+  1. 断点续跑（同signal_ranking_all.py机制）
+  2. T+1+成本1.1%+MA20过滤+多周期5/10/20日
+  3. 按位置/市场状态/右确认三维分组
+  4. 全市场5220只，6小时跑完
 """
 import json
 import os
@@ -27,17 +24,20 @@ from phases import (identify_volume_columns, three_day_confirm,  # noqa: E402
                     identify_genes, classify_position, compute_atr)
 
 STOCK_LIST = os.path.join(KLINE_DIR, "_stock_list.json")
+OUT_DIR = ANALYSIS_DIR
+RAW_PATH = os.path.join(ANALYSIS_DIR, "golden_deep_dive_raw.jsonl")
 HOLD_LIST = [5, 10, 20]
 COST_ROUNDTRIP = 1.1
 N_RANDOM = 100
 RANDOM_SEED = 42
+FLUSH_EVERY = 200
+LOG_EVERY = 50
 
 def load_tx_list():
     with open(STOCK_LIST, encoding="utf-8") as f:
         return [s["tx"] for s in json.load(f).get("stocks", []) if s.get("tx")]
 
 def _fwd_t1(open_arr, close_arr, i, n):
-    """T+1：次日开盘买，第n日收盘卖，扣成本"""
     buy_idx = i + 1
     sell_idx = i + n
     if sell_idx >= len(close_arr):
@@ -64,7 +64,6 @@ def build_market_state(idx_df):
     return dict(zip(idx_df["日期"].astype(str).str[:10], states))
 
 def detect_right_confirm(df, i, window=3):
-    """v2：右确认窗口从5天缩短到3天（量化时代节奏快）"""
     n = len(df)
     for j in range(i + 1, min(i + 1 + window, n)):
         prev_o = df["开盘"].iloc[j - 1]
@@ -114,7 +113,6 @@ def analyze_one_stock(code, market_state_map, idx_above_map):
         if not golden[i]:
             continue
         date_str = df["日期"].iloc[i].strftime("%Y-%m-%d")
-        # v2: 大盘MA20过滤
         if not idx_above_map.get(date_str, True):
             continue
         for hold in HOLD_LIST:
@@ -130,9 +128,9 @@ def analyze_one_stock(code, market_state_map, idx_above_map):
             })
     return recs
 
-def summarize(samples, dim):
+def summarize(records, dim):
     rows = []
-    for (val, hold), g in samples.groupby([dim, "持有天数"]):
+    for (val, hold), g in records.groupby([dim, "持有天数"]):
         arr = g["增量"].to_numpy(float)
         if arr.size == 0:
             continue
@@ -150,9 +148,43 @@ def summarize(samples, dim):
         return df
     return df.sort_values(["持有天数", "增量中位数%"], ascending=[True, False]).reset_index(drop=True)
 
+def load_raw():
+    records = []
+    done = set()
+    if not os.path.exists(RAW_PATH):
+        return records, done
+    with open(RAW_PATH, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+            except Exception:
+                continue
+            code = obj.get("code")
+            if not code:
+                continue
+            done.add(code)
+            records.extend(obj.get("records", []))
+    return records, done
+
+def write_summary(records):
+    if not records:
+        return
+    samples = pd.DataFrame(records)
+    for dim in ["位置", "市场状态", "右确认"]:
+        s = summarize(samples, dim)
+        fname = {"位置": "golden_by_position.csv",
+                 "市场状态": "golden_by_market.csv",
+                 "右确认": "golden_by_confirm.csv"}[dim]
+        s.to_csv(os.path.join(OUT_DIR, fname), index=False, encoding="utf-8-sig")
+
 def main():
+    if not os.path.exists(STOCK_LIST):
+        print(f"清单缺失: {STOCK_LIST}")
+        return
     codes = load_tx_list()
-    print(f"共 {len(codes)} 只（v2: T+1+成本{COST_ROUNDTRIP}%+MA20上+持有{HOLD_LIST}日）")
 
     idx_df = load_kline_json("sh000001")
     if idx_df.empty:
@@ -164,42 +196,46 @@ def main():
     idx_ma20 = idx_close.rolling(20, min_periods=1).mean()
     idx_above = (idx_close >= idx_ma20)
     idx_above_map = {d.strftime("%Y-%m-%d"): bool(v) for d, v in idx_above.items()}
-    print(f"大盘 {len(market_state_map)} 天")
+    print(f"清单 {len(codes)} 只 | 大盘 {len(market_state_map)} 天")
 
-    all_recs = []
-    for idx, code in enumerate(codes):
-        try:
-            all_recs.extend(analyze_one_stock(code, market_state_map, idx_above_map))
-        except Exception:
-            pass
-        if (idx + 1) % 500 == 0:
-            print(f"  进度 {idx+1}/{len(codes)} | 累计黄金柱 {len(all_recs)}")
+    records, done = load_raw()
+    todo = [c for c in codes if c not in done]
+    print(f"已完成 {len(done)} | 待跑 {len(todo)}")
 
-    print(f"\n总黄金柱信号: {len(all_recs)}")
-    samples = pd.DataFrame(all_recs)
+    os.makedirs(OUT_DIR, exist_ok=True)
+    processed = 0
+    fh = open(RAW_PATH, "a", encoding="utf-8")
+    try:
+        for code in todo:
+            try:
+                recs = analyze_one_stock(code, market_state_map, idx_above_map)
+            except Exception as e:
+                print(f"  跳过 {code}: {type(e).__name__} {e}")
+                recs = []
+            for r in recs:
+                r["code"] = code
+            records.extend(recs)
+            fh.write(json.dumps({"code": code, "records": recs},
+                                ensure_ascii=False) + "\n")
+            processed += 1
+            if processed % LOG_EVERY == 0:
+                print(f"  进度 {processed}/{len(todo)} | 累计黄金柱 {len(records)}")
+            if processed % FLUSH_EVERY == 0:
+                fh.flush()
+                write_summary(records)
+        fh.flush()
+    finally:
+        fh.close()
+
+    write_summary(records)
+    print(f"\n总黄金柱信号: {len(records)}")
+    samples = pd.DataFrame(records)
     if samples.empty:
         print("无样本")
         return
-
-    os.makedirs(ANALYSIS_DIR, exist_ok=True)
-
-    by_pos = summarize(samples, "位置")
-    by_pos.to_csv(os.path.join(ANALYSIS_DIR, "golden_by_position.csv"),
-                  index=False, encoding="utf-8-sig")
-    print("\n=== 按位置 ===")
-    print(by_pos.to_string(index=False))
-
-    by_mkt = summarize(samples, "市场状态")
-    by_mkt.to_csv(os.path.join(ANALYSIS_DIR, "golden_by_market.csv"),
-                  index=False, encoding="utf-8-sig")
-    print("\n=== 按市场状态 ===")
-    print(by_mkt.to_string(index=False))
-
-    by_cf = summarize(samples, "右确认")
-    by_cf.to_csv(os.path.join(ANALYSIS_DIR, "golden_by_confirm.csv"),
-                  index=False, encoding="utf-8-sig")
-    print("\n=== 按右确认 ===")
-    print(by_cf.to_string(index=False))
+    for dim in ["位置", "市场状态", "右确认"]:
+        print(f"\n=== 按{dim} ===")
+        print(summarize(samples, dim).to_string(index=False))
 
 if __name__ == "__main__":
     main()
