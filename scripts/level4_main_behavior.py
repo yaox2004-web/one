@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-第四层：主力行为意图判断
+完整系统：第一层~第六层
 =================================================
 设计思路（为什么这样写）：
-  综合第一层（当日快照）+ 第二三层（左侧关键位）
-  判断主力现在处于哪个阶段。
-  
-  四个阶段：
-  1. 建仓：低位放量+缩量不跌
-  2. 洗盘：高位缩量+不破关键位
-  3. 拉升：价升量增+突破关键位
-  4. 出货：高位放量+滞涨
+  这是一个完整的主力行为识别系统，包括：
+  1. 第一层：当日快照
+  2. 第二层：左侧历史建构
+  3. 第三层：左侧影响力评估
+  4. 第四层：主力行为意图判断
+  5. 第五层：环境过滤（大盘）
+  6. 第六层：综合输出（诊断报告）
 
 硬约束：
   - 绝对不用未来函数
@@ -98,15 +97,14 @@ def calc_daily_indicators(df):
 # 第二三层：找左侧关键位
 # ============================================================
 def find_key_levels(df):
-    """找出左侧关键位（简化版）"""
+    """找出左侧关键位"""
     
     current_price = df['close'].iloc[-1]
     
     supports = []
     resistances = []
     
-    # 找最近的高量柱和低量柱
-    for i in range(max(0, len(df)-120), len(df)):
+    for i in range(max(0, len(df)-250), len(df)):
         days_ago = len(df) - 1 - i
         
         if days_ago > 250:
@@ -118,9 +116,9 @@ def find_key_levels(df):
             if df['volume'].iloc[i] >= recent_max * 0.999:
                 price = df['close'].iloc[i]
                 if price < current_price:
-                    supports.append({'price': price, 'type': '高量柱', 'days_ago': days_ago})
+                    supports.append({'price': price, 'type': '高量柱', 'days_ago': days_ago, 'volume': df['volume'].iloc[i]})
                 else:
-                    resistances.append({'price': price, 'type': '高量柱', 'days_ago': days_ago})
+                    resistances.append({'price': price, 'type': '高量柱', 'days_ago': days_ago, 'volume': df['volume'].iloc[i]})
         
         # 低量柱
         if i >= 20:
@@ -128,35 +126,28 @@ def find_key_levels(df):
             if df['volume'].iloc[i] <= recent_min * 1.001:
                 price = df['close'].iloc[i]
                 if price < current_price:
-                    supports.append({'price': price, 'type': '低量柱', 'days_ago': days_ago})
+                    supports.append({'price': price, 'type': '低量柱', 'days_ago': days_ago, 'volume': df['volume'].iloc[i]})
                 else:
-                    resistances.append({'price': price, 'type': '低量柱', 'days_ago': days_ago})
-    
-    # 找峰顶和谷底
-    for i in range(max(0, len(df)-120), len(df)):
-        days_ago = len(df) - 1 - i
+                    resistances.append({'price': price, 'type': '低量柱', 'days_ago': days_ago, 'volume': df['volume'].iloc[i]})
         
-        if days_ago > 250:
-            continue
-        
+        # 峰顶
         if i >= 20 and i < len(df) - 1:
-            # 峰顶
             recent_high = df['high'].iloc[i-20:i].max()
             if df['high'].iloc[i] >= recent_high:
                 price = df['high'].iloc[i]
                 if price < current_price:
-                    supports.append({'price': price, 'type': '峰顶', 'days_ago': days_ago})
+                    supports.append({'price': price, 'type': '峰顶', 'days_ago': days_ago, 'volume': df['volume'].iloc[i]})
                 else:
-                    resistances.append({'price': price, 'type': '峰顶', 'days_ago': days_ago})
+                    resistances.append({'price': price, 'type': '峰顶', 'days_ago': days_ago, 'volume': df['volume'].iloc[i]})
             
             # 谷底
             recent_low = df['low'].iloc[i-20:i].min()
             if df['low'].iloc[i] <= recent_low:
                 price = df['low'].iloc[i]
                 if price < current_price:
-                    supports.append({'price': price, 'type': '谷底', 'days_ago': days_ago})
+                    supports.append({'price': price, 'type': '谷底', 'days_ago': days_ago, 'volume': df['volume'].iloc[i]})
                 else:
-                    resistances.append({'price': price, 'type': '谷底', 'days_ago': days_ago})
+                    resistances.append({'price': price, 'type': '谷底', 'days_ago': days_ago, 'volume': df['volume'].iloc[i]})
     
     return supports, resistances
 
@@ -169,17 +160,15 @@ def judge_main_behavior(df, supports, resistances):
     
     latest = df.iloc[-1]
     
-    position = latest['position_pct']  # 位置分位
-    vol_ratio = latest['vol_ratio_ma5']  # 量比
-    pct_chg = latest['pct_chg']  # 涨跌幅
-    above_ma20 = latest['above_ma20']  # MA20之上
+    position = latest['position_pct']
+    vol_ratio = latest['vol_ratio_ma5']
+    pct_chg = latest['pct_chg']
+    above_ma20 = latest['above_ma20']
     
-    # 找最近的支撑和压力
     current_price = latest['close']
     nearest_support = min(supports, key=lambda x: abs(x['price'] - current_price))['price'] if supports else current_price * 0.95
     nearest_resistance = min(resistances, key=lambda x: abs(x['price'] - current_price))['price'] if resistances else current_price * 1.05
     
-    # 判断逻辑
     scores = {
         '建仓': 0,
         '洗盘': 0,
@@ -263,15 +252,114 @@ def judge_main_behavior(df, supports, resistances):
         scores['出货'] += 10
         reasons['出货'].append(f'接近压力位{nearest_resistance:.2f}')
     
-    # 找最高分
     best_stage = max(scores, key=scores.get)
     best_score = scores[best_stage]
     
-    # 置信度（归一化）
     total_score = sum(scores.values())
     confidence = best_score / total_score * 100 if total_score > 0 else 0
     
     return best_stage, confidence, reasons[best_stage], scores
+
+
+# ============================================================
+# 第五层：环境过滤
+# ============================================================
+def check_market_env():
+    """检查大盘环境"""
+    
+    # 找大盘数据
+    market_file = DATA_DIR / "sh" / "sh000001.json"
+    if not market_file.exists():
+        return None, None
+    
+    df, _ = load_klines(market_file)
+    if df is None or len(df) < 20:
+        return None, None
+    
+    latest = df.iloc[-1]
+    
+    # 计算MA20
+    ma20 = df['close'].rolling(20).mean().iloc[-1]
+    above_ma20 = latest['close'] > ma20
+    
+    # 计算大盘近期趋势
+    pct_20 = (latest['close'] - df['close'].iloc[-20]) / df['close'].iloc[-20] * 100
+    
+    return above_ma20, pct_20
+
+
+# ============================================================
+# 第六层：综合输出
+# ============================================================
+def print_diagnostic_report(name, df, supports, resistances, best_stage, confidence, reasons, scores):
+    """打印完整的主力行为诊断报告"""
+    
+    latest = df.iloc[-1]
+    current_price = latest['close']
+    
+    print(f"╔════════════════════════════════════════════════════════════╗")
+    print(f"║              主力行为诊断报告                              ║")
+    print(f"╠════════════════════════════════════════════════════════════╣")
+    print(f"║  股票：{name:<48s}║")
+    print(f"║  日期：{str(latest['date']):<48s}║")
+    print(f"║  价格：{current_price:>10.2f}元                                ║")
+    print(f"╚════════════════════════════════════════════════════════════╝")
+    
+    # 当日快照
+    print(f"\n【一、当日快照】")
+    print(f"  涨跌幅：{latest['pct_chg']:+.2f}%")
+    print(f"  振幅：{latest['amplitude']:.2f}%")
+    print(f"  量比(vs5日)：{latest['vol_ratio_ma5']:.2f}")
+    print(f"  位置分位：{latest['position_pct']:.1f}%")
+    print(f"  MA20：{'之上' if latest['above_ma20'] else '之下'}")
+    
+    # 左侧关键位
+    print(f"\n【二、左侧关键位】")
+    print(f"  支撑位（下方）：{len(supports)}个")
+    if supports:
+        supports_sorted = sorted(supports, key=lambda x: abs(x['price'] - current_price))
+        for i, s in enumerate(supports_sorted[:5]):
+            dist = (current_price - s['price']) / current_price * 100
+            print(f"    {i+1}. {s['price']:.2f}元 | {s['type']} | 距当前{dist:.1f}% | {s['days_ago']}天前")
+    
+    print(f"\n  压力位（上方）：{len(resistances)}个")
+    if resistances:
+        resistances_sorted = sorted(resistances, key=lambda x: abs(x['price'] - current_price))
+        for i, r in enumerate(resistances_sorted[:5]):
+            dist = (r['price'] - current_price) / current_price * 100
+            print(f"    {i+1}. {r['price']:.2f}元 | {r['type']} | 距当前{dist:.1f}% | {r['days_ago']}天前")
+    
+    # 主力阶段
+    print(f"\n【三、主力阶段判断】")
+    print(f"  当前阶段：{best_stage}")
+    print(f"  置信度：{confidence:.1f}%")
+    print(f"  依据：")
+    for r in reasons:
+        print(f"    - {r}")
+    
+    print(f"\n  各阶段得分：")
+    for stage, score in scores.items():
+        bar = '█' * int(score / 5)
+        print(f"    {stage}: {score:3d}分 {bar}")
+    
+    # 环境过滤
+    above_ma20, pct_20 = check_market_env()
+    print(f"\n【四、大盘环境】")
+    if above_ma20 is not None:
+        print(f"  大盘MA20：{'之上' if above_ma20 else '之下'}")
+        print(f"  大盘20日涨跌：{pct_20:+.2f}%")
+        if above_ma20 and pct_20 > 0:
+            print(f"  环境判断：偏多")
+        elif not above_ma20 and pct_20 < 0:
+            print(f"  环境判断：偏空")
+        else:
+            print(f"  环境判断：震荡")
+    else:
+        print(f"  无大盘数据")
+    
+    print(f"\n{'═'*60}")
+    print(f"总结：当前主力可能处于【{best_stage}】阶段，置信度{confidence:.1f}%")
+    print(f"{'═'*60}")
 
 
 # ============================================================
@@ -292,44 +380,18 @@ def main():
         print("没找到数据")
         return
     
-    print(f"股票：{name}")
-    print(f"当前价格：{df['close'].iloc[-1]:.2f}")
-    
     # 第一层
     df = calc_daily_indicators(df)
-    latest = df.iloc[-1]
-    
-    print(f"\n【当日快照】")
-    print(f"  涨跌幅：{latest['pct_chg']:.2f}%")
-    print(f"  量比(vs5日)：{latest['vol_ratio_ma5']:.2f}")
-    print(f"  位置分位：{latest['position_pct']:.1f}%")
-    print(f"  MA20：{'之上' if latest['above_ma20'] else '之下'}")
     
     # 第二三层
     supports, resistances = find_key_levels(df)
     
-    print(f"\n【左侧关键位】")
-    print(f"  支撑位：{len(supports)}个")
-    print(f"  压力位：{len(resistances)}个")
-    
     # 第四层
     best_stage, confidence, reasons, scores = judge_main_behavior(df, supports, resistances)
     
-    print(f"\n{'='*60}")
-    print(f"【主力行为判断】")
-    print(f"{'='*60}")
-    print(f"  当前阶段：{best_stage}")
-    print(f"  置信度：{confidence:.1f}%")
-    print(f"  依据：")
-    for r in reasons:
-        print(f"    - {r}")
-    
-    print(f"\n  各阶段得分：")
-    for stage, score in scores.items():
-        bar = '█' * int(score / 5)
-        print(f"    {stage}: {score:3d}分 {bar}")
+    # 第六层：综合输出
+    print_diagnostic_report(name, df, supports, resistances, best_stage, confidence, reasons, scores)
 
 
 if __name__ == "__main__":
     main()
-
