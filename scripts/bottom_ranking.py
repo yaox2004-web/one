@@ -71,36 +71,23 @@ def calc_obv(close, vol):
     return (direction * vol).cumsum()
 
 
-def detect_new_low(series, window=60):
-    """当日是否创window日新低"""
-    return series <= series.rolling(window, min_periods=window).min()
-
-
 def detect_divergence(price_series, indicator_series, lookback=60, bars_back=30):
-    """
-    底背离：价格创lookback日新低，但指标没有创lookback日新低
-    简化版：找最近两个价格低点，如果价格创新低但指标低点更高=背离
-    """
     n = len(price_series)
     result = np.zeros(n, dtype=bool)
     price = price_series.values
     ind = indicator_series.values
 
     for i in range(lookback + bars_back, n):
-        # 最近bars_back天内的最低点
         recent_price = price[i - bars_back:i + 1]
         prev_price = price[i - bars_back - lookback:i - bars_back + 1]
         if len(prev_price) < 10:
             continue
         recent_min = np.nanmin(recent_price)
         prev_min = np.nanmin(prev_price)
-        # 价格创新低
         if recent_min >= prev_min * 0.995:
             continue
-        # 找价格最低点对应的指标值
         recent_idx = np.argmin(recent_price)
         prev_idx = np.argmin(prev_price)
-        # 指标没有创新低
         recent_ind = ind[i - bars_back + recent_idx]
         prev_ind = ind[i - bars_back - lookback + prev_idx]
         if np.isnan(recent_ind) or np.isnan(prev_ind):
@@ -122,27 +109,21 @@ def analyze_one(code, idx_above_map):
     close = df["收盘"]
     vol = df["成交量"]
     open_ = df["开盘"]
-    high = df["最高"]
-    low = df["最低"]
 
-    # RSI(14)
     rsi = calc_rsi(close, 14)
-    # 布林带(20,2)
     boll_up, boll_mid, boll_low = calc_boll(close, 20, 2)
-    # OBV
     obv = calc_obv(close, vol)
-    # 量5均
     vol5 = vol.rolling(5, min_periods=1).mean()
     vol20 = vol.rolling(20, min_periods=1).mean()
+    ma20 = close.rolling(20, min_periods=1).mean()
 
-    # 信号1：RSI底背离（背离+次日放量阳）
+    # 信号1：RSI底背离
     rsi_div = detect_divergence(close, rsi, 60, 30)
     next_vol_up = vol.shift(-1) > vol5.shift(-1) * 1.5
     next_yang = close.shift(-1) > open_.shift(-1)
     sig_rsi = rsi_div & next_vol_up & next_yang
 
-    # 信号2：缩量极致+阳盖阴（今日量<20均量50%，且在MA20附近，次日阳盖阴）
-    ma20 = close.rolling(20, min_periods=1).mean()
+    # 信号2：缩量极致+阳盖阴
     vol_extreme = vol < vol20 * 0.5
     near_ma20 = (close >= ma20 * 0.97) & (close <= ma20 * 1.03)
     next_yang_gai = (close.shift(-1) > open_.shift(-1)) & \
@@ -150,7 +131,7 @@ def analyze_one(code, idx_above_map):
                     (close.shift(-1) > open_.shift(-2))
     sig_vol_extreme = vol_extreme & near_ma20 & next_yang_gai
 
-    # 信号3：布林带下轨反弹（触下轨+RSI<30+次日放量阳）
+    # 信号3：布林带下轨反弹
     touch_lower = close <= boll_low * 1.005
     rsi_oversold = rsi < 30
     next_vol_up2 = vol.shift(-1) > vol5.shift(-1) * 1.3
@@ -163,7 +144,6 @@ def analyze_one(code, idx_above_map):
     next_yang3 = close.shift(-1) > open_.shift(-1)
     sig_obv = obv_div & next_vol_up3 & next_yang3
 
-    # 计算前向收益（T+1）
     results = {}
     signals = {
         "RSI底背离": sig_rsi,
