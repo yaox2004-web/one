@@ -5,7 +5,7 @@
 =================================================
 设计思路（为什么这样写）：
   专门分析用户的持仓股！
-  用我们的判断逻辑，看看每只股票现在处于什么阶段。
+  修正版：判断逻辑更合理，覆盖更多情况！
 
 硬约束：
   - 绝对不用未来函数
@@ -41,7 +41,6 @@ MIN_DATA_DAYS = 60
 # 数据读取
 # ============================================================
 def load_klines(stock_code):
-    # 找文件
     for market_dir in DATA_DIR.iterdir():
         if market_dir.is_dir():
             filepath = market_dir / f"{stock_code}.json"
@@ -83,34 +82,21 @@ def calc_daily_indicators(df):
     
     df['pct_20d'] = (df['close'] - df['close'].shift(20)) / df['close'].shift(20) * 100
     
-    # 关键位
-    df['support_60'] = df['low'].rolling(60).min()
-    df['resistance_60'] = df['high'].rolling(60).max()
-    df['dist_to_support'] = (df['close'] - df['support_60']) / df['support_60'] * 100
-    df['dist_to_resistance'] = (df['resistance_60'] - df['close']) / df['close'] * 100
-    
-    # 量价形态
-    df['is_volume_up'] = df['vol_ratio_ma5'] > 1.5
-    df['is_volume_down'] = df['vol_ratio_ma5'] < 0.7
-    df['is_big_yang'] = df['pct_chg'] > 3
-    df['is_big_yin'] = df['pct_chg'] < -3
-    df['price_up_vol_up'] = (df['pct_chg'] > 0) & (df['vol_ratio_ma5'] > 1.2)
-    df['price_down_vol_down'] = (df['pct_chg'] < 0) & (df['vol_ratio_ma5'] < 0.8)
-    
     return df
 
 
 # ============================================================
-# 主力行为判断
+# 主力行为判断（修正版 - 更合理）
 # ============================================================
 def judge_main_behavior(df):
     latest = df.iloc[-1]
     
     position = latest['position_pct']
-    dist_to_support = latest['dist_to_support']
-    dist_to_resistance = latest['dist_to_resistance']
+    vol_ratio = latest['vol_ratio_ma5']
+    pct_chg = latest['pct_chg']
+    pct_20d = latest['pct_20d']
     
-    if pd.isna(position):
+    if pd.isna(position) or pd.isna(vol_ratio):
         return None
     
     scores = {
@@ -123,59 +109,95 @@ def judge_main_behavior(df):
     
     reasons = []
     
-    # 1. 在关键支撑位附近
-    if not pd.isna(dist_to_support) and dist_to_support < 5:
-        if latest['is_volume_down'] and latest['pct_chg'] > -1:
-            scores['建仓初期'] += 40
-            reasons.append(f'在支撑位{latest["support_60"]:.2f}附近缩量止跌')
-        elif latest['is_volume_up'] and latest['is_big_yang']:
-            scores['建仓后期'] += 40
-            reasons.append(f'在支撑位{latest["support_60"]:.2f}附近放量大涨')
+    # ============================================================
+    # 核心逻辑：量价关系 + 位置
+    # ============================================================
     
-    # 2. 在关键压力位下方
-    if not pd.isna(dist_to_resistance) and dist_to_resistance < 5:
-        if latest['is_volume_down'] and abs(latest['pct_chg']) < 1:
-            scores['洗盘'] += 40
-            reasons.append(f'在压力位{latest["resistance_60"]:.2f}下方缩量横盘')
-        elif latest['is_volume_up'] and latest['is_big_yang']:
-            scores['拉升'] += 40
-            reasons.append(f'放量突破压力位{latest["resistance_60"]:.2f}')
+    # 1. 当日大涨+放量 → 拉升（不管位置在哪，大涨放量就是拉升）
+    if pct_chg > 3 and vol_ratio > 1.5:
+        scores['拉升'] += 50
+        reasons.append(f'当日大涨{pct_chg:.2f}%+放量（量比{vol_ratio:.2f}）→ 拉升')
     
-    # 3. 高位
-    if position > 70:
-        if latest['is_volume_up'] and abs(latest['pct_chg']) < 1:
-            scores['出货'] += 40
-            reasons.append(f'高位{position:.1f}%放量滞涨')
-        elif latest['is_volume_up'] and latest['is_big_yin']:
-            scores['出货'] += 40
-            reasons.append(f'高位{position:.1f}%放量大跌')
+    # 2. 当日大跌+放量 → 出货
+    elif pct_chg < -3 and vol_ratio > 1.5:
+        scores['出货'] += 50
+        reasons.append(f'当日大跌{pct_chg:.2f}%+放量（量比{vol_ratio:.2f}）→ 出货')
     
-    # 4. 低位
-    if position < 30:
-        if latest['price_down_vol_down']:
-            scores['建仓初期'] += 30
-            reasons.append(f'低位{position:.1f}%价跌量缩')
-        elif latest['price_up_vol_up']:
+    # 3. 当日上涨+放量 → 建仓后期或拉升
+    elif pct_chg > 1 and vol_ratio > 1.3:
+        if position < 30:
             scores['建仓后期'] += 30
-            reasons.append(f'低位{position:.1f}%价升量增')
+            reasons.append(f'低位{position:.1f}%涨{pct_chg:.2f}%+放量 → 建仓后期')
+        else:
+            scores['拉升'] += 30
+            reasons.append(f'位置{position:.1f}%涨{pct_chg:.2f}%+放量 → 拉升')
     
-    # 5. 中位
-    if 50 < position < 70:
-        if latest['is_volume_down'] and latest['pct_chg'] < 0:
+    # 4. 当日下跌+缩量 → 洗盘或建仓
+    elif pct_chg < -1 and vol_ratio < 0.8:
+        if position < 30:
+            scores['建仓初期'] += 30
+            reasons.append(f'低位{position:.1f}%跌{pct_chg:.2f}%+缩量 → 建仓初期')
+        else:
             scores['洗盘'] += 30
-            reasons.append(f'中位{position:.1f}%缩量回调')
+            reasons.append(f'位置{position:.1f}%跌{pct_chg:.2f}%+缩量 → 洗盘')
     
+    # 5. 20日大涨+放量 → 拉升
+    if not pd.isna(pct_20d):
+        if pct_20d > 15 and vol_ratio > 1.2:
+            scores['拉升'] += 30
+            reasons.append(f'20日大涨{pct_20d:.1f}% → 拉升')
+        
+        # 6. 20日大跌 → 建仓初期或出货
+        elif pct_20d < -15:
+            if position < 30:
+                scores['建仓初期'] += 30
+                reasons.append(f'低位{position:.1f}%跌{pct_20d:.1f}% → 建仓初期')
+            else:
+                scores['出货'] += 20
+                reasons.append(f'高位跌{pct_20d:.1f}% → 出货')
+    
+    # 7. 位置高的 → 出货
+    if position > 80:
+        scores['出货'] += 30
+        reasons.append(f'位置极高{position:.1f}% → 出货')
+    elif position > 70:
+        scores['出货'] += 20
+        reasons.append(f'位置高{position:.1f}% → 出货')
+    
+    # 8. 位置低的 → 建仓
+    if position < 10:
+        scores['建仓初期'] += 30
+        reasons.append(f'位置极低{position:.1f}% → 建仓初期')
+    elif position < 30:
+        scores['建仓后期'] += 20
+        reasons.append(f'位置低{position:.1f}% → 建仓后期')
+    
+    # 找最高分
     best_stage = max(scores, key=scores.get)
     best_score = scores[best_stage]
+    
     total_score = sum(scores.values())
     confidence = best_score / total_score * 100 if total_score > 0 else 0
+    
+    # 如果所有scores都是0，给个默认判断
+    if total_score == 0:
+        if position < 30:
+            best_stage = '建仓后期'
+            reasons.append(f'位置{position:.1f}%（默认判断）')
+        elif position < 70:
+            best_stage = '洗盘'
+            reasons.append(f'位置{position:.1f}%（默认判断）')
+        else:
+            best_stage = '出货'
+            reasons.append(f'位置{position:.1f}%（默认判断）')
+        confidence = 50.0
     
     return {
         'stage': best_stage,
         'confidence': confidence,
         'position': position,
-        'vol_ratio': latest['vol_ratio_ma5'],
-        'pct_20d': latest['pct_20d'],
+        'vol_ratio': vol_ratio,
+        'pct_20d': pct_20d,
         'reasons': reasons,
     }
 
@@ -276,7 +298,7 @@ def generate_html(results, date_str):
 # ============================================================
 def main():
     print("="*70)
-    print("我的持仓股分析")
+    print("我的持仓股分析（修正版）")
     print("="*70)
     
     results = []
@@ -320,7 +342,6 @@ def main():
         print(f"  判断：{result['stage']}（置信度{result['confidence']:.1f}%）")
         print(f"  依据：{', '.join(result['reasons'])}")
     
-    # 生成HTML
     today = datetime.now().strftime('%Y-%m-%d')
     html_content = generate_html(results, today)
     
@@ -334,4 +355,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
