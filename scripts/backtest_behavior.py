@@ -1,21 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-主力行为判断逻辑历史回测
+主力行为判断逻辑历史回测（V2）
 =================================================
 设计思路（为什么这样写）：
-  验证我们的判断逻辑历史上准不准！
-  做法：
-  1. 用过去1年的数据，在每个历史日期判断主力阶段
-  2. 然后看接下来5天/10天/20天的涨跌幅
-  3. 看看：
-     - 判断为"拉升"的股票，后来真的涨了吗？
-     - 判断为"出货"的股票，后来真的跌了吗？
-  4. 算一下各阶段的胜率和收益率
+  用新的判断逻辑跑历史回测！
+  新逻辑：量价关系 + 位置 = 主力行为
 
 硬约束：
-  - 绝对不用未来函数（判断时只用截止到当天的数据）
-  - 只保存统计结果，不保存原始样本数据（避免文件太大）
+  - 绝对不用未来函数
+  - 只保存统计结果，不保存原始样本数据
 """
 
 import json
@@ -80,39 +74,19 @@ def calc_daily_indicators(df):
     df['low_120'] = df['low'].rolling(120).min()
     df['position_pct'] = (df['close'] - df['low_120']) / (df['high_120'] - df['low_120']) * 100
     
-    df['ma20'] = df['close'].rolling(20).mean()
-    df['ma60'] = df['close'].rolling(60).mean()
-    df['above_ma20'] = df['close'] > df['ma20']
-    df['above_ma60'] = df['close'] > df['ma60']
-    
     df['pct_20d'] = (df['close'] - df['close'].shift(20)) / df['close'].shift(20) * 100
-    
-    # 连续状态
-    df['consec_vol_up_3d'] = (df['vol_ratio_ma5'] > 1.2) & \
-                             (df['vol_ratio_ma5'].shift(1) > 1.2) & \
-                             (df['vol_ratio_ma5'].shift(2) > 1.2)
-    
-    df['consec_vol_down_3d'] = (df['vol_ratio_ma5'] < 0.8) & \
-                               (df['vol_ratio_ma5'].shift(1) < 0.8) & \
-                               (df['vol_ratio_ma5'].shift(2) < 0.8)
-    
-    # 量价配合
-    df['price_up_vol_up'] = (df['pct_chg'] > 0) & (df['vol_ratio_ma5'] > 1.2)
-    df['price_down_vol_down'] = (df['pct_chg'] < 0) & (df['vol_ratio_ma5'] < 0.8)
     
     return df
 
 
 # ============================================================
-# 主力行为意图判断
+# 主力行为判断（V2 - 量价关系+位置）
 # ============================================================
-def judge_main_behavior(df_row):
-    position = df_row['position_pct']
-    vol_ratio = df_row['vol_ratio_ma5']
-    pct_chg = df_row['pct_chg']
-    pct_20d = df_row['pct_20d']
-    above_ma20 = df_row['above_ma20']
-    above_ma60 = df_row['above_ma60']
+def judge_main_behavior(row):
+    position = row['position_pct']
+    vol_ratio = row['vol_ratio_ma5']
+    pct_chg = row['pct_chg']
+    pct_20d = row['pct_20d']
     
     if pd.isna(position) or pd.isna(vol_ratio):
         return None
@@ -125,111 +99,65 @@ def judge_main_behavior(df_row):
         '出货': 0,
     }
     
-    # 1. 位置分位
-    if position < 10:
-        scores['建仓初期'] += 40
-    elif position < 30:
-        scores['建仓后期'] += 30
-    elif position < 50:
-        scores['建仓后期'] += 15
-        scores['洗盘'] += 15
-    elif position < 70:
-        scores['洗盘'] += 30
-    elif position < 85:
-        scores['出货'] += 30
-    else:
-        scores['出货'] += 40
+    # 1. 当日大涨+放量 → 拉升
+    if pct_chg > 3 and vol_ratio > 1.5:
+        scores['拉升'] += 50
     
-    # 2. 量能
-    if vol_ratio > 1.5:
-        if position < 30:
-            scores['建仓后期'] += 25
-        elif position < 70:
-            scores['拉升'] += 25
-        else:
-            scores['出货'] += 25
-    elif vol_ratio < 0.7:
-        if position < 30:
-            scores['建仓初期'] += 25
-        elif position < 70:
-            scores['洗盘'] += 25
-        else:
-            scores['出货'] += 10
+    # 2. 当日大跌+放量 → 出货
+    elif pct_chg < -3 and vol_ratio > 1.5:
+        scores['出货'] += 50
     
-    # 3. 20日涨跌幅
+    # 3. 当日上涨+放量 → 建仓后期或拉升
+    elif pct_chg > 1 and vol_ratio > 1.3:
+        if position < 30:
+            scores['建仓后期'] += 30
+        else:
+            scores['拉升'] += 30
+    
+    # 4. 当日下跌+缩量 → 洗盘或建仓
+    elif pct_chg < -1 and vol_ratio < 0.8:
+        if position < 30:
+            scores['建仓初期'] += 30
+        else:
+            scores['洗盘'] += 30
+    
+    # 5. 20日大涨+放量 → 拉升
     if not pd.isna(pct_20d):
-        if pct_20d > 15:
-            if position > 50:
-                scores['拉升'] += 25
-            else:
-                scores['建仓后期'] += 15
-        elif pct_20d > 5:
-            if position > 50:
-                scores['拉升'] += 15
-            else:
-                scores['建仓后期'] += 10
+        if pct_20d > 15 and vol_ratio > 1.2:
+            scores['拉升'] += 30
+        
+        # 6. 20日大跌 → 建仓初期或出货
         elif pct_20d < -15:
             if position < 30:
-                scores['建仓初期'] += 15
+                scores['建仓初期'] += 30
             else:
-                scores['出货'] += 15
+                scores['出货'] += 20
     
-    # 4. 当日涨跌幅
-    if pct_chg > 3:
-        if position > 50:
-            scores['拉升'] += 15
-        else:
-            scores['建仓后期'] += 10
-    elif pct_chg < -3:
-        if position > 70:
-            scores['出货'] += 15
+    # 7. 位置高的 → 出货
+    if position > 80:
+        scores['出货'] += 30
+    elif position > 70:
+        scores['出货'] += 20
     
-    # 5. 均线位置
-    if above_ma20:
-        if position > 50:
-            scores['拉升'] += 10
-        else:
-            scores['建仓后期'] += 5
-    else:
-        if position < 30:
-            scores['建仓初期'] += 10
+    # 8. 位置低的 → 建仓
+    if position < 10:
+        scores['建仓初期'] += 30
+    elif position < 30:
+        scores['建仓后期'] += 20
     
-    if above_ma60:
-        if position > 50:
-            scores['拉升'] += 5
-    else:
-        if position < 30:
-            scores['建仓初期'] += 5
-    
-    # 6. 连续状态
-    if df_row['consec_vol_up_3d']:
-        if position < 30:
-            scores['建仓后期'] += 15
-        elif position < 70:
-            scores['拉升'] += 15
-        else:
-            scores['出货'] += 15
-    
-    if df_row['consec_vol_down_3d']:
-        if position < 30:
-            scores['建仓初期'] += 15
-        elif position < 70:
-            scores['洗盘'] += 15
-    
-    # 7. 量价配合
-    if df_row['price_up_vol_up']:
-        if position > 50:
-            scores['拉升'] += 10
-        else:
-            scores['建仓后期'] += 5
-    
-    if df_row['price_down_vol_down']:
-        if position < 30:
-            scores['建仓初期'] += 10
-        elif position > 70:
-            scores['出货'] += 10
-    
+    # 找最高分
     best_stage = max(scores, key=scores.get)
+    total_score = sum(scores.values())
+    
+    # 如果所有scores都是0，给个默认判断
+    if total_score == 0:
+        if position < 30:
+            best_stage = '建仓后期'
+        elif position < 70:
+            best_stage = '洗盘'
+        else:
+            best_stage = '出货'
+    
     return best_stage
 
 
@@ -238,7 +166,7 @@ def judge_main_behavior(df_row):
 # ============================================================
 def main():
     print("="*70)
-    print("主力行为判断逻辑历史回测")
+    print("主力行为判断逻辑历史回测（V2）")
     print("="*70)
     
     all_files = []
@@ -266,19 +194,16 @@ def main():
         
         df = calc_daily_indicators(df)
         
-        # 从倒数第LOOKBACK_DAYS天开始，逐个日期判断
         start_idx = len(df) - LOOKBACK_DAYS - 20
         end_idx = len(df) - 20
         
         for idx in range(start_idx, end_idx):
             row = df.iloc[idx]
             
-            # 判断主力阶段
             stage = judge_main_behavior(row)
             if stage is None:
                 continue
             
-            # 初始化统计
             if stage not in stage_stats:
                 stage_stats[stage] = {
                     'count': 0,
@@ -288,7 +213,6 @@ def main():
             stage_stats[stage]['count'] += 1
             total_samples += 1
             
-            # 计算未来N天的收益
             entry_price = row['close']
             
             for hold_days in HOLD_DAYS_LIST:
@@ -298,9 +222,8 @@ def main():
                     ret = (future_price - entry_price) / entry_price * 100
                     stage_stats[stage]['rets'][hold_days].append(ret)
     
-    # 输出结果
     print("\n" + "="*70)
-    print("回测结果")
+    print("回测结果（V2新逻辑）")
     print("="*70)
     print(f"总样本数：{total_samples}个")
     
@@ -324,12 +247,12 @@ def main():
             
             print(f"{stage:<10} {count:>8} {median:>10.2f} {mean:>10.2f} {win_rate:>10.1f}")
     
-    # 保存统计结果（小文件）
+    # 保存统计结果
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    summary_file = OUTPUT_DIR / "behavior_backtest_summary.txt"
+    summary_file = OUTPUT_DIR / "behavior_backtest_summary_v2.txt"
     
     with open(summary_file, 'w', encoding='utf-8') as f:
-        f.write("主力行为判断逻辑历史回测结果\n")
+        f.write("主力行为判断逻辑历史回测结果（V2）\n")
         f.write("="*50 + "\n")
         f.write(f"总样本数：{total_samples}个\n\n")
         
