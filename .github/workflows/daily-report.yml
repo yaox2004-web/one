@@ -1,0 +1,43 @@
+name: 每日复盘报告
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: |
+          pip install pandas numpy
+          
+      - name: Run
+        run: |
+          cd scripts
+          python3 daily_report.py
+          
+      - name: Commit results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/analysis/
+          if git diff --cached --quiet; then
+            echo "无变化"
+          else
+            git commit -m "data: 每日复盘报告 $(date -u +%Y%m%d)"
+            git push
+          fi
+
