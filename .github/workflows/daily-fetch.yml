@@ -85,11 +85,19 @@ jobs:
                 data = json.loads(text[start:end])
                 if not data:
                     raise Exception('empty')
-                out = {'code': code, 'name': name, 'data': data}
+
+                # 转换成 load_kline_json 期望的格式
+                # 列顺序：日期,开盘,收盘,最高,最低,成交量
+                klines = []
+                for k in data:
+                    row = f"{k['day']},{k['open']},{k['close']},{k['high']},{k['low']},{k['volume']}"
+                    klines.append(row)
+
+                out = {'name': name, 'klines': klines}
                 with open(f'data/kline/{code}.json', 'w', encoding='utf-8') as f:
                     json.dump(out, f, ensure_ascii=False)
                 ok += 1
-                print(f'  OK {code} {name} {len(data)}条')
+                print(f'  OK {code} {name} {len(klines)}条')
             except Exception as e:
                 fail += 1
                 print(f'  FAIL {code} {name}: {e}')
