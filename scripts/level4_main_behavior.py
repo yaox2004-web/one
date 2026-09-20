@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-完整系统：第一层~第六层（多股测试版）
+完整系统：第一层~第六层（优化版）
 =================================================
 设计思路（为什么这样写）：
-  测试多只不同类型的股票，看看系统判断准不准。
-  
-  测试股票选择：
-  1. 贵州茅台（大盘蓝筹）
-  2. 宁德时代（新能源龙头）
-  3. 比亚迪（新能源汽车）
-  4. 中芯国际（半导体）
-  5. 东方财富（券商）
+  优化判断逻辑，让它能区分不同情况：
+  1. 建仓初期：位置极低（<5%）+ 缩量
+  2. 建仓后期：位置中低（20-40%）+ 放量
+  3. 洗盘：位置中位（50-70%）+ 缩量
+  4. 拉升：位置中位以上 + 价升量增
+  5. 出货：位置高位（>70%）+ 放量
 
 硬约束：
   - 绝对不用未来函数
@@ -27,16 +25,10 @@ from pathlib import Path
 # ============================================================
 DATA_DIR = Path(__file__).parent.parent / "data" / "kline"
 
-HISTORY_PERIODS = [20, 60, 120, 250]
-BEISHU_RATIO = 1.9
-BIG_BAR_PCT = 5.0
-
-# 测试股票列表
 TEST_STOCKS = [
     ("sh", "sh600519", "贵州茅台"),
     ("sz", "sz300750", "宁德时代"),
     ("sz", "sz002594", "比亚迪"),
-    ("sh", "sh688981", "中芯国际"),
     ("sz", "sz300059", "东方财富"),
 ]
 
@@ -94,6 +86,9 @@ def calc_daily_indicators(df):
     df['ma60'] = df['close'].rolling(60).mean()
     df['above_ma20'] = df['close'] > df['ma20']
     
+    # 计算20日涨跌幅
+    df['pct_20d'] = (df['close'] - df['close'].shift(20)) / df['close'].shift(20) * 100
+    
     return df
 
 
@@ -150,94 +145,133 @@ def find_key_levels(df):
 
 
 # ============================================================
-# 第四层：主力行为意图判断
+# 第四层：主力行为意图判断（优化版）
 # ============================================================
 def judge_main_behavior(df, supports, resistances):
+    """优化版：区分5个阶段"""
+    
     latest = df.iloc[-1]
     
-    position = latest['position_pct']
-    vol_ratio = latest['vol_ratio_ma5']
-    pct_chg = latest['pct_chg']
-    above_ma20 = latest['above_ma20']
+    position = latest['position_pct']  # 位置分位
+    vol_ratio = latest['vol_ratio_ma5']  # 量比
+    pct_chg = latest['pct_chg']  # 当日涨跌幅
+    pct_20d = latest['pct_20d']  # 20日涨跌幅
+    above_ma20 = latest['above_ma20']  # MA20之上
     
     current_price = latest['close']
     nearest_support = min(supports, key=lambda x: abs(x['price'] - current_price))['price'] if supports else current_price * 0.95
     nearest_resistance = min(resistances, key=lambda x: abs(x['price'] - current_price))['price'] if resistances else current_price * 1.05
     
-    scores = {'建仓': 0, '洗盘': 0, '拉升': 0, '出货': 0}
-    reasons = {'建仓': [], '洗盘': [], '拉升': [], '出货': []}
+    # 5个阶段的得分
+    scores = {
+        '建仓初期': 0,
+        '建仓后期': 0,
+        '洗盘': 0,
+        '拉升': 0,
+        '出货': 0,
+    }
     
-    if position < 30:
-        scores['建仓'] += 30
-        reasons['建仓'].append(f'位置分位{position:.1f}%（低位）')
+    reasons = {
+        '建仓初期': [],
+        '建仓后期': [],
+        '洗盘': [],
+        '拉升': [],
+        '出货': [],
+    }
+    
+    # 1. 位置分位判断
+    if position < 10:
+        scores['建仓初期'] += 40
+        reasons['建仓初期'].append(f'位置分位{position:.1f}%（极低位）')
+    elif position < 30:
+        scores['建仓后期'] += 30
+        reasons['建仓后期'].append(f'位置分位{position:.1f}%（低位）')
     elif position < 50:
-        scores['建仓'] += 15
+        scores['建仓后期'] += 15
         scores['洗盘'] += 15
-        reasons['建仓'].append(f'位置分位{position:.1f}%（中低位）')
+        reasons['建仓后期'].append(f'位置分位{position:.1f}%（中低位）')
     elif position < 70:
         scores['洗盘'] += 30
         reasons['洗盘'].append(f'位置分位{position:.1f}%（中位）')
-    else:
+    elif position < 85:
         scores['出货'] += 30
-        reasons['出货'].append(f'位置分位{position:.1f}%（高位）')
+        reasons['出货'].append(f'位置分位{position:.1f}%（中高位）')
+    else:
+        scores['出货'] += 40
+        reasons['出货'].append(f'位置分位{position:.1f}%（极高位）')
     
+    # 2. 量能判断
     if vol_ratio > 1.5:
-        if position < 50:
-            scores['建仓'] += 25
-            reasons['建仓'].append(f'放量（量比{vol_ratio:.2f}）')
+        if position < 30:
+            scores['建仓后期'] += 25
+            reasons['建仓后期'].append(f'低位放量（量比{vol_ratio:.2f}）')
+        elif position < 70:
+            scores['拉升'] += 25
+            reasons['拉升'].append(f'中位放量（量比{vol_ratio:.2f}）')
         else:
             scores['出货'] += 25
             reasons['出货'].append(f'高位放量（量比{vol_ratio:.2f}）')
-    elif vol_ratio < 0.8:
-        if position > 50:
+    elif vol_ratio < 0.7:
+        if position < 30:
+            scores['建仓初期'] += 25
+            reasons['建仓初期'].append(f'低位缩量（量比{vol_ratio:.2f}）')
+        elif position < 70:
             scores['洗盘'] += 25
-            reasons['洗盘'].append(f'缩量（量比{vol_ratio:.2f}）')
+            reasons['洗盘'].append(f'中位缩量（量比{vol_ratio:.2f}）')
         else:
-            scores['建仓'] += 10
-            reasons['建仓'].append(f'低位缩量（量比{vol_ratio:.2f}）')
+            scores['出货'] += 10
+            reasons['出货'].append(f'高位缩量（量比{vol_ratio:.2f}）')
     
-    if pct_chg > 3:
+    # 3. 价格表现（20日涨跌幅）
+    if pct_20d > 10:
         if position > 50:
             scores['拉升'] += 25
-            reasons['拉升'].append(f'大涨{pct_chg:.2f}%')
+            reasons['拉升'].append(f'20日涨{pct_20d:.1f}%')
         else:
-            scores['建仓'] += 15
-            reasons['建仓'].append(f'低位涨{pct_chg:.2f}%')
+            scores['建仓后期'] += 15
+            reasons['建仓后期'].append(f'低位涨{pct_20d:.1f}%')
+    elif pct_20d < -10:
+        if position < 30:
+            scores['建仓初期'] += 15
+            reasons['建仓初期'].append(f'低位跌{pct_20d:.1f}%')
+        else:
+            scores['出货'] += 15
+            reasons['出货'].append(f'高位跌{pct_20d:.1f}%')
+    
+    # 4. 当日涨跌幅
+    if pct_chg > 3:
+        if position > 50:
+            scores['拉升'] += 15
+            reasons['拉升'].append(f'当日大涨{pct_chg:.2f}%')
+        else:
+            scores['建仓后期'] += 10
+            reasons['建仓后期'].append(f'当日涨{pct_chg:.2f}%')
     elif pct_chg < -3:
         if position > 70:
-            scores['出货'] += 20
-            reasons['出货'].append(f'高位跌{pct_chg:.2f}%')
-    elif abs(pct_chg) < 1:
-        if position > 50 and vol_ratio < 0.8:
-            scores['洗盘'] += 20
-            reasons['洗盘'].append(f'缩量横盘')
+            scores['出货'] += 15
+            reasons['出货'].append(f'当日大跌{pct_chg:.2f}%')
     
+    # 5. 均线位置
     if above_ma20:
-        scores['拉升'] += 10
-        reasons['拉升'].append(f'MA20之上')
+        if position > 50:
+            scores['拉升'] += 10
+            reasons['拉升'].append(f'MA20之上')
+        else:
+            scores['建仓后期'] += 5
+            reasons['建仓后期'].append(f'MA20之上')
     else:
         if position < 30:
-            scores['建仓'] += 10
-            reasons['建仓'].append(f'MA20之下（低位）')
+            scores['建仓初期'] += 10
+            reasons['建仓初期'].append(f'MA20之下（低位）')
     
-    dist_to_support = (current_price - nearest_support) / current_price * 100
-    dist_to_resistance = (nearest_resistance - current_price) / current_price * 100
-    
-    if dist_to_support < 2 and position < 50:
-        scores['建仓'] += 10
-        reasons['建仓'].append(f'接近支撑位{nearest_support:.2f}')
-    
-    if dist_to_resistance < 2 and position > 50:
-        scores['出货'] += 10
-        reasons['出货'].append(f'接近压力位{nearest_resistance:.2f}')
-    
+    # 找最高分
     best_stage = max(scores, key=scores.get)
     best_score = scores[best_stage]
     
     total_score = sum(scores.values())
     confidence = best_score / total_score * 100 if total_score > 0 else 0
     
-    return best_stage, confidence, reasons[best_stage], scores, position, vol_ratio
+    return best_stage, confidence, reasons[best_stage], scores, position, vol_ratio, pct_20d
 
 
 # ============================================================
@@ -245,7 +279,7 @@ def judge_main_behavior(df, supports, resistances):
 # ============================================================
 def main():
     print("="*70)
-    print("多股测试：看看系统判断准不准")
+    print("多股测试：优化版判断逻辑")
     print("="*70)
     
     results = []
@@ -265,7 +299,7 @@ def main():
         # 跑系统
         df = calc_daily_indicators(df)
         supports, resistances = find_key_levels(df)
-        best_stage, confidence, reasons, scores, position, vol_ratio = judge_main_behavior(df, supports, resistances)
+        best_stage, confidence, reasons, scores, position, vol_ratio, pct_20d = judge_main_behavior(df, supports, resistances)
         
         current_price = df['close'].iloc[-1]
         latest_date = df['date'].iloc[-1]
@@ -275,27 +309,26 @@ def main():
             'price': current_price,
             'position': position,
             'vol_ratio': vol_ratio,
+            'pct_20d': pct_20d,
             'stage': best_stage,
             'confidence': confidence,
-            'support_count': len(supports),
-            'resistance_count': len(resistances),
         })
         
         print(f"\n【{name}】")
         print(f"  价格：{current_price:.2f}元 | 日期：{latest_date}")
-        print(f"  位置分位：{position:.1f}% | 量比：{vol_ratio:.2f}")
+        print(f"  位置分位：{position:.1f}% | 量比：{vol_ratio:.2f} | 20日涨跌：{pct_20d:+.1f}%")
         print(f"  判断：{best_stage}（置信度{confidence:.1f}%）")
-        print(f"  支撑位：{len(supports)}个 | 压力位：{len(resistances)}个")
+        print(f"  依据：{', '.join(reasons)}")
     
     # 汇总
     print(f"\n{'='*70}")
     print("汇总")
     print(f"{'='*70}")
-    print(f"{'股票':<12s} {'价格':>8s} {'位置分位':>8s} {'量比':>6s} {'判断':<6s} {'置信度':>6s}")
+    print(f"{'股票':<12s} {'价格':>8s} {'位置分位':>8s} {'量比':>6s} {'20日涨跌':>8s} {'判断':<8s} {'置信度':>6s}")
     print("-"*70)
     
     for r in results:
-        print(f"{r['name']:<12s} {r['price']:>8.2f} {r['position']:>7.1f}% {r['vol_ratio']:>6.2f} {r['stage']:<6s} {r['confidence']:>5.1f}%")
+        print(f"{r['name']:<12s} {r['price']:>8.2f} {r['position']:>7.1f}% {r['vol_ratio']:>6.2f} {r['pct_20d']:>+7.1f}% {r['stage']:<8s} {r['confidence']:>5.1f}%")
 
 
 if __name__ == "__main__":
