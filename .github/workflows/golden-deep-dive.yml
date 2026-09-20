@@ -13,7 +13,7 @@ concurrency:
 jobs:
   dive:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 360
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
@@ -23,7 +23,7 @@ jobs:
       - name: 装依赖
         run: pip install pandas numpy requests tenacity -q
 
-      - name: 跑黄金柱深挖
+      - name: 跑黄金柱深挖（全市场+断点续跑）
         run: |
           cd scripts
           python3 golden_deep_dive.py
@@ -36,6 +36,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "无变化"
           else
-            git commit -m "data: 黄金柱深挖 $(date -u +%Y%m%d)"
+            git commit -m "data: 黄金柱深挖全市场 $(date -u +%Y%m%d)"
             git push
           fi
