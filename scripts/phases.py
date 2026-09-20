@@ -106,7 +106,7 @@ CONFIRM_DAYS = 3
 
 # ============ v4新增：ATR参数 ============
 ATR_PERIOD = 14          # ATR周期（默认14日）
-ATR_LONG_DOWN_MULT = 1.5  # 长阴跌幅阈值 = 1.5×ATR（原固定5%）
+ATR_LONG_DOWN_MULT = 1.0  # 长阴跌幅阈值 = 1.0×ATR（原固定5%）
 ATR_HIGH_VOL_PCT = 5.0    # ATR/股价 > 5% = 高波动（量化对倒嫌疑）
 
 # ============ 位置分类 ============
