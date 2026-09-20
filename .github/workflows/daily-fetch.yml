@@ -86,11 +86,11 @@ jobs:
                 if not data:
                     raise Exception('empty')
 
-                # 转换成 load_kline_json 期望的格式
+                # 必须用 list of lists 格式，不是逗号字符串
                 # 列顺序：日期,开盘,收盘,最高,最低,成交量
                 klines = []
                 for k in data:
-                    row = f"{k['day']},{k['open']},{k['close']},{k['high']},{k['low']},{k['volume']}"
+                    row = [k['day'], k['open'], k['close'], k['high'], k['low'], k['volume']]
                     klines.append(row)
 
                 out = {'name': name, 'klines': klines}
