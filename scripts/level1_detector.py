@@ -49,7 +49,7 @@ POSITION_PERIOD = 120  # 位置分位：近120日高低点
 
 
 # ============================================================
-# 数据读取
+# 数据读取（修复版：自动适配列数）
 # ============================================================
 def load_klines(filepath):
     with open(filepath, 'r') as f:
@@ -58,17 +58,27 @@ def load_klines(filepath):
     if not klines:
         return None, None
     
+    # 自动判断列数
     ncols = len(klines[0])
+    
+    # 根据列数自动命名
     if ncols == 6:
         cols = ['date', 'open', 'close', 'high', 'low', 'volume']
     elif ncols == 7:
         cols = ['date', 'open', 'close', 'high', 'low', 'volume', 'amount']
     else:
-        return None, None
+        # 未知列数，按前6列处理
+        cols = ['date', 'open', 'close', 'high', 'low', 'volume'] + [f'col{i}' for i in range(7, ncols)]
     
-    df = pd.DataFrame(klines, columns=cols[:ncols])
+    df = pd.DataFrame(klines)
+    
+    # 只取前ncols列，列名用我们定义的
+    df = df.iloc[:, :ncols]
+    df.columns = cols[:ncols]
+    
     for col in ['open', 'close', 'high', 'low', 'volume']:
-        df[col] = pd.to_numeric(df[col], errors='coerce')
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
     df = df.dropna(subset=['open', 'close', 'high', 'low', 'volume'])
     
     name = data.get('name', filepath.stem)
@@ -336,4 +346,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
