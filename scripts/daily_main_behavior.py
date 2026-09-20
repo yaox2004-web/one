@@ -5,13 +5,7 @@
 =================================================
 设计思路（为什么这样写）：
   每个交易日收盘后自动跑，扫描全市场所有股票。
-  输出：
-  1. 今日所有股票的主力阶段分布
-  2. 建仓初期的股票列表
-  3. 建仓后期的股票列表
-  4. 洗盘的股票列表
-  5. 拉升的股票列表
-  6. 出货的股票列表
+  输出各阶段的股票列表。
 
 硬约束：
   - 绝对不用未来函数
@@ -29,7 +23,7 @@ from datetime import datetime
 DATA_DIR = Path(__file__).parent.parent / "data" / "kline"
 OUTPUT_DIR = Path(__file__).parent.parent / "data" / "analysis"
 
-MIN_DATA_DAYS = 60  # 最少需要60天数据
+MIN_DATA_DAYS = 60
 
 
 # ============================================================
@@ -99,7 +93,7 @@ def judge_main_behavior(df):
     above_ma20 = latest['above_ma20']
     
     if pd.isna(position) or pd.isna(vol_ratio):
-        return None, None
+        return None  # 直接返回None
     
     scores = {
         '建仓初期': 0,
@@ -179,7 +173,13 @@ def judge_main_behavior(df):
     total_score = sum(scores.values())
     confidence = best_score / total_score * 100 if total_score > 0 else 0
     
-    return best_stage, confidence, position, vol_ratio, pct_20d
+    return {
+        'stage': best_stage,
+        'confidence': confidence,
+        'position': position,
+        'vol_ratio': vol_ratio,
+        'pct_20d': pct_20d,
+    }
 
 
 # ============================================================
@@ -190,7 +190,6 @@ def main():
     print("每日主力行为诊断（全市场版）")
     print("="*70)
     
-    # 找所有股票
     all_files = []
     for market_dir in DATA_DIR.iterdir():
         if market_dir.is_dir():
@@ -199,7 +198,6 @@ def main():
     
     print(f"共{len(all_files)}只股票")
     
-    # 扫描每只股票
     results = []
     total = len(all_files)
     
@@ -213,19 +211,19 @@ def main():
         
         df = calc_daily_indicators(df)
         
-        stage, confidence, position, vol_ratio, pct_20d = judge_main_behavior(df)
-        if stage is None:
+        result = judge_main_behavior(df)
+        if result is None:
             continue
         
         results.append({
             'code': filepath.stem,
             'name': name,
             'price': df['close'].iloc[-1],
-            'position': position,
-            'vol_ratio': vol_ratio,
-            'pct_20d': pct_20d,
-            'stage': stage,
-            'confidence': confidence,
+            'position': result['position'],
+            'vol_ratio': result['vol_ratio'],
+            'pct_20d': result['pct_20d'],
+            'stage': result['stage'],
+            'confidence': result['confidence'],
             'date': df['date'].iloc[-1],
         })
     
@@ -253,10 +251,8 @@ def main():
         print(f"【{stage}】共{len(stage_df)}只")
         print(f"{'='*70}")
         
-        # 按置信度排序
         stage_df = stage_df.sort_values('confidence', ascending=False)
         
-        # 只显示前10只
         for _, row in stage_df.head(10).iterrows():
             print(f"  {row['code']} {row['name']:<12s} | {row['price']:>8.2f}元 | 位置{row['position']:>5.1f}% | 置信度{row['confidence']:>5.1f}%")
     
@@ -270,4 +266,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
