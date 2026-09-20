@@ -126,7 +126,7 @@ def detect_price_pattern(df):
     body = df['close'] - df['open']
     body_pct = body / df['open'] * 100  # 实体涨跌幅
     
-    # 影线
+    # 影线（用局部变量，不存到df里）
     upper_shadow = df['high'] - df[['open', 'close']].max(axis=1)
     lower_shadow = df[['open', 'close']].min(axis=1) - df['low']
     body_size = abs(body)
@@ -163,8 +163,10 @@ def detect_price_pattern(df):
     df['gravestone_doji'] = df['doji'] & df['long_upper_shadow'] & ~df['long_lower_shadow']  # 墓碑十字
     
     # --- 特殊形态（4种）---
-    df['hammer'] = df['long_lower_shadow'] & (df['upper_shadow'] / body_size_safe < 0.5) & (body_size < df['high'] - df['low'])  # 锤头线
-    df['inverted_hammer'] = df['long_upper_shadow'] & (df['lower_shadow'] / body_size_safe < 0.5) & (body_size < df['high'] - df['low'])  # 倒锤头
+    # 锤头线：长下影+短上影+小实体
+    df['hammer'] = df['long_lower_shadow'] & (upper_shadow / body_size_safe < 0.5) & (body_size < df['high'] - df['low'])  # 锤头线
+    # 倒锤头：长上影+短下影+小实体
+    df['inverted_hammer'] = df['long_upper_shadow'] & (lower_shadow / body_size_safe < 0.5) & (body_size < df['high'] - df['low'])  # 倒锤头
     
     # 假阳真阴/假阴真阳
     df['fake_yang_real_yin'] = (df['close'] > df['open']) & (df['close'] < df['close'].shift(1))  # 假阳真阴
