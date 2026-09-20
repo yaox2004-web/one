@@ -16,7 +16,8 @@ jobs:
         with:
           token: ${{ secrets.GH_TOKEN }}
       - name: 装依赖
-        run: pip install pandas numpy -q
+        run: pip install pandas numpy tenacity -q
+
       - name: 跑抄底新规则
         run: |
           cd scripts
