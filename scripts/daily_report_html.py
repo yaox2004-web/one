@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-每日主力行为诊断（HTML版）
+每日主力行为诊断（HTML版 - 优化版）
 =================================================
 设计思路（为什么这样写）：
-  把每日诊断结果做成HTML页面，美观直观。
-  包括：
-  1. 市场全景饼图
-  2. 各阶段数量柱状图
-  3. 各阶段股票列表
+  优化判断逻辑，加更多维度：
+  1. 位置分位
+  2. 量比
+  3. 20日涨跌幅
+  4. 当日涨跌幅
+  5. MA20位置
+  6. 左侧关键位距离（离最近支撑/压力多远）
+  7. 连续状态（连续放量/缩量）
+  8. 量价配合（价升量增 vs 价升量缩）
 
 硬约束：
   - 绝对不用未来函数
@@ -75,16 +79,39 @@ def calc_daily_indicators(df):
     df['low_120'] = df['low'].rolling(120).min()
     df['position_pct'] = (df['close'] - df['low_120']) / (df['high_120'] - df['low_120']) * 100
     
+    df['ma5'] = df['close'].rolling(5).mean()
+    df['ma10'] = df['close'].rolling(10).mean()
     df['ma20'] = df['close'].rolling(20).mean()
+    df['ma60'] = df['close'].rolling(60).mean()
     df['above_ma20'] = df['close'] > df['ma20']
+    df['above_ma60'] = df['close'] > df['ma60']
     
     df['pct_20d'] = (df['close'] - df['close'].shift(20)) / df['close'].shift(20) * 100
+    
+    # 连续状态（连续3天放量/缩量）
+    df['consec_vol_up_3d'] = (df['vol_ratio_ma5'] > 1.2) & \
+                             (df['vol_ratio_ma5'].shift(1) > 1.2) & \
+                             (df['vol_ratio_ma5'].shift(2) > 1.2)
+    
+    df['consec_vol_down_3d'] = (df['vol_ratio_ma5'] < 0.8) & \
+                               (df['vol_ratio_ma5'].shift(1) < 0.8) & \
+                               (df['vol_ratio_ma5'].shift(2) < 0.8)
+    
+    # 量价配合
+    df['price_up_vol_up'] = (df['pct_chg'] > 0) & (df['vol_ratio_ma5'] > 1.2)
+    df['price_up_vol_down'] = (df['pct_chg'] > 0) & (df['vol_ratio_ma5'] < 0.8)
+    df['price_down_vol_up'] = (df['pct_chg'] < 0) & (df['vol_ratio_ma5'] > 1.2)
+    df['price_down_vol_down'] = (df['pct_chg'] < 0) & (df['vol_ratio_ma5'] < 0.8)
+    
+    # 找左侧关键位（最近的峰顶和谷底）
+    df['recent_support'] = df['low'].rolling(60).min()  # 近60日最低点（支撑）
+    df['recent_resistance'] = df['high'].rolling(60).max()  # 近60日最高点（压力）
     
     return df
 
 
 # ============================================================
-# 第四层：主力行为意图判断
+# 第四层：主力行为意图判断（优化版）
 # ============================================================
 def judge_main_behavior(df):
     latest = df.iloc[-1]
@@ -94,6 +121,7 @@ def judge_main_behavior(df):
     pct_chg = latest['pct_chg']
     pct_20d = latest['pct_20d']
     above_ma20 = latest['above_ma20']
+    above_ma60 = latest['above_ma60']
     
     if pd.isna(position) or pd.isna(vol_ratio):
         return None
@@ -106,65 +134,154 @@ def judge_main_behavior(df):
         '出货': 0,
     }
     
+    reasons = {
+        '建仓初期': [],
+        '建仓后期': [],
+        '洗盘': [],
+        '拉升': [],
+        '出货': [],
+    }
+    
+    # 1. 位置分位（25%权重）
     if position < 10:
         scores['建仓初期'] += 40
+        reasons['建仓初期'].append(f'位置分位{position:.1f}%（极低位）')
     elif position < 30:
         scores['建仓后期'] += 30
+        reasons['建仓后期'].append(f'位置分位{position:.1f}%（低位）')
     elif position < 50:
         scores['建仓后期'] += 15
         scores['洗盘'] += 15
+        reasons['建仓后期'].append(f'位置分位{position:.1f}%（中低位）')
     elif position < 70:
         scores['洗盘'] += 30
+        reasons['洗盘'].append(f'位置分位{position:.1f}%（中位）')
     elif position < 85:
         scores['出货'] += 30
+        reasons['出货'].append(f'位置分位{position:.1f}%（中高位）')
     else:
         scores['出货'] += 40
+        reasons['出货'].append(f'位置分位{position:.1f}%（极高位）')
     
+    # 2. 量能（20%权重）
     if vol_ratio > 1.5:
         if position < 30:
             scores['建仓后期'] += 25
+            reasons['建仓后期'].append(f'低位放量（量比{vol_ratio:.2f}）')
         elif position < 70:
             scores['拉升'] += 25
+            reasons['拉升'].append(f'中位放量（量比{vol_ratio:.2f}）')
         else:
             scores['出货'] += 25
+            reasons['出货'].append(f'高位放量（量比{vol_ratio:.2f}）')
     elif vol_ratio < 0.7:
         if position < 30:
             scores['建仓初期'] += 25
+            reasons['建仓初期'].append(f'低位缩量（量比{vol_ratio:.2f}）')
         elif position < 70:
             scores['洗盘'] += 25
+            reasons['洗盘'].append(f'中位缩量（量比{vol_ratio:.2f}）')
         else:
             scores['出货'] += 10
+            reasons['出货'].append(f'高位缩量（量比{vol_ratio:.2f}）')
     
+    # 3. 20日涨跌幅（15%权重）
     if not pd.isna(pct_20d):
-        if pct_20d > 10:
+        if pct_20d > 15:
             if position > 50:
                 scores['拉升'] += 25
+                reasons['拉升'].append(f'20日大涨{pct_20d:.1f}%')
             else:
                 scores['建仓后期'] += 15
-        elif pct_20d < -10:
+                reasons['建仓后期'].append(f'低位涨{pct_20d:.1f}%')
+        elif pct_20d > 5:
+            if position > 50:
+                scores['拉升'] += 15
+                reasons['拉升'].append(f'20日涨{pct_20d:.1f}%')
+            else:
+                scores['建仓后期'] += 10
+                reasons['建仓后期'].append(f'低位涨{pct_20d:.1f}%')
+        elif pct_20d < -15:
             if position < 30:
                 scores['建仓初期'] += 15
+                reasons['建仓初期'].append(f'低位跌{pct_20d:.1f}%')
             else:
                 scores['出货'] += 15
+                reasons['出货'].append(f'高位跌{pct_20d:.1f}%')
     
+    # 4. 当日涨跌幅（10%权重）
     if pct_chg > 3:
         if position > 50:
             scores['拉升'] += 15
+            reasons['拉升'].append(f'当日大涨{pct_chg:.2f}%')
         else:
             scores['建仓后期'] += 10
+            reasons['建仓后期'].append(f'当日涨{pct_chg:.2f}%')
     elif pct_chg < -3:
         if position > 70:
             scores['出货'] += 15
+            reasons['出货'].append(f'当日大跌{pct_chg:.2f}%')
     
+    # 5. 均线位置（10%权重）
     if above_ma20:
         if position > 50:
             scores['拉升'] += 10
+            reasons['拉升'].append(f'MA20之上')
         else:
             scores['建仓后期'] += 5
+            reasons['建仓后期'].append(f'MA20之上')
     else:
         if position < 30:
             scores['建仓初期'] += 10
+            reasons['建仓初期'].append(f'MA20之下（低位）')
     
+    if above_ma60:
+        if position > 50:
+            scores['拉升'] += 5
+            reasons['拉升'].append(f'MA60之上')
+    else:
+        if position < 30:
+            scores['建仓初期'] += 5
+            reasons['建仓初期'].append(f'MA60之下（低位）')
+    
+    # 6. 连续状态（10%权重）
+    if latest['consec_vol_up_3d']:
+        if position < 30:
+            scores['建仓后期'] += 15
+            reasons['建仓后期'].append(f'连续3天放量')
+        elif position < 70:
+            scores['拉升'] += 15
+            reasons['拉升'].append(f'连续3天放量')
+        else:
+            scores['出货'] += 15
+            reasons['出货'].append(f'高位连续放量')
+    
+    if latest['consec_vol_down_3d']:
+        if position < 30:
+            scores['建仓初期'] += 15
+            reasons['建仓初期'].append(f'连续3天缩量')
+        elif position < 70:
+            scores['洗盘'] += 15
+            reasons['洗盘'].append(f'连续3天缩量')
+    
+    # 7. 量价配合（10%权重）
+    if latest['price_up_vol_up']:
+        if position > 50:
+            scores['拉升'] += 10
+            reasons['拉升'].append(f'价升量增')
+        else:
+            scores['建仓后期'] += 5
+            reasons['建仓后期'].append(f'价升量增')
+    
+    if latest['price_down_vol_down']:
+        if position < 30:
+            scores['建仓初期'] += 10
+            reasons['建仓初期'].append(f'价跌量缩')
+        elif position > 70:
+            scores['出货'] += 10
+            reasons['出货'].append(f'价跌量缩')
+    
+    # 找最高分
     best_stage = max(scores, key=scores.get)
     best_score = scores[best_stage]
     
@@ -177,6 +294,7 @@ def judge_main_behavior(df):
         'position': position,
         'vol_ratio': vol_ratio,
         'pct_20d': pct_20d,
+        'reasons': reasons[best_stage],
     }
 
 
@@ -189,9 +307,8 @@ def generate_html(results, date_str):
     stage_count = df['stage'].value_counts()
     
     stages = ['建仓初期', '建仓后期', '洗盘', '拉升', '出货']
-    counts = [int(stage_count.get(s, 0)) for s in stages]  # 转成普通int
+    counts = [int(stage_count.get(s, 0)) for s in stages]
     total = len(df)
-    pcts = [c / total * 100 for c in counts]
     
     # 生成表格行
     table_rows = {}
@@ -242,11 +359,9 @@ def generate_html(results, date_str):
         </div>
         """
     
-    # 饼图数据（转成普通类型）
     pie_data_list = [{"name": s, "value": int(counts[i])} for i, s in enumerate(stages)]
     pie_data = json.dumps(pie_data_list, ensure_ascii=False)
     
-    # 柱状图数据
     bar_data = json.dumps([int(c) for c in counts])
     stages_json = json.dumps(stages, ensure_ascii=False)
     
@@ -351,7 +466,7 @@ def generate_html(results, date_str):
 # ============================================================
 def main():
     print("="*70)
-    print("每日主力行为诊断（HTML版）")
+    print("每日主力行为诊断（HTML版 - 优化版）")
     print("="*70)
     
     all_files = []
@@ -388,6 +503,7 @@ def main():
             'pct_20d': result['pct_20d'],
             'stage': result['stage'],
             'confidence': result['confidence'],
+            'reasons': ', '.join(result['reasons']),
             'date': df['date'].iloc[-1],
         })
     
