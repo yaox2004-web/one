@@ -11,7 +11,7 @@ permissions:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
@@ -25,55 +25,94 @@ jobs:
           from datetime import datetime
 
           codes = [
-              ('sh601138', '工业富联'),
-              ('sz300476', '胜宏科技'),
-              ('sh603516', '淳中科技'),
+              ('sz001311', '丰元股份'),
+              ('sz002050', '三花智控'),
+              ('sz002130', '沃尔核材'),
               ('sz002156', '通富微电'),
-              ('sh603283', '赛腾股份'),
-              ('sh601231', '环旭电子'),
+              ('sz002414', '高德红外'),
+              ('sz002463', '沪电股份'),
+              ('sz002472', '双环传动'),
+              ('sz002484', '江海股份'),
+              ('sz002837', '英维克'),
+              ('sz002851', '麦格米特'),
+              ('sz002975', '博迁新材'),
+              ('sz300100', '双林股份'),
+              ('sz300124', '汇川技术'),
+              ('sz300236', '上海新阳'),
+              ('sz300308', '中际旭创'),
               ('sz300394', '天孚通信'),
+              ('sz300476', '胜宏科技'),
+              ('sz300502', '新易盛'),
+              ('sz300547', '川环科技'),
+              ('sz300548', '博思软件'),
+              ('sz300604', '长川科技'),
+              ('sz300757', '测绘股份'),
+              ('sz300811', '铂科新材'),
+              ('sz300857', '协创数据'),
+              ('sz300976', '哈焊华通'),
+              ('sz301128', '强瑞技术'),
+              ('sz301297', '富乐德'),
+              ('sh600183', '生益科技'),
               ('sh600584', '长电科技'),
+              ('sh601138', '工业富联'),
+              ('sh601231', '环旭电子'),
+              ('sh601689', '拓普集团'),
+              ('sh601869', '长飞光纤'),
+              ('sh603228', '景旺电子'),
+              ('sh603256', '宏和科技'),
+              ('sh603283', '赛腾股份'),
+              ('sh603516', '淳中科技'),
+              ('sh603650', '彤程新材'),
+              ('sh603662', '柯力传感'),
+              ('sh603757', '大元泵业'),
+              ('sh688017', '绿的谐波'),
+              ('sh688313', '仕佳光子'),
+              ('sh688498', '源杰科技'),
               ('sh000001', '上证指数'),
           ]
 
           os.makedirs('data/kline', exist_ok=True)
           ok, fail = 0, 0
-          index_codes = ['sh000001', 'sz399001', 'sz399006']
-
           for code, name in codes:
-              url = f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={code},day,,,500,qfq"
-              try:
-                  r = requests.get(url, timeout=30)
-                  data = r.json()
-                  key = 'day' if code in index_codes else 'qfqday'
-                  klines = data['data'][code].get(key, [])
-                  out = {
-                      'code': code,
-                      'name': name,
-                      'updated': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC'),
-                      'count': len(klines),
-                      'klines': klines
-                  }
-                  with open(f'data/kline/{code}.json', 'w') as f:
-                      json.dump(out, f, ensure_ascii=False)
-                  print(f'OK {code} {name}: {len(klines)} 条')
-                  ok += 1
-              except Exception as e:
-                  print(f'FAIL {code} {name}: {type(e).__name__} {e}')
-                  fail += 1
-              time.sleep(0.5)
+            try:
+                url = f'https://quotes.sina.cn/cn/api/jsonp_v2.php/var=/CN_MarketDataService.getKLineData?symbol={code}&scale=240&ma=no&datalen=1023'
+                r = requests.get(url, timeout=10, headers={'User-Agent':'Mozilla/5.0'})
+                text = r.text
+                start = text.find('([') + 1
+                end = text.rfind('])') + 1
+                if start < 1 or end < 2:
+                    raise Exception('parse fail')
+                data = json.loads(text[start:end])
+                if not data:
+                    raise Exception('empty')
+                out = {'code': code, 'name': name, 'data': data}
+                with open(f'data/kline/{code}.json', 'w', encoding='utf-8') as f:
+                    json.dump(out, f, ensure_ascii=False)
+                ok += 1
+                print(f'  OK {code} {name} {len(data)}条')
+            except Exception as e:
+                fail += 1
+                print(f'  FAIL {code} {name}: {e}')
+            time.sleep(0.3)
 
-          print(f'\n总计: {ok} 成功, {fail} 失败')
+          print(f'\n完成: 成功{ok} 失败{fail}')
+
+          stock_list = {
+              'stocks': [{'tx': c, 'name': n} for c, n in codes],
+              'updated_at': datetime.now().isoformat()
+          }
+          with open('data/kline/_stock_list.json', 'w', encoding='utf-8') as f:
+              json.dump(stock_list, f, ensure_ascii=False, indent=2)
           PYEOF
 
       - name: 提交 + 推送
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/
+          git add data/kline/
           if git diff --cached --quiet; then
-            echo "无变化，跳过提交"
+            echo "无变化"
           else
-            git commit -m "data: 每日更新 $(date -u +%Y%m%d)"
+            git commit -m "data: 日线 $(date -u +%Y%m%d)"
             git push
           fi
