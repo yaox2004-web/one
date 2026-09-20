@@ -24,6 +24,8 @@ jobs:
         run: pip install pandas numpy requests tenacity -q
 
       - name: 跑全市场排行榜
+        env:
+          SRA_LIMIT: "100"
         run: |
           cd scripts
           python3 signal_ranking_all.py
