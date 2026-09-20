@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-每日复盘报告生成器
+每日复盘报告生成器（V2：带交易计划）
 =================================================
 设计思路（为什么做这个）：
-  刚才的daily_signals.py只输出了信号列表，
-  但用户是小白，需要更详细的解释：
-  1. 为什么这个信号有效？
-  2. 现在主力在哪个阶段？
-  3. 上方有压力吗？下方有支撑吗？
-  4. 明天应该关注什么？
+  V1只输出了信号列表，但新手看到信号还是不知道怎么操作。
+  V2加上交易计划：止损价、止盈价、最多持有天数。
   
-  这个脚本把所有信息整合起来，生成一份新手能看懂的报告。
+  这样报告就是完整的：
+  1. 今天有什么信号？
+  2. 现在什么位置？
+  3. 买了之后止损价多少？
+  4. 止盈价多少？
+  5. 最多拿几天？
+  
+  新手照着报告操作就行。
 
 硬约束：
   - 不用未来函数
@@ -30,15 +33,23 @@ DATA_DIR = Path(__file__).parent.parent / "data" / "kline"
 OUTPUT_DIR = Path(__file__).parent.parent / "data" / "analysis"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# 和daily_signals.py保持一致
+# 位置过滤参数（来自回测验证）
 STRONG_DIST_FROM_HIGH = 5.0
 STRONG_MIN_POS = 35
+
+# 交易计划参数（全部来自回测验证）
+STOP_LOSS_STRONG = 3.0    # 稳健型止损：亏3%就跑
+STOP_LOSS_AGGRO = 5.0     # 激进型止损：亏5%再跑
+TAKE_PROFIT_STRONG = 8.0  # 稳健型止盈：赚8%就卖
+TAKE_PROFIT_AGGRO = 15.0  # 激进型止盈：赚15%再卖
+MAX_HOLD_DAYS = 5          # 最多持有5天（回测验证5日最优）
 
 
 # ============================================================
 # 数据读取
 # ============================================================
 def load_klines(filepath):
+    """读取K线数据，自动适配6列/7列"""
     with open(filepath, 'r') as f:
         data = json.load(f)
     klines = data.get('klines', [])
@@ -66,7 +77,12 @@ def load_klines(filepath):
 # 信号检查
 # ============================================================
 def check_golden(df, idx):
-    """检查是不是黄金柱（T+3确认）"""
+    """
+    检查是不是黄金柱（T+3确认）
+    为什么要三日定性？
+    量学理论：基柱后3天不破=将军柱，价升量缩=黄金柱
+    为什么要等3天？因为一天的信号可能是假的，3天确认更可靠
+    """
     if idx < 5 or idx + 3 >= len(df):
         return False
     
@@ -78,8 +94,11 @@ def check_golden(df, idx):
     if df['close'].iloc[idx] <= df['open'].iloc[idx]:
         return False
     
+    # 后3日价升（为什么？价升量缩=主力锁仓不卖）
     up = all(df['close'].iloc[idx+1+j] > df['close'].iloc[idx+j] for j in range(3))
+    # 后3日量缩
     down_vol = all(df['volume'].iloc[idx+1+j] < df['volume'].iloc[idx+j] for j in range(3))
+    # 三日不破基柱实底（为什么？不破=主力护盘）
     base_low = min(df['open'].iloc[idx], df['close'].iloc[idx])
     not_break = all(
         min(df['open'].iloc[idx+j+1], df['close'].iloc[idx+j+1]) >= base_low 
@@ -93,7 +112,7 @@ def check_golden(df, idx):
 # 位置分析
 # ============================================================
 def analyze_position(df, idx):
-    """分析当前位置，返回详细信息"""
+    """分析当前位置"""
     if idx < 20:
         return {}
     
@@ -162,10 +181,41 @@ def analyze_position(df, idx):
 
 
 # ============================================================
+# 交易计划生成
+# ============================================================
+def gen_trade_plan(entry_price, signal_type):
+    """
+    生成交易计划（止损止盈规则）
+    为什么这些参数？全部来自回测验证
+    """
+    if signal_type == 'strong':
+        stop_loss = STOP_LOSS_STRONG    # 稳健型：亏3%就跑
+        take_profit = TAKE_PROFIT_STRONG  # 稳健型：赚8%就卖
+    else:
+        stop_loss = STOP_LOSS_AGGRO     # 激进型：亏5%再跑（波动大）
+        take_profit = TAKE_PROFIT_AGGRO  # 激进型：赚15%再卖
+    
+    stop_price = entry_price * (1 - stop_loss / 100)
+    profit_price = entry_price * (1 + take_profit / 100)
+    
+    return {
+        'stop_loss_pct': stop_loss,
+        'take_profit_pct': take_profit,
+        'stop_price': round(stop_price, 2),
+        'profit_price': round(profit_price, 2),
+        'max_hold': MAX_HOLD_DAYS,
+    }
+
+
+# ============================================================
 # 生成单只股票的报告
 # ============================================================
 def gen_report_line(code, name, pos, signal_type):
-    """生成单只股票的报告行"""
+    """生成单只股票的报告行（带交易计划）"""
+    
+    # 生成交易计划
+    plan = gen_trade_plan(pos['price'], signal_type)
+    
     if signal_type == 'strong':
         signal_desc = "稳健型（高胜率85%）"
         action = "重点关注，可小仓位试错"
@@ -183,7 +233,12 @@ def gen_report_line(code, name, pos, signal_type):
 │ 距上方压力：{pos['dist_to_high']:.1f}%
 │ 距下方支撑：{pos['dist_to_low']:.1f}%
 │ 量能状态：{pos['vol_state']}
-│ MA20之上：{'是' if pos['above_ma20'] else '否'}
+│
+│ 【交易计划】
+│ 止损价：{plan['stop_price']:.2f}（亏{plan['stop_loss_pct']}%就跑）
+│ 止盈价：{plan['profit_price']:.2f}（赚{plan['take_profit_pct']}%就卖）
+│ 最多持有：{plan['max_hold']}天（不涨就走）
+│
 │ 操作建议：{action}
 └─────────────────────────────────
 """
@@ -264,13 +319,13 @@ def main():
 【稳健型信号】高胜率策略
   条件：黄金柱 + 距上方高点>5% + 中位以上
   回测胜率：85.6%
-  操作建议：重点关注，可小仓位试错
+  止损：亏3%就跑
+  止盈：赚8%就卖
 
 {'-'*45}
 """
     
     if strong_list:
-        # 按位置分位排序
         strong_list.sort(key=lambda x: -x[2]['pos_pct'])
         for code, name, pos, stype in strong_list:
             report += gen_report_line(code, name, pos, stype)
@@ -283,7 +338,8 @@ def main():
 【激进型信号】高收益策略
   条件：黄金柱 + 已突破历史高点 + 中位以上
   回测收益：+15.18%中位数
-  操作建议：小仓位博，别重仓
+  止损：亏5%再跑
+  止盈：赚15%再卖
 
 {'-'*45}
 """
@@ -306,7 +362,9 @@ def main():
   1. 没信号就空仓等待，不要强行交易
   2. 稳健型信号来了再重点关注
   3. 激进型小仓位博，别重仓
-  4. 严格止损，亏了就跑
+  4. 到了止损价，无条件跑
+  5. 到了止盈价，可以卖
+  6. 拿了5天还没涨，也走
 
 {'='*45}
 """
@@ -322,4 +380,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
