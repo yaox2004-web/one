@@ -189,7 +189,7 @@ def generate_html(results, date_str):
     stage_count = df['stage'].value_counts()
     
     stages = ['建仓初期', '建仓后期', '洗盘', '拉升', '出货']
-    counts = [stage_count.get(s, 0) for s in stages]
+    counts = [int(stage_count.get(s, 0)) for s in stages]  # 转成普通int
     total = len(df)
     pcts = [c / total * 100 for c in counts]
     
@@ -199,11 +199,11 @@ def generate_html(results, date_str):
         stage_df = df[df['stage'] == stage].sort_values('confidence', ascending=False).head(20)
         rows_html = ""
         for _, row in stage_df.iterrows():
-            code = row['code']
-            name = row['name']
-            price = f"{row['price']:.2f}"
-            position = f"{row['position']:.1f}%"
-            confidence = f"{row['confidence']:.1f}%"
+            code = str(row['code'])
+            name = str(row['name'])
+            price = f"{float(row['price']):.2f}"
+            position = f"{float(row['position']):.1f}%"
+            confidence = f"{float(row['confidence']):.1f}%"
             rows_html += f"""
             <tr>
                 <td>{code}</td>
@@ -242,8 +242,13 @@ def generate_html(results, date_str):
         </div>
         """
     
-    # 饼图数据
-    pie_data = json.dumps([{"name": s, "value": counts[i]} for i, s in enumerate(stages)], ensure_ascii=False)
+    # 饼图数据（转成普通类型）
+    pie_data_list = [{"name": s, "value": int(counts[i])} for i, s in enumerate(stages)]
+    pie_data = json.dumps(pie_data_list, ensure_ascii=False)
+    
+    # 柱状图数据
+    bar_data = json.dumps([int(c) for c in counts])
+    stages_json = json.dumps(stages, ensure_ascii=False)
     
     html = f"""
 <!DOCTYPE html>
@@ -314,11 +319,11 @@ def generate_html(results, date_str):
         var barChart = echarts.init(document.getElementById('barChart'));
         var barOption = {{
             tooltip: {{ trigger: 'axis' }},
-            xAxis: {{ type: 'category', data: {json.dumps(stages, ensure_ascii=False)} }},
+            xAxis: {{ type: 'category', data: {stages_json} }},
             yAxis: {{ type: 'value' }},
             series: [{{
                 type: 'bar',
-                data: {json.dumps(counts)},
+                data: {bar_data},
                 itemStyle: {{
                     color: function(params) {{
                         var colors = ['#1976d2', '#388e3c', '#f57c00', '#c2185b', '#d32f2f'];
