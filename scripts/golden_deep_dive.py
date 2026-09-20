@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-黄金柱深挖 v3 (golden_deep_dive.py) —— 全市场版+断点续跑
+黄金柱深挖 v4 (golden_deep_dive.py) —— 全市场5220只版
 =================================================================
-v3 变更：
-  1. 断点续跑（同signal_ranking_all.py机制）
-  2. T+1+成本1.1%+MA20过滤+多周期5/10/20日
-  3. 按位置/市场状态/右确认三维分组
-  4. 全市场5220只，6小时跑完
+v4 变更：
+  1. 股票列表从 signal_ranking_all_raw.jsonl 提取（全市场5220只）
+  2. 不依赖 _stock_list.json
+  3. 断点续跑
+  4. T+1+成本1.1%+MA20过滤+多周期5/10/20日
 """
 import json
 import os
@@ -23,9 +23,9 @@ from data_fetcher import ANALYSIS_DIR, KLINE_DIR, load_kline_json  # noqa: E402
 from phases import (identify_volume_columns, three_day_confirm,  # noqa: E402
                     identify_genes, classify_position, compute_atr)
 
-STOCK_LIST = os.path.join(KLINE_DIR, "_stock_list.json")
 OUT_DIR = ANALYSIS_DIR
 RAW_PATH = os.path.join(ANALYSIS_DIR, "golden_deep_dive_raw.jsonl")
+ALL_RAW = os.path.join(ANALYSIS_DIR, "signal_ranking_all_raw.jsonl")
 HOLD_LIST = [5, 10, 20]
 COST_ROUNDTRIP = 1.1
 N_RANDOM = 100
@@ -33,9 +33,25 @@ RANDOM_SEED = 42
 FLUSH_EVERY = 200
 LOG_EVERY = 50
 
-def load_tx_list():
-    with open(STOCK_LIST, encoding="utf-8") as f:
-        return [s["tx"] for s in json.load(f).get("stocks", []) if s.get("tx")]
+def load_all_codes():
+    """从signal_ranking_all_raw.jsonl提取所有跑过的code（全市场5220只）"""
+    codes = set()
+    if not os.path.exists(ALL_RAW):
+        print(f"未找到 {ALL_RAW}")
+        return list(codes)
+    with open(ALL_RAW, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+                code = obj.get("code")
+                if code:
+                    codes.add(code)
+            except Exception:
+                continue
+    return sorted(codes)
 
 def _fwd_t1(open_arr, close_arr, i, n):
     buy_idx = i + 1
@@ -181,10 +197,10 @@ def write_summary(records):
         s.to_csv(os.path.join(OUT_DIR, fname), index=False, encoding="utf-8-sig")
 
 def main():
-    if not os.path.exists(STOCK_LIST):
-        print(f"清单缺失: {STOCK_LIST}")
+    codes = load_all_codes()
+    if not codes:
+        print("未找到全市场股票列表")
         return
-    codes = load_tx_list()
 
     idx_df = load_kline_json("sh000001")
     if idx_df.empty:
@@ -196,7 +212,7 @@ def main():
     idx_ma20 = idx_close.rolling(20, min_periods=1).mean()
     idx_above = (idx_close >= idx_ma20)
     idx_above_map = {d.strftime("%Y-%m-%d"): bool(v) for d, v in idx_above.items()}
-    print(f"清单 {len(codes)} 只 | 大盘 {len(market_state_map)} 天")
+    print(f"全市场 {len(codes)} 只 | 大盘 {len(market_state_map)} 天")
 
     records, done = load_raw()
     todo = [c for c in codes if c not in done]
