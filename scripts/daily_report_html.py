@@ -186,7 +186,6 @@ def judge_main_behavior(df):
 def generate_html(results, date_str):
     df = pd.DataFrame(results)
     
-    # 统计
     stage_count = df['stage'].value_counts()
     
     stages = ['建仓初期', '建仓后期', '洗盘', '拉升', '出货']
@@ -194,13 +193,58 @@ def generate_html(results, date_str):
     total = len(df)
     pcts = [c / total * 100 for c in counts]
     
-    # 各阶段股票列表
-    stage_lists = {}
+    # 生成表格行
+    table_rows = {}
     for stage in stages:
-        stage_df = df[df['stage'] == stage].sort_values('confidence', ascending=False)
-        stage_lists[stage] = stage_df.head(20).to_dict('records')
+        stage_df = df[df['stage'] == stage].sort_values('confidence', ascending=False).head(20)
+        rows_html = ""
+        for _, row in stage_df.iterrows():
+            code = row['code']
+            name = row['name']
+            price = f"{row['price']:.2f}"
+            position = f"{row['position']:.1f}%"
+            confidence = f"{row['confidence']:.1f}%"
+            rows_html += f"""
+            <tr>
+                <td>{code}</td>
+                <td>{name}</td>
+                <td>{price}</td>
+                <td>{position}</td>
+                <td>{confidence}</td>
+            </tr>
+            """
+        table_rows[stage] = rows_html
     
-    # 生成HTML
+    # 各阶段section
+    sections_html = ""
+    for i, stage in enumerate(stages):
+        count = counts[i]
+        sections_html += f"""
+        <div class="stage-section">
+            <div class="stage-header">
+                <h2>{stage}</h2>
+                <div class="stage-count">{count}只</div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>代码</th>
+                        <th>名称</th>
+                        <th>价格</th>
+                        <th>位置分位</th>
+                        <th>置信度</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {table_rows[stage]}
+                </tbody>
+            </table>
+        </div>
+        """
+    
+    # 饼图数据
+    pie_data = json.dumps([{"name": s, "value": counts[i]} for i, s in enumerate(stages)], ensure_ascii=False)
+    
     html = f"""
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -221,18 +265,12 @@ def generate_html(results, date_str):
         .card h2 {{ font-size: 18px; margin-bottom: 15px; color: #333; }}
         #pieChart, #barChart {{ width: 100%; height: 300px; }}
         .stage-section {{ background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
-        .stage-section h2 {{ font-size: 18px; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #f0f0f0; }}
         .stage-header {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }}
-        .badge {{ padding: 4px 12px; border-radius: 20px; font-size: 14px; font-weight: bold; }}
-        .badge-建仓初期 {{ background: #e3f2fd; color: #1976d2; }}
-        .badge-建仓后期 {{ background: #e8f5e9; color: #388e3c; }}
-        .badge-洗盘 {{ background: #fff3e0; color: #f57c00; }}
-        .badge-拉升 {{ background: #fce4ec; color: #c2185b; }}
-        .badge-出货 {{ background: #ffebee; color: #d32f2f; }}
+        .stage-header h2 {{ font-size: 18px; padding-bottom: 10px; border-bottom: 2px solid #f0f0f0; }}
+        .stage-count {{ font-size: 24px; font-weight: bold; color: #333; }}
         table {{ width: 100%; border-collapse: collapse; }}
         th, td {{ padding: 10px; text-align: left; border-bottom: 1px solid #f0f0f0; }}
         th {{ background: #fafafa; font-weight: 600; color: #666; }}
-        .stage-count {{ font-size: 24px; font-weight: bold; color: #333; }}
         @media (max-width: 768px) {{
             .grid {{ grid-template-columns: 1fr; }}
         }}
@@ -256,40 +294,10 @@ def generate_html(results, date_str):
             </div>
         </div>
         
-        {''.join([f'''
-        <div class="stage-section">
-            <div class="stage-header">
-                <h2>{stage}</h2>
-                <div class="stage-count">{counts[i]}只</div>
-            </div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>代码</th>
-                        <th>名称</th>
-                        <th>价格</th>
-                        <th>位置分位</th>
-                        <th>置信度</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {''.join([f'''
-                    <tr>
-                        <td>{r['code']}</td>
-                        <td>{r['name']}</td>
-                        <td>{r['price']:.2f}</td>
-                        <td>{r['position']:.1f}%</td>
-                        <td>{r['confidence']:.1f}%</td>
-                    </tr>
-                    ''' for r in stage_lists[stage]])}
-                </tbody>
-            </table>
-        </div>
-        ''' for i, stage in enumerate(stages)])}
+        {sections_html}
     </div>
     
     <script>
-        // 饼图
         var pieChart = echarts.init(document.getElementById('pieChart'));
         var pieOption = {{
             tooltip: {{ trigger: 'item' }},
@@ -297,13 +305,12 @@ def generate_html(results, date_str):
             series: [{{
                 type: 'pie',
                 radius: '60%',
-                data: {json.dumps([{'name': s, 'value': counts[i]} for i, s in enumerate(stages)], ensure_ascii=False)},
+                data: {pie_data},
                 emphasis: {{ itemStyle: {{ shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0, 0, 0, 0.5)' }} }}
             }}]
         }};
         pieChart.setOption(pieOption);
         
-        // 柱状图
         var barChart = echarts.init(document.getElementById('barChart'));
         var barOption = {{
             tooltip: {{ trigger: 'axis' }},
@@ -322,7 +329,6 @@ def generate_html(results, date_str):
         }};
         barChart.setOption(barOption);
         
-        // 响应式
         window.addEventListener('resize', function() {{
             pieChart.resize();
             barChart.resize();
@@ -380,11 +386,9 @@ def main():
             'date': df['date'].iloc[-1],
         })
     
-    # 生成HTML
     today = datetime.now().strftime('%Y-%m-%d')
     html_content = generate_html(results, today)
     
-    # 保存
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     output_file = OUTPUT_DIR / f"daily_main_behavior_{today}.html"
     with open(output_file, 'w', encoding='utf-8') as f:
@@ -392,7 +396,6 @@ def main():
     
     print(f"\n已生成HTML报告: {output_file}")
     
-    # 同时保存CSV
     df_results = pd.DataFrame(results)
     csv_file = OUTPUT_DIR / f"daily_main_behavior_{today}.csv"
     df_results.to_csv(csv_file, index=False, encoding='utf-8-sig')
@@ -401,4 +404,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
