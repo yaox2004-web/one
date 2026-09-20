@@ -15,6 +15,7 @@
 
 硬约束：
   - 绝对不用未来函数（判断时只用截止到当天的数据）
+  - 只保存统计结果，不保存原始样本数据（避免文件太大）
 """
 
 import json
@@ -249,12 +250,15 @@ def main():
     print(f"共{len(all_files)}只股票")
     print(f"回顾过去{LOOKBACK_DAYS}个交易日（约一年）")
     
-    all_results = []
+    # 只统计，不保存原始数据
+    stage_stats = {}
+    total_samples = 0
+    
     total_files = len(all_files)
     
     for i, filepath in enumerate(all_files):
         if (i + 1) % 500 == 0:
-            print(f"  进度 {i+1}/{total_files} | 累计样本 {len(all_results)}")
+            print(f"  进度 {i+1}/{total_files} | 累计样本 {total_samples}")
         
         df, name = load_klines(filepath)
         if df is None or len(df) < MIN_DATA_DAYS + LOOKBACK_DAYS + 20:
@@ -263,7 +267,7 @@ def main():
         df = calc_daily_indicators(df)
         
         # 从倒数第LOOKBACK_DAYS天开始，逐个日期判断
-        start_idx = len(df) - LOOKBACK_DAYS - 20  # 留20天给未来收益
+        start_idx = len(df) - LOOKBACK_DAYS - 20
         end_idx = len(df) - 20
         
         for idx in range(start_idx, end_idx):
@@ -274,52 +278,83 @@ def main():
             if stage is None:
                 continue
             
+            # 初始化统计
+            if stage not in stage_stats:
+                stage_stats[stage] = {
+                    'count': 0,
+                    'rets': {h: [] for h in HOLD_DAYS_LIST}
+                }
+            
+            stage_stats[stage]['count'] += 1
+            total_samples += 1
+            
             # 计算未来N天的收益
             entry_price = row['close']
             
-            returns = {}
             for hold_days in HOLD_DAYS_LIST:
                 future_idx = idx + hold_days
-                if future_idx >= len(df):
-                    returns[f'ret_{hold_days}d'] = None
-                else:
+                if future_idx < len(df):
                     future_price = df.iloc[future_idx]['close']
-                    returns[f'ret_{hold_days}d'] = (future_price - entry_price) / entry_price * 100
-            
-            all_results.append({
-                'date': row['date'],
-                'code': filepath.stem,
-                'name': name,
-                'stage': stage,
-                'position': row['position_pct'],
-                **returns,
-            })
+                    ret = (future_price - entry_price) / entry_price * 100
+                    stage_stats[stage]['rets'][hold_days].append(ret)
     
-    # 保存结果
-    df_results = pd.DataFrame(all_results)
-    
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    csv_file = OUTPUT_DIR / "behavior_backtest_results.csv"
-    df_results.to_csv(csv_file, index=False, encoding='utf-8-sig')
-    
-    # 统计结果
+    # 输出结果
     print("\n" + "="*70)
     print("回测结果")
     print("="*70)
-    print(f"总样本数：{len(df_results)}个")
+    print(f"总样本数：{total_samples}个")
     
     for hold_days in HOLD_DAYS_LIST:
-        col = f'ret_{hold_days}d'
         print(f"\n=== 持有{hold_days}天 ===")
+        print(f"{'阶段':<10} {'样本数':>8} {'中位数%':>10} {'均值%':>10} {'胜率%':>10}")
+        print("-" * 55)
         
-        stage_stats = df_results.groupby('stage')[col].agg(['count', 'median', 'mean'])
-        stage_stats['win_rate'] = df_results[df_results[col] > 0].groupby('stage')[col].count() / stage_stats['count'] * 100
-        
-        print(stage_stats.round(2))
+        for stage in ['建仓初期', '建仓后期', '洗盘', '拉升', '出货']:
+            if stage not in stage_stats:
+                continue
+            
+            rets = stage_stats[stage]['rets'][hold_days]
+            if not rets:
+                continue
+            
+            count = len(rets)
+            median = np.median(rets)
+            mean = np.mean(rets)
+            win_rate = sum(1 for r in rets if r > 0) / count * 100
+            
+            print(f"{stage:<10} {count:>8} {median:>10.2f} {mean:>10.2f} {win_rate:>10.1f}")
     
-    print(f"\n已保存回测数据: {csv_file}")
+    # 保存统计结果（小文件）
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    summary_file = OUTPUT_DIR / "behavior_backtest_summary.txt"
+    
+    with open(summary_file, 'w', encoding='utf-8') as f:
+        f.write("主力行为判断逻辑历史回测结果\n")
+        f.write("="*50 + "\n")
+        f.write(f"总样本数：{total_samples}个\n\n")
+        
+        for hold_days in HOLD_DAYS_LIST:
+            f.write(f"\n=== 持有{hold_days}天 ===\n")
+            f.write(f"{'阶段':<10} {'样本数':>8} {'中位数%':>10} {'均值%':>10} {'胜率%':>10}\n")
+            f.write("-" * 55 + "\n")
+            
+            for stage in ['建仓初期', '建仓后期', '洗盘', '拉升', '出货']:
+                if stage not in stage_stats:
+                    continue
+                
+                rets = stage_stats[stage]['rets'][hold_days]
+                if not rets:
+                    continue
+                
+                count = len(rets)
+                median = np.median(rets)
+                mean = np.mean(rets)
+                win_rate = sum(1 for r in rets if r > 0) / count * 100
+                
+                f.write(f"{stage:<10} {count:>8} {median:>10.2f} {mean:>10.2f} {win_rate:>10.1f}\n")
+    
+    print(f"\n已保存统计结果: {summary_file}")
 
 
 if __name__ == "__main__":
     main()
-
