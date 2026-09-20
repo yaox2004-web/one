@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-第二层：左侧历史建构识别
+第二层+第三层：左侧历史建构识别 + 影响力评估
 =================================================
 设计思路（为什么这样写）：
-  第一层是"今天怎么样"，第二层是"过去有什么"。
+  第二层：找出历史所有重要量柱、价柱、量线
+  第三层：给每个关键位打分，评估影响力
   
-  量学理论强调"立体看盘"，不能只看今天，还要看左侧历史建构。
-  左侧的重要量柱、价柱、量线，都会对现在的价格产生支撑或压力。
-  
-  本层的核心任务：
-  1. 找出历史所有重要量柱（倍量/高量/低量...）
-  2. 找出历史所有重要价柱（峰顶/谷底/大阳/大阴...）
-  3. 找出历史所有重要量线（黄金线/安全线/风险线...）
+  打分逻辑（适配量化时代）：
+  1. 距离远近（30%）：越近的关键位影响越大
+  2. 测试次数（25%）：测试次数越多越重要
+  3. 量能大小（25%）：量越大越重要
+  4. 时间远近（20%）：越近的历史越重要
 
 硬约束：
   - 绝对不用未来函数
@@ -29,15 +28,15 @@ from pathlib import Path
 # ============================================================
 DATA_DIR = Path(__file__).parent.parent / "data" / "kline"
 
-# 历史建构的时间周期
-HISTORY_PERIODS = [20, 60, 120, 250]  # 近20日/60日/120日/250日
+HISTORY_PERIODS = [20, 60, 120, 250]
+BEISHU_RATIO = 1.9
+BIG_BAR_PCT = 5.0
 
-# 量柱阈值
-BEISHU_RATIO = 1.9     # 倍量柱
-BIG_BAR_PCT = 5.0      # 大阳线/大阴线：涨跌幅>5%
-
-# 重要量柱的最小样本量
-MIN_SAMPLE = 5  # 至少要有5个样本才显示
+# 影响力打分权重
+WEIGHT_DISTANCE = 0.30   # 距离远近
+WEIGHT_TEST_COUNT = 0.25  # 测试次数
+WEIGHT_VOLUME = 0.25     # 量能大小
+WEIGHT_TIME = 0.20       # 时间远近
 
 
 # ============================================================
@@ -73,12 +72,13 @@ def load_klines(filepath):
 
 
 # ============================================================
-# 第一步：识别历史重要量柱
+# 第一步：识别历史重要量柱（去重版）
 # ============================================================
 def find_history_vol_columns(df):
-    """找出历史所有重要量柱"""
+    """找出历史所有重要量柱（去重，只保留最长周期）"""
     
-    vol_columns = []
+    # 先找所有重要量柱
+    all_vols = []
     
     for i in range(1, len(df)):
         today_vol = df['volume'].iloc[i]
@@ -89,121 +89,132 @@ def find_history_vol_columns(df):
         
         vol_ratio = today_vol / prev_vol
         date = df['date'].iloc[i]
+        days_ago = len(df) - 1 - i
         
-        # 1. 倍量柱
+        # 倍量柱
         if vol_ratio >= BEISHU_RATIO:
-            vol_columns.append({
+            all_vols.append({
                 'type': '倍量柱',
                 'date': date,
                 'price': df['close'].iloc[i],
                 'volume': today_vol,
-                'days_ago': len(df) - 1 - i,  # 距今天多少天
+                'days_ago': days_ago,
+                'cycle': 0,  # 倍量柱不区分周期
             })
         
-        # 2. 高量柱（多周期）
-        for period in HISTORY_PERIODS:
+        # 高量柱（找最长周期）
+        for period in sorted(HISTORY_PERIODS, reverse=True):  # 从长到短
             if i >= period:
                 recent_max = df['volume'].iloc[i-period:i].max()
                 if today_vol >= recent_max * 0.999:
-                    vol_columns.append({
+                    all_vols.append({
                         'type': f'{period}日高量柱',
                         'date': date,
                         'price': df['close'].iloc[i],
                         'volume': today_vol,
-                        'days_ago': len(df) - 1 - i,
+                        'days_ago': days_ago,
+                        'cycle': period,
                     })
+                    break  # 只保留最长周期
         
-        # 3. 低量柱（多周期）
-        for period in HISTORY_PERIODS:
+        # 低量柱（找最长周期）
+        for period in sorted(HISTORY_PERIODS, reverse=True):
             if i >= period:
                 recent_min = df['volume'].iloc[i-period:i].min()
                 if today_vol <= recent_min * 1.001:
-                    vol_columns.append({
+                    all_vols.append({
                         'type': f'{period}日低量柱',
                         'date': date,
                         'price': df['close'].iloc[i],
                         'volume': today_vol,
-                        'days_ago': len(df) - 1 - i,
+                        'days_ago': days_ago,
+                        'cycle': period,
                     })
+                    break
     
-    return vol_columns
+    return all_vols
 
 
 # ============================================================
-# 第二步：识别历史重要价柱
+# 第二步：识别历史重要价柱（去重版）
 # ============================================================
 def find_history_price_columns(df):
-    """找出历史所有重要价柱"""
+    """找出历史所有重要价柱（去重，只保留最长周期）"""
     
-    price_columns = []
+    all_prices = []
     
     for i in range(len(df)):
         date = df['date'].iloc[i]
         days_ago = len(df) - 1 - i
         
-        # 1. 大阳线
+        # 大阳线/大阴线
         pct_chg = (df['close'].iloc[i] - df['close'].iloc[i-1]) / df['close'].iloc[i-1] * 100 if i > 0 else 0
         if pct_chg > BIG_BAR_PCT:
-            price_columns.append({
+            all_prices.append({
                 'type': '大阳线',
                 'date': date,
                 'price': df['close'].iloc[i],
                 'high': df['high'].iloc[i],
                 'low': df['low'].iloc[i],
                 'days_ago': days_ago,
+                'cycle': 0,
             })
-        
-        # 2. 大阴线
         if pct_chg < -BIG_BAR_PCT:
-            price_columns.append({
+            all_prices.append({
                 'type': '大阴线',
                 'date': date,
                 'price': df['close'].iloc[i],
                 'high': df['high'].iloc[i],
                 'low': df['low'].iloc[i],
                 'days_ago': days_ago,
+                'cycle': 0,
             })
         
-        # 3. 阶段最高点（峰顶线）
-        for period in HISTORY_PERIODS:
-            if i >= period and i < len(df) - 1:
-                recent_high = df['high'].iloc[i-period:i].max()
-                if df['high'].iloc[i] >= recent_high:
-                    price_columns.append({
-                        'type': f'{period}日峰顶',
-                        'date': date,
-                        'price': df['high'].iloc[i],
-                        'high': df['high'].iloc[i],
-                        'low': df['low'].iloc[i],
-                        'days_ago': days_ago,
-                    })
+        # 峰顶（找最长周期）
+        if i >= max(HISTORY_PERIODS) and i < len(df) - 1:
+            for period in sorted(HISTORY_PERIODS, reverse=True):
+                if i >= period:
+                    recent_high = df['high'].iloc[i-period:i].max()
+                    if df['high'].iloc[i] >= recent_high:
+                        all_prices.append({
+                            'type': f'{period}日峰顶',
+                            'date': date,
+                            'price': df['high'].iloc[i],
+                            'high': df['high'].iloc[i],
+                            'low': df['low'].iloc[i],
+                            'days_ago': days_ago,
+                            'cycle': period,
+                        })
+                        break
         
-        # 4. 阶段最低点（谷底线）
-        for period in HISTORY_PERIODS:
-            if i >= period and i < len(df) - 1:
-                recent_low = df['low'].iloc[i-period:i].min()
-                if df['low'].iloc[i] <= recent_low:
-                    price_columns.append({
-                        'type': f'{period}日谷底',
-                        'date': date,
-                        'price': df['low'].iloc[i],
-                        'high': df['high'].iloc[i],
-                        'low': df['low'].iloc[i],
-                        'days_ago': days_ago,
-                    })
+        # 谷底（找最长周期）
+        if i >= max(HISTORY_PERIODS) and i < len(df) - 1:
+            for period in sorted(HISTORY_PERIODS, reverse=True):
+                if i >= period:
+                    recent_low = df['low'].iloc[i-period:i].min()
+                    if df['low'].iloc[i] <= recent_low:
+                        all_prices.append({
+                            'type': f'{period}日谷底',
+                            'date': date,
+                            'price': df['low'].iloc[i],
+                            'high': df['high'].iloc[i],
+                            'low': df['low'].iloc[i],
+                            'days_ago': days_ago,
+                            'cycle': period,
+                        })
+                        break
     
-    return price_columns
+    return all_prices
 
 
 # ============================================================
-# 第三步：识别历史重要量线
+# 第三步：识别历史重要量线（去重版）
 # ============================================================
 def find_history_lines(df):
-    """找出历史所有重要量线"""
+    """找出历史所有重要量线（去重）"""
     
-    lines = []
+    all_lines = []
     
-    # 1. 高量柱的安全线（实顶）和风险线（最低价）
     for i in range(1, len(df)):
         today_vol = df['volume'].iloc[i]
         prev_vol = df['volume'].iloc[i - 1]
@@ -211,8 +222,8 @@ def find_history_lines(df):
         if prev_vol <= 0:
             continue
         
-        # 找高量柱
-        for period in [20, 60]:
+        # 找最长周期的高量柱
+        for period in sorted([20, 60], reverse=True):
             if i >= period:
                 recent_max = df['volume'].iloc[i-period:i].max()
                 if today_vol >= recent_max * 0.999:
@@ -221,22 +232,84 @@ def find_history_lines(df):
                     
                     # 安全线 = 高量柱实顶
                     body_top = max(df['open'].iloc[i], df['close'].iloc[i])
-                    lines.append({
+                    all_lines.append({
                         'type': '高量安全线',
                         'date': date,
                         'price': body_top,
+                        'volume': today_vol,
                         'days_ago': days_ago,
+                        'cycle': period,
                     })
                     
                     # 风险线 = 高量柱最低价
-                    lines.append({
+                    all_lines.append({
                         'type': '高量风险线',
                         'date': date,
                         'price': df['low'].iloc[i],
+                        'volume': today_vol,
                         'days_ago': days_ago,
+                        'cycle': period,
                     })
+                    break
     
-    return lines
+    return all_lines
+
+
+# ============================================================
+# 第四步：影响力评估
+# ============================================================
+def evaluate_influence(all_points, current_price, df):
+    """给每个关键位打分，评估影响力"""
+    
+    if not all_points:
+        return []
+    
+    # 找最大量能（用于归一化）
+    max_volume = max(p.get('volume', 0) for p in all_points)
+    max_days_ago = max(p['days_ago'] for p in all_points)
+    
+    scored = []
+    
+    for point in all_points:
+        price = point['price']
+        days_ago = point['days_ago']
+        volume = point.get('volume', 0)
+        
+        # 1. 距离分（越近分越高）
+        distance = abs(price - current_price) / current_price * 100  # 距离百分比
+        distance_score = max(0, 100 - distance * 5)  # 每1%距离扣5分
+        
+        # 2. 测试次数（简化：周期越长，测试次数越多）
+        cycle = point.get('cycle', 0)
+        test_score = min(100, cycle / 250 * 100) if cycle > 0 else 50  # 250日=满分
+        
+        # 3. 量能分
+        vol_score = volume / max_volume * 100 if max_volume > 0 else 50
+        
+        # 4. 时间分（越近分越高）
+        time_score = 100 - (days_ago / max_days_ago * 100) if max_days_ago > 0 else 50
+        
+        # 综合得分
+        total_score = (
+            distance_score * WEIGHT_DISTANCE +
+            test_score * WEIGHT_TEST_COUNT +
+            vol_score * WEIGHT_VOLUME +
+            time_score * WEIGHT_TIME
+        )
+        
+        # 判断是支撑还是压力
+        is_support = price < current_price
+        is_resistance = price > current_price
+        
+        scored.append({
+            **point,
+            'score': round(total_score, 1),
+            'distance_pct': round(distance, 2),
+            'is_support': is_support,
+            'is_resistance': is_resistance,
+        })
+    
+    return scored
 
 
 # ============================================================
@@ -257,69 +330,53 @@ def main():
         print("没找到数据")
         return
     
+    current_price = df['close'].iloc[-1]
     print(f"股票：{name}")
     print(f"数据量：{len(df)}天")
-    print(f"当前价格：{df['close'].iloc[-1]:.2f}")
+    print(f"当前价格：{current_price:.2f}")
     
-    # 找历史量柱
+    # 找历史建构
     vol_columns = find_history_vol_columns(df)
-    print(f"\n{'='*50}")
-    print(f"【历史重要量柱】共{len(vol_columns)}个")
-    print(f"{'='*50}")
-    
-    # 按类型分组统计
-    vol_df = pd.DataFrame(vol_columns)
-    if len(vol_df) > 0:
-        type_count = vol_df['type'].value_counts()
-        print("\n按类型统计：")
-        for t, c in type_count.items():
-            print(f"  {t}: {c}个")
-        
-        # 显示最近的10个
-        print(f"\n最近的10个：")
-        recent_vol = vol_df.sort_values('days_ago').head(10)
-        for _, row in recent_vol.iterrows():
-            print(f"  {row['date']} | {row['type']} | 价格{row['price']:.2f} | {row['days_ago']}天前")
-    
-    # 找历史价柱
     price_columns = find_history_price_columns(df)
-    print(f"\n{'='*50}")
-    print(f"【历史重要价柱】共{len(price_columns)}个")
-    print(f"{'='*50}")
-    
-    price_df = pd.DataFrame(price_columns)
-    if len(price_df) > 0:
-        type_count = price_df['type'].value_counts()
-        print("\n按类型统计：")
-        for t, c in type_count.items():
-            print(f"  {t}: {c}个")
-        
-        # 显示最近的10个
-        print(f"\n最近的10个：")
-        recent_price = price_df.sort_values('days_ago').head(10)
-        for _, row in recent_price.iterrows():
-            print(f"  {row['date']} | {row['type']} | 价格{row['price']:.2f} | {row['days_ago']}天前")
-    
-    # 找历史量线
     lines = find_history_lines(df)
-    print(f"\n{'='*50}")
-    print(f"【历史重要量线】共{len(lines)}个")
-    print(f"{'='*50}")
     
-    lines_df = pd.DataFrame(lines)
-    if len(lines_df) > 0:
-        type_count = lines_df['type'].value_counts()
-        print("\n按类型统计：")
-        for t, c in type_count.items():
-            print(f"  {t}: {c}个")
-        
-        # 显示最近的10个
-        print(f"\n最近的10个：")
-        recent_lines = lines_df.sort_values('days_ago').head(10)
-        for _, row in recent_lines.iterrows():
-            print(f"  {row['date']} | {row['type']} | 价格{row['price']:.2f} | {row['days_ago']}天前")
+    # 合并所有关键位
+    all_points = vol_columns + price_columns + lines
+    
+    # 影响力评估
+    scored_points = evaluate_influence(all_points, current_price, df)
+    
+    # 分类：支撑位 vs 压力位
+    supports = [p for p in scored_points if p['is_support']]
+    resistances = [p for p in scored_points if p['is_resistance']]
+    
+    # 按分数排序
+    supports.sort(key=lambda x: x['score'], reverse=True)
+    resistances.sort(key=lambda x: x['score'], reverse=True)
+    
+    print(f"\n{'='*60}")
+    print(f"【支撑位排行榜（从强到弱）】共{len(supports)}个")
+    print(f"{'='*60}")
+    
+    for i, s in enumerate(supports[:10]):
+        print(f"  {i+1}. {s['price']:.2f}元 | {s['type']} | 强度{s['score']}分 | 距当前{s['distance_pct']}% | {s['days_ago']}天前")
+    
+    print(f"\n{'='*60}")
+    print(f"【压力位排行榜（从强到弱）】共{len(resistances)}个")
+    print(f"{'='*60}")
+    
+    for i, r in enumerate(resistances[:10]):
+        print(f"  {i+1}. {r['price']:.2f}元 | {r['type']} | 强度{r['score']}分 | 距当前{r['distance_pct']}% | {r['days_ago']}天前")
+    
+    # 统计
+    print(f"\n{'='*60}")
+    print(f"【统计】")
+    print(f"{'='*60}")
+    print(f"  总关键位：{len(all_points)}个")
+    print(f"  支撑位：{len(supports)}个")
+    print(f"  压力位：{len(resistances)}个")
+    print(f"  当前位置：在{len(supports)}个支撑和{len(resistances)}个压力之间")
 
 
 if __name__ == "__main__":
     main()
-
