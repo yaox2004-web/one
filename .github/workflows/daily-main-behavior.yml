@@ -2,7 +2,7 @@ name: 每日主力行为诊断
 
 on:
   schedule:
-    - cron: '30 15 * * 1-5'  # 每个交易日15:30跑（收盘后）
+    - cron: '30 15 * * 1-5'
   workflow_dispatch:
 
 jobs:
@@ -26,7 +26,7 @@ jobs:
       - name: Run
         run: |
           cd scripts
-          python3 daily_main_behavior.py
+          python3 daily_report_html.py
           
       - name: Commit results
         run: |
@@ -36,7 +36,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "无变化"
           else
-            git commit -m "data: 每日主力行为诊断 $(date -u +%Y%m%d)"
+            git commit -m "data: 每日主力行为诊断HTML $(date -u +%Y%m%d)"
             git push
           fi
-
