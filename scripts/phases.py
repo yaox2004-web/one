@@ -288,7 +288,7 @@ def three_day_confirm(df):
       ① 三日不破：后三日每日最低价 >= 基柱最低价
       ② 价升量缩：后三日中至少一日"价涨量缩"
       ③ 先者优先：连续几天都符合时取第一个合格者
-    黄金柱（更严格）：后三日收盘逐日升 + 量逐日缩 + 不破基柱实底
+    黄金柱（2026量化时代放松版）：3天后涨且至少2天涨 + 3日均量<基柱且至少2天缩
     黄金柱四组合公式（满足任一即可）：
       ① 倍量柱+缩量柱 ② 高量柱+缩量柱 ③ 倍量柱+梯量柱 ④ 低量柱+梯量柱
 
@@ -329,12 +329,17 @@ def three_day_confirm(df):
         if bu_po and jj_price_up_vol_shrink:
             df.at[i, "将军柱"] = True
 
-        # 黄金柱（比将军柱更严格）：
-        #   后3日收盘逐日升高 + 量能逐日缩小 + 不破基柱实底
-        gj_price_up = (close[j1] > base_close and close[j2] > close[j1]
-                       and close[j3] > close[j2])
-        gj_vol_shrink = (vol[j1] < base_vol and vol[j2] < vol[j1]
-                         and vol[j3] < vol[j2])
+        # 黄金柱（2026量化时代放松版）：
+        #   旧版：连续3天逐日涨+逐日缩（太严，信号太少）
+        #   新版：3天后涨且至少2天涨 + 3日均量<基柱且至少2天缩
+        price_up_days = sum([close[j1] > base_close,
+                             close[j2] > close[j1],
+                             close[j3] > close[j2]])
+        vol_shrink_days = sum([vol[j1] < base_vol,
+                               vol[j2] < vol[j1],
+                               vol[j3] < vol[j2]])
+        gj_price_up = (close[j3] > base_close) and (price_up_days >= 2)
+        gj_vol_shrink = (np.mean([vol[j1], vol[j2], vol[j3]]) < base_vol) and (vol_shrink_days >= 2)
         # 不破基柱实底（基柱实体下沿 = min(开盘,收盘)）
         base_shidi = min(open_[i], base_close)
         gj_bu_po = min(low[j1], low[j2], low[j3]) >= base_shidi
