@@ -11,6 +11,8 @@
   1. 只看当天数据，不需要右确认
   2. 当天收盘后就能识别
   3. 包括价柱、量柱、量价组合、当日指标、今夕比
+  4. 与昨日的对比关系
+  5. 连续状态、均线位置、实体质量
 
 硬约束：
   - 绝对不用未来函数
@@ -28,28 +30,31 @@ from pathlib import Path
 DATA_DIR = Path(__file__).parent.parent / "data" / "kline"
 
 # 价柱形态阈值
-BIG_YANG = 5.0      # 大阳线：涨幅>5%
-MID_YANG = 2.0      # 中阳线：涨幅2%~5%
-BIG_YIN = -5.0      # 大阴线：跌幅>5%
-MID_YIN = -2.0      # 中阴线：跌幅2%~5%
-SHADOW_RATIO = 2.0  # 长影线：影线>实体2倍
-CROSS_TOLERANCE = 0.5  # 十字星：开盘收盘差<0.5%
+BIG_YANG = 5.0
+MID_YANG = 2.0
+BIG_YIN = -5.0
+MID_YIN = -2.0
+SHADOW_RATIO = 2.0
+CROSS_TOLERANCE = 0.5
 
 # 量柱形态阈值
-BEISHU_RATIO = 1.9     # 倍量柱：今量≥昨量×1.9
-PING_RATIO = 0.05      # 平量柱：今量/昨量在0.95~1.05之间
-HIGH_LOW_PERIODS = [10, 20, 60, 120]  # 高/低量柱多周期
+BEISHU_RATIO = 1.9
+PING_RATIO = 0.05
+HIGH_LOW_PERIODS = [10, 20, 60, 120]
 
 # 量价组合阈值
-VOL_UP_RATIO = 1.2     # 放量：今量>5日均量×1.2
-VOL_DOWN_RATIO = 0.8   # 缩量：今量<5日均量×0.8
+VOL_UP_RATIO = 1.2
+VOL_DOWN_RATIO = 0.8
+
+# 跳空阈值
+GAP_THRESHOLD = 0.005
 
 # 位置分位周期
-POSITION_PERIOD = 120  # 位置分位：近120日高低点
+POSITION_PERIOD = 120
 
 
 # ============================================================
-# 数据读取（修复版：自动适配列数）
+# 数据读取
 # ============================================================
 def load_klines(filepath):
     with open(filepath, 'r') as f:
@@ -58,21 +63,16 @@ def load_klines(filepath):
     if not klines:
         return None, None
     
-    # 自动判断列数
     ncols = len(klines[0])
     
-    # 根据列数自动命名
     if ncols == 6:
         cols = ['date', 'open', 'close', 'high', 'low', 'volume']
     elif ncols == 7:
         cols = ['date', 'open', 'close', 'high', 'low', 'volume', 'amount']
     else:
-        # 未知列数，按前6列处理
         cols = ['date', 'open', 'close', 'high', 'low', 'volume'] + [f'col{i}' for i in range(7, ncols)]
     
     df = pd.DataFrame(klines)
-    
-    # 只取前ncols列，列名用我们定义的
     df = df.iloc[:, :ncols]
     df.columns = cols[:ncols]
     
@@ -86,93 +86,78 @@ def load_klines(filepath):
 
 
 # ============================================================
-# 第一步：计算当日指标（E+D类）
+# 第一步：计算当日指标
 # ============================================================
 def calc_daily_indicators(df):
-    """计算所有当日指标"""
+    df['pct_chg'] = (df['close'] - df['close'].shift(1)) / df['close'].shift(1) * 100
+    df['amplitude'] = (df['high'] - df['low']) / df['close'].shift(1) * 100
+    df['vol_ratio_yesterday'] = df['volume'] / df['volume'].shift(1)
     
-    # 基本指标
-    df['pct_chg'] = (df['close'] - df['close'].shift(1)) / df['close'].shift(1) * 100  # 涨跌幅
-    df['amplitude'] = (df['high'] - df['low']) / df['close'].shift(1) * 100  # 振幅
-    
-    # 今夕比（E类）
-    df['vol_ratio_yesterday'] = df['volume'] / df['volume'].shift(1)  # 今量/昨量
-    
-    # 量比（相对5日均量）
     df['vol_ma5'] = df['volume'].rolling(5).mean()
-    df['vol_ratio_ma5'] = df['volume'] / df['vol_ma5']  # 今量/5日均量
+    df['vol_ratio_ma5'] = df['volume'] / df['vol_ma5']
     
-    # 位置分位
     df['high_120'] = df['high'].rolling(POSITION_PERIOD).max()
     df['low_120'] = df['low'].rolling(POSITION_PERIOD).min()
     df['position_pct'] = (df['close'] - df['low_120']) / (df['high_120'] - df['low_120']) * 100
     
-    # 均线位置
+    # 均线位置（MA5/MA10/MA20/MA60）
+    df['ma5'] = df['close'].rolling(5).mean()
+    df['ma10'] = df['close'].rolling(10).mean()
     df['ma20'] = df['close'].rolling(20).mean()
     df['ma60'] = df['close'].rolling(60).mean()
+    df['above_ma5'] = df['close'] > df['ma5']
+    df['above_ma10'] = df['close'] > df['ma10']
     df['above_ma20'] = df['close'] > df['ma20']
     df['above_ma60'] = df['close'] > df['ma60']
+    
+    # 实体质量
+    body = df['close'] - df['open']
+    body_size = abs(body)
+    total_range = df['high'] - df['low']
+    df['body_ratio'] = body_size / total_range  # 实体占振幅比例
+    
+    # 阳量/阴量
+    df['is_yang_vol'] = df['close'] > df['open']  # 阳量（收阳）
+    df['is_yin_vol'] = df['close'] < df['open']   # 阴量（收阴）
     
     return df
 
 
 # ============================================================
-# 第二步：识别价柱形态（A类，26种）
+# 第二步：识别价柱形态
 # ============================================================
 def detect_price_pattern(df):
-    """识别所有价柱形态"""
-    
-    # 实体大小
     body = df['close'] - df['open']
-    body_pct = body / df['open'] * 100  # 实体涨跌幅
+    body_pct = body / df['open'] * 100
     
-    # 影线（用局部变量，不存到df里）
     upper_shadow = df['high'] - df[['open', 'close']].max(axis=1)
     lower_shadow = df[['open', 'close']].min(axis=1) - df['low']
     body_size = abs(body)
-    
-    # 实体为0时的处理（十字星）
     body_size_safe = body_size.replace(0, 0.01)
     
-    # --- 按实体大小分（8种）---
-    df['big_yang'] = (body_pct > BIG_YANG) & (body > 0)  # 大阳线
-    df['big_yin'] = (body_pct < -BIG_YANG) & (body < 0)  # 大阴线
-    df['mid_yang'] = (body_pct >= MID_YANG) & (body_pct <= BIG_YANG) & (body > 0)  # 中阳线
-    df['mid_yin'] = (body_pct <= -MID_YANG) & (body_pct >= -BIG_YANG) & (body < 0)  # 中阴线
-    df['small_yang'] = (body > 0) & (body_pct < MID_YANG)  # 小阳线
-    df['small_yin'] = (body < 0) & (body_pct > -MID_YANG)  # 小阴线
+    df['big_yang'] = (body_pct > BIG_YANG) & (body > 0)
+    df['big_yin'] = (body_pct < -BIG_YANG) & (body < 0)
+    df['mid_yang'] = (body_pct >= MID_YANG) & (body_pct <= BIG_YANG) & (body > 0)
+    df['mid_yin'] = (body_pct <= -MID_YANG) & (body_pct >= -BIG_YANG) & (body < 0)
+    df['small_yang'] = (body > 0) & (body_pct < MID_YANG)
+    df['small_yin'] = (body < 0) & (body_pct > -MID_YANG)
     
-    # --- 按影线分（4种）---
-    df['no_upper_shadow'] = upper_shadow / body_size_safe < 0.1  # 无上影线
-    df['no_lower_shadow'] = lower_shadow / body_size_safe < 0.1  # 无下影线
-    df['long_upper_shadow'] = upper_shadow / body_size_safe > SHADOW_RATIO  # 长上影
-    df['long_lower_shadow'] = lower_shadow / body_size_safe > SHADOW_RATIO  # 长下影
+    df['no_upper_shadow'] = upper_shadow / body_size_safe < 0.1
+    df['no_lower_shadow'] = lower_shadow / body_size_safe < 0.1
+    df['long_upper_shadow'] = upper_shadow / body_size_safe > SHADOW_RATIO
+    df['long_lower_shadow'] = lower_shadow / body_size_safe > SHADOW_RATIO
     
-    # --- 光头光脚（4种）---
-    df['bare_top_yang'] = df['no_upper_shadow'] & (body > 0)  # 光头阳线
-    df['bare_top_yin'] = df['no_upper_shadow'] & (body < 0)  # 光头阴线
-    df['bare_bottom_yang'] = df['no_lower_shadow'] & (body > 0)  # 光脚阳线
-    df['bare_bottom_yin'] = df['no_lower_shadow'] & (body < 0)  # 光脚阴线
-    df['bare_all_yang'] = df['no_upper_shadow'] & df['no_lower_shadow'] & (body > 0)  # 光头光脚阳线
-    df['bare_all_yin'] = df['no_upper_shadow'] & df['no_lower_shadow'] & (body < 0)  # 光头光脚阴线
+    df['doji'] = abs(body_pct) < CROSS_TOLERANCE
+    df['long_leg_doji'] = df['doji'] & df['long_upper_shadow'] & df['long_lower_shadow']
+    df['dragonfly_doji'] = df['doji'] & df['long_lower_shadow'] & ~df['long_upper_shadow']
+    df['gravestone_doji'] = df['doji'] & df['long_upper_shadow'] & ~df['long_lower_shadow']
     
-    # --- 十字星家族（4种）---
-    df['doji'] = abs(body_pct) < CROSS_TOLERANCE  # 十字星
-    df['long_leg_doji'] = df['doji'] & df['long_upper_shadow'] & df['long_lower_shadow']  # 长腿十字
-    df['dragonfly_doji'] = df['doji'] & df['long_lower_shadow'] & ~df['long_upper_shadow']  # 蜻蜓十字
-    df['gravestone_doji'] = df['doji'] & df['long_upper_shadow'] & ~df['long_lower_shadow']  # 墓碑十字
+    df['hammer'] = df['long_lower_shadow'] & (upper_shadow / body_size_safe < 0.5) & (body_size < df['high'] - df['low'])
+    df['inverted_hammer'] = df['long_upper_shadow'] & (lower_shadow / body_size_safe < 0.5) & (body_size < df['high'] - df['low'])
     
-    # --- 特殊形态（4种）---
-    # 锤头线：长下影+短上影+小实体
-    df['hammer'] = df['long_lower_shadow'] & (upper_shadow / body_size_safe < 0.5) & (body_size < df['high'] - df['low'])  # 锤头线
-    # 倒锤头：长上影+短下影+小实体
-    df['inverted_hammer'] = df['long_upper_shadow'] & (lower_shadow / body_size_safe < 0.5) & (body_size < df['high'] - df['low'])  # 倒锤头
+    df['fake_yang_real_yin'] = (df['close'] > df['open']) & (df['close'] < df['close'].shift(1))
+    df['fake_yin_real_yang'] = (df['close'] < df['open']) & (df['close'] > df['close'].shift(1))
     
-    # 假阳真阴/假阴真阳
-    df['fake_yang_real_yin'] = (df['close'] > df['open']) & (df['close'] < df['close'].shift(1))  # 假阳真阴
-    df['fake_yin_real_yang'] = (df['close'] < df['open']) & (df['close'] > df['close'].shift(1))  # 假阴真阳
-    
-    # 涨停/跌停（简化版：涨跌幅接近10%/20%）
     df['limit_up'] = df['pct_chg'] > 9.5
     df['limit_down'] = df['pct_chg'] < -9.5
     
@@ -180,31 +165,74 @@ def detect_price_pattern(df):
 
 
 # ============================================================
-# 第三步：识别量柱形态（B类，6种）
+# 第二步半：与昨日的对比
+# ============================================================
+def detect_yesterday_compare(df):
+    prev_open = df['open'].shift(1)
+    prev_close = df['close'].shift(1)
+    prev_high = df['high'].shift(1)
+    prev_low = df['low'].shift(1)
+    prev_body_high = df[['open', 'close']].shift(1).max(axis=1)
+    prev_body_low = df[['open', 'close']].shift(1).min(axis=1)
+    
+    df['yang_gai_yin'] = (df['close'] > df['open']) & (df['open'] <= prev_body_low) & (df['close'] >= prev_body_high) & (prev_close < prev_open)
+    df['yin_gai_yang'] = (df['close'] < df['open']) & (df['open'] >= prev_body_high) & (df['close'] <= prev_body_low) & (prev_close > prev_open)
+    
+    df['gap_up'] = df['open'] > prev_high * (1 + GAP_THRESHOLD)
+    df['gap_down'] = df['open'] < prev_low * (1 - GAP_THRESHOLD)
+    
+    df['high_open_high_close'] = (df['open'] > prev_close) & (df['close'] > df['open'])
+    df['high_open_low_close'] = (df['open'] > prev_close) & (df['close'] < df['open'])
+    df['low_open_high_close'] = (df['open'] < prev_close) & (df['close'] > df['open'])
+    df['low_open_low_close'] = (df['open'] < prev_close) & (df['close'] < df['open'])
+    
+    return df
+
+
+# ============================================================
+# 第二步又半：连续状态（新增4种）
+# ============================================================
+def detect_consecutive_status(df):
+    """识别连续状态"""
+    
+    # 连续阳线：连续3天收阳
+    df['consec_yang_3d'] = (df['close'] > df['open']) & \
+                           (df['close'].shift(1) > df['open'].shift(1)) & \
+                           (df['close'].shift(2) > df['open'].shift(2))
+    
+    # 连续阴线：连续3天收阴
+    df['consec_yin_3d'] = (df['close'] < df['open']) & \
+                          (df['close'].shift(1) < df['open'].shift(1)) & \
+                          (df['close'].shift(2) < df['open'].shift(2))
+    
+    # 连续放量：连续3天放量（vs5日均量）
+    df['consec_vol_up_3d'] = (df['vol_ratio_ma5'] > VOL_UP_RATIO) & \
+                             (df['vol_ratio_ma5'].shift(1) > VOL_UP_RATIO) & \
+                             (df['vol_ratio_ma5'].shift(2) > VOL_UP_RATIO)
+    
+    # 连续缩量：连续3天缩量（vs5日均量）
+    df['consec_vol_down_3d'] = (df['vol_ratio_ma5'] < VOL_DOWN_RATIO) & \
+                               (df['vol_ratio_ma5'].shift(1) < VOL_DOWN_RATIO) & \
+                               (df['vol_ratio_ma5'].shift(2) < VOL_DOWN_RATIO)
+    
+    return df
+
+
+# ============================================================
+# 第三步：识别量柱形态
 # ============================================================
 def detect_volume_pattern(df):
-    """识别所有量柱形态"""
-    
-    # 倍量柱（基于今夕比）
     df['beishu'] = df['vol_ratio_yesterday'] >= BEISHU_RATIO
-    
-    # 平量柱（两根及以上持平）
     df['pingliang'] = (df['vol_ratio_yesterday'] >= 1 - PING_RATIO) & (df['vol_ratio_yesterday'] <= 1 + PING_RATIO)
     
-    # 高量柱（多周期）
     for period in HIGH_LOW_PERIODS:
         df[f'high_vol_{period}'] = df['volume'] >= df['volume'].rolling(period).max() * 0.999
-    
-    # 低量柱（多周期）
-    for period in HIGH_LOW_PERIODS:
         df[f'low_vol_{period}'] = df['volume'] <= df['volume'].rolling(period).min() * 1.001
     
-    # 缩量柱（连续3天逐步缩小）
     df['suoliang_3d'] = (df['volume'] < df['volume'].shift(1)) & \
                         (df['volume'].shift(1) < df['volume'].shift(2)) & \
                         (df['volume'].shift(2) < df['volume'].shift(3))
     
-    # 梯量柱（连续3天逐步升高）
     df['tiliang_3d'] = (df['volume'] > df['volume'].shift(1)) & \
                        (df['volume'].shift(1) > df['volume'].shift(2)) & \
                        (df['volume'].shift(2) > df['volume'].shift(3))
@@ -213,51 +241,32 @@ def detect_volume_pattern(df):
 
 
 # ============================================================
-# 第四步：识别量价组合（C类，8种）
+# 第四步：识别量价组合
 # ============================================================
 def detect_volume_price_combo(df):
-    """识别所有量价组合"""
-    
     price_up = df['close'] > df['close'].shift(1)
     price_down = df['close'] < df['close'].shift(1)
     price_flat = abs(df['pct_chg']) < 1.0
     
     vol_up = df['vol_ratio_ma5'] > VOL_UP_RATIO
     vol_down = df['vol_ratio_ma5'] < VOL_DOWN_RATIO
-    vol_flat = (df['vol_ratio_ma5'] >= VOL_DOWN_RATIO) & (df['vol_ratio_ma5'] <= VOL_UP_RATIO)
     
-    # 价升量增
     df['price_up_vol_up'] = price_up & vol_up
-    
-    # 价升量缩
     df['price_up_vol_down'] = price_up & vol_down
-    
-    # 价跌量增
     df['price_down_vol_up'] = price_down & vol_up
-    
-    # 价跌量缩
     df['price_down_vol_down'] = price_down & vol_down
-    
-    # 价平量增
     df['price_flat_vol_up'] = price_flat & vol_up
-    
-    # 价平量缩
     df['price_flat_vol_down'] = price_flat & vol_down
-    
-    # 放量滞涨（放巨量+不涨）
     df['vol_surge_no_up'] = (df['vol_ratio_ma5'] > 1.5) & (abs(df['pct_chg']) < 1.0)
-    
-    # 缩量不跌（缩量+不跌）
     df['vol_shrink_no_down'] = vol_down & (df['pct_chg'] > -1.0)
     
     return df
 
 
 # ============================================================
-# 第五步：输出某天的所有形态
+# 第五步：输出
 # ============================================================
 def print_daily_pattern(df, idx, date_str=None):
-    """打印某天识别出的所有形态"""
     row = df.iloc[idx]
     
     if date_str is None:
@@ -265,7 +274,6 @@ def print_daily_pattern(df, idx, date_str=None):
     
     print(f"\n=== {date_str} ===")
     
-    # 价柱形态
     print(f"\n【价柱形态】")
     if row['big_yang']: print(f"  - 大阳线")
     if row['big_yin']: print(f"  - 大阴线")
@@ -283,7 +291,22 @@ def print_daily_pattern(df, idx, date_str=None):
     if row['limit_up']: print(f"  - 涨停板")
     if row['limit_down']: print(f"  - 跌停板")
     
-    # 量柱形态
+    print(f"\n【与昨日对比】")
+    if row['yang_gai_yin']: print(f"  - 阳盖阴（多头反包）")
+    if row['yin_gai_yang']: print(f"  - 阴盖阳（空头反包）")
+    if row['gap_up']: print(f"  - 跳空高开")
+    if row['gap_down']: print(f"  - 跳空低开")
+    if row['high_open_high_close']: print(f"  - 高开高走")
+    if row['high_open_low_close']: print(f"  - 高开低走")
+    if row['low_open_high_close']: print(f"  - 低开高走")
+    if row['low_open_low_close']: print(f"  - 低开低走")
+    
+    print(f"\n【连续状态】")
+    if row['consec_yang_3d']: print(f"  - 连续3天阳线")
+    if row['consec_yin_3d']: print(f"  - 连续3天阴线")
+    if row['consec_vol_up_3d']: print(f"  - 连续3天放量")
+    if row['consec_vol_down_3d']: print(f"  - 连续3天缩量")
+    
     print(f"\n【量柱形态】")
     if row['beishu']: print(f"  - 倍量柱（今量/昨量={row['vol_ratio_yesterday']:.2f}）")
     if row['pingliang']: print(f"  - 平量柱（今量/昨量={row['vol_ratio_yesterday']:.2f}）")
@@ -292,7 +315,6 @@ def print_daily_pattern(df, idx, date_str=None):
     if row['suoliang_3d']: print(f"  - 缩量柱（连续3天缩小）")
     if row['tiliang_3d']: print(f"  - 梯量柱（连续3天升高）")
     
-    # 量价组合
     print(f"\n【量价组合】")
     if row['price_up_vol_up']: print(f"  - 价升量增")
     if row['price_up_vol_down']: print(f"  - 价升量缩")
@@ -301,12 +323,15 @@ def print_daily_pattern(df, idx, date_str=None):
     if row['vol_surge_no_up']: print(f"  - 放量滞涨")
     if row['vol_shrink_no_down']: print(f"  - 缩量不跌")
     
-    # 当日指标
     print(f"\n【当日指标】")
     print(f"  - 涨跌幅: {row['pct_chg']:.2f}%")
     print(f"  - 振幅: {row['amplitude']:.2f}%")
+    print(f"  - 实体占比: {row['body_ratio']*100:.1f}%")
+    print(f"  - 量柱: {'阳量' if row['is_yang_vol'] else '阴量'}")
     print(f"  - 量比(vs5日): {row['vol_ratio_ma5']:.2f}")
     print(f"  - 位置分位: {row['position_pct']:.1f}%")
+    print(f"  - MA5: {'之上' if row['above_ma5'] else '之下'}")
+    print(f"  - MA10: {'之上' if row['above_ma10'] else '之下'}")
     print(f"  - MA20: {'之上' if row['above_ma20'] else '之下'}")
     print(f"  - MA60: {'之上' if row['above_ma60'] else '之下'}")
 
@@ -315,10 +340,8 @@ def print_daily_pattern(df, idx, date_str=None):
 # 主函数
 # ============================================================
 def main():
-    # 选一只股票测试
-    test_file = DATA_DIR / "sh" / "sh600519.json"  # 贵州茅台
+    test_file = DATA_DIR / "sh" / "sh600519.json"
     if not test_file.exists():
-        # 找第一只存在的
         for market_dir in DATA_DIR.iterdir():
             if market_dir.is_dir():
                 for f in market_dir.glob('*.json'):
@@ -334,13 +357,13 @@ def main():
     print(f"股票：{name}")
     print(f"数据量：{len(df)}天")
     
-    # 计算指标
     df = calc_daily_indicators(df)
     df = detect_price_pattern(df)
+    df = detect_yesterday_compare(df)
+    df = detect_consecutive_status(df)  # 新增：连续状态
     df = detect_volume_pattern(df)
     df = detect_volume_price_combo(df)
     
-    # 打印最近5天的形态
     print(f"\n=== 最近5天的量价形态 ===")
     for i in range(max(0, len(df)-5), len(df)):
         print_daily_pattern(df, i)
