@@ -1,26 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-信号排行 V2：加上位置信息（level_map）
-=================================================
-在原有信号排行基础上，加上左侧价位位置维度：
-- 信号发生时，上方最近压力位距离多少？
-- 下方最近支撑位距离多少？
-- 有没有正在测试的价位？
-- 按位置分组统计胜率
-
-硬约束：不用未来函数
+信号排行 V2：加上位置信息
 """
 
-import os
 import json
 import pandas as pd
 import numpy as np
 from pathlib import Path
 
-# ============================================================
-# 配置
-# ============================================================
 DATA_DIR = Path(__file__).parent.parent / "data" / "kline"
 OUTPUT_DIR = Path(__file__).parent.parent / "data" / "analysis"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -30,9 +18,32 @@ COST = 1.1
 MA20_FILTER = True
 LIMIT = 0
 
-# ============================================================
-# 一、信号引擎
-# ============================================================
+
+def load_klines(filepath):
+    """读取K线数据，自动适配列数"""
+    with open(filepath, 'r') as f:
+        data = json.load(f)
+    
+    klines = data.get('klines', [])
+    if not klines:
+        return None
+    
+    # 自动检测列数
+    ncols = len(klines[0])
+    
+    if ncols == 6:
+        cols = ['date', 'open', 'close', 'high', 'low', 'volume']
+    elif ncols == 7:
+        cols = ['date', 'open', 'close', 'high', 'low', 'volume', 'amount']
+    else:
+        return None
+    
+    df = pd.DataFrame(klines, columns=cols[:ncols])
+    for col in ['open', 'close', 'high', 'low', 'volume']:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+    df = df.dropna(subset=['open', 'close', 'high', 'low', 'volume'])
+    return df
+
 
 def calc_signals(df):
     df = df.copy()
@@ -40,25 +51,22 @@ def calc_signals(df):
     df['prev_close'] = df['close'].shift(1)
     df['prev_vol'] = df['volume'].shift(1)
     df['vol_ma20'] = df['volume'].rolling(20).mean()
-    df['vol_z'] = (df['volume'] - df['vol_ma20']) / df['volume'].rolling(20).std()
+    vol_std = df['volume'].rolling(20).std()
+    df['vol_z'] = np.where(vol_std > 0, (df['volume'] - df['vol_ma20']) / vol_std, 0)
     
     df['倍量柱'] = (df['volume'] >= df['prev_vol'] * 1.8) & (df['vol_z'] >= 1.5) & (df['close'] > df['open'])
     df['高量柱'] = (df['volume'] >= df['volume'].rolling(20).max().shift(1)) & (df['close'] > df['open'])
     
     df['黄金柱'] = False
-    for i in range(3, len(df) - 3):
+    df['将军柱'] = False
+    for i in range(5, len(df) - HOLD_DAYS):
         if df['倍量柱'].iloc[i]:
             up = all(df['close'].iloc[i+1+j] > df['close'].iloc[i+j] for j in range(3))
             down_vol = all(df['volume'].iloc[i+1+j] < df['volume'].iloc[i+j] for j in range(3))
             not_break = all(min(df['open'].iloc[i+j+1], df['close'].iloc[i+j+1]) >= min(df['open'].iloc[i], df['close'].iloc[i]) for j in range(3))
             if up and down_vol and not_break:
                 df.iloc[i, df.columns.get_loc('黄金柱')] = True
-    
-    df['将军柱'] = False
-    for i in range(3, len(df) - 3):
-        if df['倍量柱'].iloc[i] and not df['黄金柱'].iloc[i]:
-            not_break = all(min(df['open'].iloc[i+j+1], df['close'].iloc[i+j+1]) >= min(df['open'].iloc[i], df['close'].iloc[i]) for j in range(3))
-            if not_break:
+            elif not_break:
                 df.iloc[i, df.columns.get_loc('将军柱')] = True
     
     df['倍量过左峰'] = df['倍量柱'] & (df['close'] > df['high'].rolling(60).max().shift(1))
@@ -68,10 +76,6 @@ def calc_signals(df):
     
     return df
 
-
-# ============================================================
-# 二、位置计算
-# ============================================================
 
 def calc_position(df, idx):
     if idx < 20:
@@ -92,10 +96,7 @@ def calc_position(df, idx):
     dist_to_low = (current_price - recent_low) / current_price * 100
     
     range_ = recent_high - recent_low
-    if range_ > 0:
-        pos_pct = (current_price - recent_low) / range_ * 100
-    else:
-        pos_pct = 50
+    pos_pct = (current_price - recent_low) / range_ * 100 if range_ > 0 else 50
     
     recent_10_yin = c.iloc[-10:] < o.iloc[-10:]
     if recent_10_yin.any():
@@ -125,11 +126,7 @@ def classify_position(pos_pct):
         return '过峰'
 
 
-# ============================================================
-# 三、主回测逻辑
-# ============================================================
-
-def backtest_stock(code, name, df):
+def backtest_stock(df):
     samples = []
     df = calc_signals(df)
     
@@ -163,10 +160,6 @@ def backtest_stock(code, name, df):
     return samples
 
 
-# ============================================================
-# 四、主函数
-# ============================================================
-
 def main():
     all_samples = []
     stock_files = []
@@ -183,26 +176,17 @@ def main():
     
     for i, f in enumerate(stock_files):
         try:
-            with open(f, 'r') as fp:
-                data = json.load(fp)
-            
-            klines = data.get('klines', [])
-            if len(klines) < 60:
+            df = load_klines(f)
+            if df is None or len(df) < 60:
                 continue
             
-            df = pd.DataFrame(klines, columns=['date', 'open', 'close', 'high', 'low', 'volume'])
-            for col in ['open', 'close', 'high', 'low', 'volume']:
-                df[col] = pd.to_numeric(df[col], errors='coerce')
-            df = df.dropna()
-            
-            samples = backtest_stock(f.stem, data.get('name', ''), df)
+            samples = backtest_stock(df)
             all_samples.extend(samples)
             
-            if (i + 1) % 100 == 0:
+            if (i + 1) % 500 == 0:
                 print(f"  进度 {i+1}/{len(stock_files)} | 累计样本 {len(all_samples)}")
                 
         except Exception as e:
-            print(f"  跳过 {f.name}: {e}")
             continue
     
     if not all_samples:
