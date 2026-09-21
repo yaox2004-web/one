@@ -157,7 +157,7 @@ def find_big_yin_top(df, lookback_days, yin_body_pct):
     
     recent_df = df.iloc[-lookback_days:]
     
-    for i in range(len(recent_df)-1, -1, -1):
+    for i in range(len(recent_df)-1, -1, -1, ):
         row = recent_df.iloc[i]
         
         if row['close'] >= row['open']:
@@ -710,7 +710,7 @@ def generate_interpretation(stock):
         if ratio > 1.5:
             detail = "阳线明显多于阴线，说明买方赢得更频繁，在这个区间有持续性优势。"
         elif ratio < 0.67:
-            detail = "阴线明显多于阳线，说明卖方赢得更频繁，在这个区间仍占主动。"
+            detail = "阴线明显多于阴线，说明卖方赢得更频繁，在这个区间仍占主动。"
         else:
             detail = "阴阳数量相当，说明多空双方在这个区间力量均衡，处于拉锯状态。"
         
@@ -797,7 +797,7 @@ def generate_interpretation(stock):
             f"今天的量柱：{vol_len}；今天的价柱：{price_len}。",
             f"{body_judge}",
             '<strong>市场机理</strong>：量柱长短=今天多空双方投入了多少兵力；价柱长短=今天战斗的激烈程度；实体长短=今天哪一方赢了，赢得彻不彻底。',
-            f'<strong>推导</strong>：今天{vol_len}、{price_length}、{body_judge}',
+            f'<strong>推导</strong>：今天{vol_len}、{price_len}、{body_judge}',
             '<strong>量学依据</strong>：量价的长短伸缩，是当下多空力量最直接的体现。'
         ]
     })
