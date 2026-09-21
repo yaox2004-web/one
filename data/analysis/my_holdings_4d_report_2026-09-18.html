@@ -109,6 +109,9 @@
         }
         .grid-item .label { color: #94a3b8; font-size: 11px; }
         .grid-item .value { font-weight: bold; color: #e2e8f0; font-size: 12px; }
+        .grid-item .value-none { color: #94a3b8; font-weight: normal; font-size: 11px; }
+        .grid-item .value-strong { color: #ef4444; font-weight: normal; font-size: 11px; }
+        .grid-item .value-weak { color: #22c55e; font-weight: normal; font-size: 11px; }
         
         .summary-box {
             background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
@@ -124,7 +127,7 @@
         <div class="header">
             <h1>四维循环看盘报告</h1>
             <div class="date">2026-09-18</div>
-            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">量学原版：大阴实顶 + 四维对比 + 个股解读</div>
+            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">量学原版：大阴实顶 + 四维对比 + 所有量线 + 个股解读</div>
         </div>
         
         <!-- 信号说明区（顶部，只放一次） -->
@@ -135,58 +138,42 @@
                 <h3>起点：大阴实顶</h3>
                 <p><strong>定义：</strong>从今天往左找最近的中大阴线，其实体顶部就是"大阴实顶"</p>
                 <p><strong>原理：</strong>大阴实顶是多空双方上次休战的"警戒点"，下次争夺的"起动点"</p>
-                <p><strong>为什么从这里开始？</strong>量学认为，最近的大阴线反映了最近一次多空力量的对比，从这里开始看最有意义</p>
                 <p class="source">来源：股海明灯（量学官网）</p>
             </div>
             
             <div class="signal-item">
                 <h3>① 从右向左看：比较价柱的高低阴阳</h3>
                 <p><strong>视线：</strong>从今天往左，往大阴实顶方向看</p>
-                <p><strong>对比内容：</strong></p>
-                <p>  - 高低：价格在大阴实顶上方还是下方？</p>
-                <p>  - 阴阳：从大阴实顶到今天，阳线多还是阴线多？</p>
-                <p><strong>目的：</strong>看当前价格的位置和多空力量对比</p>
+                <p><strong>对比内容：</strong>高低、阴阳</p>
             </div>
             
             <div class="signal-item">
                 <h3>② 从上往下看：比较量价的真假大小</h3>
                 <p><strong>视线：</strong>从大阴实顶的价柱往下看量柱</p>
-                <p><strong>对比内容：</strong></p>
-                <p>  - 大小：大阴实顶的量是大还是小？</p>
-                <p>  - 真假：价跌量缩是真跌？价跌量增是假跌？</p>
-                <p><strong>目的：</strong>看大阴实顶那天的量价结构</p>
+                <p><strong>对比内容：</strong>大小、真假</p>
             </div>
             
             <div class="signal-item">
                 <h3>③ 从左往右看：比较量柱的远近多少</h3>
                 <p><strong>视线：</strong>从大阴实顶的量柱往右看，看到今天的量柱</p>
-                <p><strong>对比内容：</strong></p>
-                <p>  - 远近：大阴实顶离今天多远？</p>
-                <p>  - 多少：今天的量 vs 大阴实顶的量，是多还是少？</p>
-                <p><strong>目的：</strong>看大阴实顶的量对今天的影响力</p>
+                <p><strong>对比内容：</strong>远近、多少</p>
             </div>
             
             <div class="signal-item">
                 <h3>④ 从下往上看：比较量价的长短伸缩</h3>
                 <p><strong>视线：</strong>从今天的量柱往上看价柱</p>
-                <p><strong>对比内容：</strong></p>
-                <p>  - 长短：量柱是长还是短？价柱是长还是短？</p>
-                <p>  - 伸缩：实体是长还是短？振幅是大还是小？</p>
-                <p><strong>目的：</strong>看今天的量价建构</p>
+                <p><strong>对比内容：</strong>长短、伸缩</p>
+            </div>
+            
+            <div class="signal-item">
+                <h3>量线体系</h3>
+                <p><strong>包含：</strong>平衡线、精准线、斜衡线、峰顶线、谷底线、高量柱安全线/风险线</p>
+                <p class="source">来源：股海明灯《量线捉涨停》黑马王子著</p>
             </div>
             
             <div class="signal-item">
                 <h3>个股解读</h3>
                 <p><strong>原则：</strong>客观描述，不做主观判断</p>
-                <p><strong>内容：</strong>用四维看盘法客观描述当前的状态</p>
-            </div>
-            
-            <div class="signal-item">
-                <h3>核心思想</h3>
-                <p><strong>本质：</strong>找阴阳失衡与平衡的区别</p>
-                <p><strong>原则：</strong>就近对比原则（找最近的，不是随便找的）</p>
-                <p><strong>方法：</strong>回形针看盘法（由此及彼、由里向外，逐层解剖）</p>
-                <p class="source">来源：股海明灯《四维循环看盘》学习心得</p>
             </div>
         </div>
         
@@ -246,6 +233,130 @@
                 </div>
             </div>
             
+            <!-- 所有量线 -->
+            <div class="step-section">
+                <div class="step-title">量线体系</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">平衡线（大阴实顶）</div>
+                            <div class="value">71.39（2026-09-04）</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">精准线：</p>
+                        <div class="grid-2">
+                            
+                <div class="grid-item">
+                    <div class="label">精准线1（7点）</div>
+                    <div class="value">75.44（2026-06-01~2026-08-31）</div>
+                </div>
+                
+                <div class="grid-item">
+                    <div class="label">精准线2（6点）</div>
+                    <div class="value">44.17（2026-04-14~2026-04-29）</div>
+                </div>
+                
+                <div class="grid-item">
+                    <div class="label">精准线3（6点）</div>
+                    <div class="value">85.78（2026-05-27~2026-08-18）</div>
+                </div>
+                
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">斜衡线：</p>
+                        <div class="grid-2">
+                            
+        <div class="grid-item">
+            <div class="label">上升斜衡线（支撑）</div>
+            <div class="value value-none">无</div>
+        </div>
+        
+        <div class="grid-item">
+            <div class="label">下降斜衡线（阻力）</div>
+            <div class="value value-none">无</div>
+        </div>
+        
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">峰顶线/谷底线：</p>
+                        <div class="grid-2">
+                            
+    <div class="grid-item">
+        <div class="label">20日峰顶线</div>
+        <div class="value">77.98（2026-08-28）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">20日谷底线</div>
+        <div class="value">66.63（2026-09-04）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">60日峰顶线</div>
+        <div class="value">89.88（2026-07-22）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">60日谷底线</div>
+        <div class="value">69.29（2026-07-21）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">120日峰顶线</div>
+        <div class="value">113.87（2026-07-10）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">120日谷底线</div>
+        <div class="value value-none value-weak">无（寻底中·偏弱）</div>
+    </div>
+    
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">高量柱安全线/风险线：</p>
+                        <div class="grid-2">
+                            <div class="grid-item">
+                                <div class="label">20日安全线</div>
+                                <div class="value">73.00（2026-09-18）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">20日风险线</div>
+                                <div class="value">69.10（2026-09-18）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">60日安全线</div>
+                                <div class="value">105.80（2026-06-29）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">60日风险线</div>
+                                <div class="value">92.40（2026-06-29）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">120日安全线</div>
+                                <div class="value">94.80（2026-05-27）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">120日风险线</div>
+                                <div class="value">83.40（2026-05-27）</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <!-- ② 从上往下看：比较量价的真假大小 -->
             <div class="step-section">
                 <div class="step-title">② 从上往下看：比较量价的真假大小</div>
@@ -258,6 +369,10 @@
                         <div class="grid-item">
                             <div class="label">量价真假判断</div>
                             <div class="value">量平（正常调整）</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">今日量柱形态</div>
+                            <div class="value">倍量柱</div>
                         </div>
                     </div>
                 </div>
@@ -283,6 +398,14 @@
                         <div class="grid-item">
                             <div class="label">量的多少对比</div>
                             <div class="value">今天量更大</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">关键位量影响力</div>
+                            <div class="value" style="color:#ef4444">强</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">今日量vs关键位量</div>
+                            <div class="value">100.0%</div>
                         </div>
                     </div>
                 </div>
@@ -420,6 +543,134 @@
                 </div>
             </div>
             
+            <!-- 所有量线 -->
+            <div class="step-section">
+                <div class="step-title">量线体系</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">平衡线（大阴实顶）</div>
+                            <div class="value">59.97（2026-09-04）</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">精准线：</p>
+                        <div class="grid-2">
+                            
+                <div class="grid-item">
+                    <div class="label">精准线1（12点）</div>
+                    <div class="value">61.26（2026-05-11~2026-09-18）</div>
+                </div>
+                
+                <div class="grid-item">
+                    <div class="label">精准线2（12点）</div>
+                    <div class="value">63.35（2026-05-22~2026-08-28）</div>
+                </div>
+                
+                <div class="grid-item">
+                    <div class="label">精准线3（9点）</div>
+                    <div class="value">57.01（2026-05-06~2026-09-15）</div>
+                </div>
+                
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">斜衡线：</p>
+                        <div class="grid-2">
+                            
+        <div class="grid-item">
+            <div class="label">上升斜衡线（支撑）</div>
+            <div class="value value-none">无</div>
+        </div>
+        
+        <div class="grid-item">
+            <div class="label">下降斜衡线（阻力）</div>
+            <div class="value">
+                76.80（2026-07-24）
+                → 72.56（2026-08-18）
+                <br><span style="font-size:11px; color:#94a3b8;">当前在下方</span>
+            </div>
+        </div>
+        
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">峰顶线/谷底线：</p>
+                        <div class="grid-2">
+                            
+    <div class="grid-item">
+        <div class="label">20日峰顶线</div>
+        <div class="value">65.90（2026-08-28）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">20日谷底线</div>
+        <div class="value">56.38（2026-09-04）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">60日峰顶线</div>
+        <div class="value">72.56（2026-08-18）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">60日谷底线</div>
+        <div class="value">57.00（2026-07-21）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">120日峰顶线</div>
+        <div class="value">72.56（2026-08-18）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">120日谷底线</div>
+        <div class="value value-none value-weak">无（寻底中·偏弱）</div>
+    </div>
+    
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">高量柱安全线/风险线：</p>
+                        <div class="grid-2">
+                            <div class="grid-item">
+                                <div class="label">20日安全线</div>
+                                <div class="value">62.23（2026-09-18）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">20日风险线</div>
+                                <div class="value">58.93（2026-09-18）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">60日安全线</div>
+                                <div class="value">84.10（2026-07-15）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">60日风险线</div>
+                                <div class="value">78.71（2026-07-15）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">120日安全线</div>
+                                <div class="value">76.68（2026-05-26）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">120日风险线</div>
+                                <div class="value">69.85（2026-05-26）</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <!-- ② 从上往下看：比较量价的真假大小 -->
             <div class="step-section">
                 <div class="step-title">② 从上往下看：比较量价的真假大小</div>
@@ -432,6 +683,10 @@
                         <div class="grid-item">
                             <div class="label">量价真假判断</div>
                             <div class="value">量平（正常调整）</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">今日量柱形态</div>
+                            <div class="value">倍量柱</div>
                         </div>
                     </div>
                 </div>
@@ -457,6 +712,14 @@
                         <div class="grid-item">
                             <div class="label">量的多少对比</div>
                             <div class="value">今天量更大</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">关键位量影响力</div>
+                            <div class="value" style="color:#ef4444">强</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">今日量vs关键位量</div>
+                            <div class="value">100.0%</div>
                         </div>
                     </div>
                 </div>
@@ -593,6 +856,134 @@
                 </div>
             </div>
             
+            <!-- 所有量线 -->
+            <div class="step-section">
+                <div class="step-title">量线体系</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">平衡线（大阴实顶）</div>
+                            <div class="value">46.84（2026-09-04）</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">精准线：</p>
+                        <div class="grid-2">
+                            
+                <div class="grid-item">
+                    <div class="label">精准线1（11点）</div>
+                    <div class="value">46.83（2026-05-14~2026-09-18）</div>
+                </div>
+                
+                <div class="grid-item">
+                    <div class="label">精准线2（10点）</div>
+                    <div class="value">44.05（2026-05-11~2026-09-14）</div>
+                </div>
+                
+                <div class="grid-item">
+                    <div class="label">精准线3（7点）</div>
+                    <div class="value">45.18（2026-05-13~2026-09-15）</div>
+                </div>
+                
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">斜衡线：</p>
+                        <div class="grid-2">
+                            
+        <div class="grid-item">
+            <div class="label">上升斜衡线（支撑）</div>
+            <div class="value value-none">无</div>
+        </div>
+        
+        <div class="grid-item">
+            <div class="label">下降斜衡线（阻力）</div>
+            <div class="value">
+                74.30（2026-07-10）
+                → 52.87（2026-08-18）
+                <br><span style="font-size:11px; color:#94a3b8;">当前在下方</span>
+            </div>
+        </div>
+        
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">峰顶线/谷底线：</p>
+                        <div class="grid-2">
+                            
+    <div class="grid-item">
+        <div class="label">20日峰顶线</div>
+        <div class="value value-none value-strong">无（寻顶中·偏强）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">20日谷底线</div>
+        <div class="value">43.18（2026-09-04）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">60日峰顶线</div>
+        <div class="value">52.87（2026-08-18）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">60日谷底线</div>
+        <div class="value">38.00（2026-07-21）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">120日峰顶线</div>
+        <div class="value">52.87（2026-08-18）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">120日谷底线</div>
+        <div class="value value-none value-weak">无（寻底中·偏弱）</div>
+    </div>
+    
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">高量柱安全线/风险线：</p>
+                        <div class="grid-2">
+                            <div class="grid-item">
+                                <div class="label">20日安全线</div>
+                                <div class="value">48.48（2026-08-27）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">20日风险线</div>
+                                <div class="value">46.22（2026-08-27）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">60日安全线</div>
+                                <div class="value">88.88（2026-07-01）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">60日风险线</div>
+                                <div class="value">79.56（2026-07-01）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">120日安全线</div>
+                                <div class="value">88.88（2026-07-01）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">120日风险线</div>
+                                <div class="value">79.56（2026-07-01）</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <!-- ② 从上往下看：比较量价的真假大小 -->
             <div class="step-section">
                 <div class="step-title">② 从上往下看：比较量价的真假大小</div>
@@ -605,6 +996,10 @@
                         <div class="grid-item">
                             <div class="label">量价真假判断</div>
                             <div class="value">量平（正常调整）</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">今日量柱形态</div>
+                            <div class="value">普通量柱</div>
                         </div>
                     </div>
                 </div>
@@ -630,6 +1025,14 @@
                         <div class="grid-item">
                             <div class="label">量的多少对比</div>
                             <div class="value">差不多</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">关键位量影响力</div>
+                            <div class="value" style="color:#fbbf24">中</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">今日量vs关键位量</div>
+                            <div class="value">53.2%</div>
                         </div>
                     </div>
                 </div>
@@ -767,6 +1170,134 @@
                 </div>
             </div>
             
+            <!-- 所有量线 -->
+            <div class="step-section">
+                <div class="step-title">量线体系</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">平衡线（大阴实顶）</div>
+                            <div class="value">269.50（2026-09-09）</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">精准线：</p>
+                        <div class="grid-2">
+                            
+                <div class="grid-item">
+                    <div class="label">精准线1（9点）</div>
+                    <div class="value">255.66（2026-04-10~2026-09-15）</div>
+                </div>
+                
+                <div class="grid-item">
+                    <div class="label">精准线2（7点）</div>
+                    <div class="value">247.51（2026-04-09~2026-09-04）</div>
+                </div>
+                
+                <div class="grid-item">
+                    <div class="label">精准线3（7点）</div>
+                    <div class="value">270.03（2026-04-17~2026-09-16）</div>
+                </div>
+                
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">斜衡线：</p>
+                        <div class="grid-2">
+                            
+        <div class="grid-item">
+            <div class="label">上升斜衡线（支撑）</div>
+            <div class="value">
+                155.05（2026-07-30）
+                → 240.50（2026-08-24）
+                <br><span style="font-size:11px; color:#94a3b8;">当前在上方</span>
+            </div>
+        </div>
+        
+        <div class="grid-item">
+            <div class="label">下降斜衡线（阻力）</div>
+            <div class="value value-none">无</div>
+        </div>
+        
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">峰顶线/谷底线：</p>
+                        <div class="grid-2">
+                            
+    <div class="grid-item">
+        <div class="label">20日峰顶线</div>
+        <div class="value">276.49（2026-09-10）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">20日谷底线</div>
+        <div class="value value-none value-weak">无（寻底中·偏弱）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">60日峰顶线</div>
+        <div class="value">294.50（2026-08-18）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">60日谷底线</div>
+        <div class="value">240.50（2026-08-24）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">120日峰顶线</div>
+        <div class="value">294.50（2026-08-18）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">120日谷底线</div>
+        <div class="value">240.50（2026-08-24）</div>
+    </div>
+    
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">高量柱安全线/风险线：</p>
+                        <div class="grid-2">
+                            <div class="grid-item">
+                                <div class="label">20日安全线</div>
+                                <div class="value">268.38（2026-08-24）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">20日风险线</div>
+                                <div class="value">249.00（2026-08-24）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">60日安全线</div>
+                                <div class="value">216.35（2026-08-05）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">60日风险线</div>
+                                <div class="value">197.50（2026-08-05）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">120日安全线</div>
+                                <div class="value">216.35（2026-08-05）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">120日风险线</div>
+                                <div class="value">197.50（2026-08-05）</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <!-- ② 从上往下看：比较量价的真假大小 -->
             <div class="step-section">
                 <div class="step-title">② 从上往下看：比较量价的真假大小</div>
@@ -779,6 +1310,10 @@
                         <div class="grid-item">
                             <div class="label">量价真假判断</div>
                             <div class="value">量平（正常调整）</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">今日量柱形态</div>
+                            <div class="value">平量柱</div>
                         </div>
                     </div>
                 </div>
@@ -804,6 +1339,14 @@
                         <div class="grid-item">
                             <div class="label">量的多少对比</div>
                             <div class="value">今天量更大</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">关键位量影响力</div>
+                            <div class="value" style="color:#fbbf24">中</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">今日量vs关键位量</div>
+                            <div class="value">70.7%</div>
                         </div>
                     </div>
                 </div>
@@ -941,6 +1484,134 @@
                 </div>
             </div>
             
+            <!-- 所有量线 -->
+            <div class="step-section">
+                <div class="step-title">量线体系</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">平衡线（大阴实顶）</div>
+                            <div class="value">62.70（2026-08-24）</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">精准线：</p>
+                        <div class="grid-2">
+                            
+                <div class="grid-item">
+                    <div class="label">精准线1（12点）</div>
+                    <div class="value">62.33（2026-04-30~2026-09-18）</div>
+                </div>
+                
+                <div class="grid-item">
+                    <div class="label">精准线2（11点）</div>
+                    <div class="value">60.46（2026-04-17~2026-09-15）</div>
+                </div>
+                
+                <div class="grid-item">
+                    <div class="label">精准线3（11点）</div>
+                    <div class="value">66.10（2026-04-22~2026-09-07）</div>
+                </div>
+                
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">斜衡线：</p>
+                        <div class="grid-2">
+                            
+        <div class="grid-item">
+            <div class="label">上升斜衡线（支撑）</div>
+            <div class="value value-none">无</div>
+        </div>
+        
+        <div class="grid-item">
+            <div class="label">下降斜衡线（阻力）</div>
+            <div class="value">
+                84.30（2026-06-03）
+                → 79.25（2026-06-18）
+                <br><span style="font-size:11px; color:#94a3b8;">当前在下方</span>
+            </div>
+        </div>
+        
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">峰顶线/谷底线：</p>
+                        <div class="grid-2">
+                            
+    <div class="grid-item">
+        <div class="label">20日峰顶线</div>
+        <div class="value">66.88（2026-09-07）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">20日谷底线</div>
+        <div class="value value-none value-weak">无（寻底中·偏弱）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">60日峰顶线</div>
+        <div class="value">66.88（2026-09-07）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">60日谷底线</div>
+        <div class="value value-none value-weak">无（寻底中·偏弱）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">120日峰顶线</div>
+        <div class="value">79.25（2026-06-18）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">120日谷底线</div>
+        <div class="value">61.09（2026-05-06）</div>
+    </div>
+    
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">高量柱安全线/风险线：</p>
+                        <div class="grid-2">
+                            <div class="grid-item">
+                                <div class="label">20日安全线</div>
+                                <div class="value">66.57（2026-09-07）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">20日风险线</div>
+                                <div class="value">64.60（2026-09-07）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">60日安全线</div>
+                                <div class="value">65.92（2026-08-05）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">60日风险线</div>
+                                <div class="value">59.00（2026-08-05）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">120日安全线</div>
+                                <div class="value">77.43（2026-06-18）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">120日风险线</div>
+                                <div class="value">71.35（2026-06-18）</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <!-- ② 从上往下看：比较量价的真假大小 -->
             <div class="step-section">
                 <div class="step-title">② 从上往下看：比较量价的真假大小</div>
@@ -953,6 +1624,10 @@
                         <div class="grid-item">
                             <div class="label">量价真假判断</div>
                             <div class="value">量平（正常调整）</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">今日量柱形态</div>
+                            <div class="value">普通量柱</div>
                         </div>
                     </div>
                 </div>
@@ -978,6 +1653,14 @@
                         <div class="grid-item">
                             <div class="label">量的多少对比</div>
                             <div class="value">今天量更大</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">关键位量影响力</div>
+                            <div class="value" style="color:#fbbf24">中</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">今日量vs关键位量</div>
+                            <div class="value">63.8%</div>
                         </div>
                     </div>
                 </div>
@@ -1115,6 +1798,134 @@
                 </div>
             </div>
             
+            <!-- 所有量线 -->
+            <div class="step-section">
+                <div class="step-title">量线体系</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">平衡线（大阴实顶）</div>
+                            <div class="value">25.76（2026-09-15）</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">精准线：</p>
+                        <div class="grid-2">
+                            
+                <div class="grid-item">
+                    <div class="label">精准线1（7点）</div>
+                    <div class="value">27.26（2026-07-15~2026-08-31）</div>
+                </div>
+                
+                <div class="grid-item">
+                    <div class="label">精准线2（6点）</div>
+                    <div class="value">36.29（2026-04-09~2026-06-25）</div>
+                </div>
+                
+                <div class="grid-item">
+                    <div class="label">精准线3（6点）</div>
+                    <div class="value">41.93（2026-04-20~2026-06-05）</div>
+                </div>
+                
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">斜衡线：</p>
+                        <div class="grid-2">
+                            
+        <div class="grid-item">
+            <div class="label">上升斜衡线（支撑）</div>
+            <div class="value value-none">无</div>
+        </div>
+        
+        <div class="grid-item">
+            <div class="label">下降斜衡线（阻力）</div>
+            <div class="value">
+                47.46（2026-06-04）
+                → 38.71（2026-06-22）
+                <br><span style="font-size:11px; color:#94a3b8;">当前在下方</span>
+            </div>
+        </div>
+        
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">峰顶线/谷底线：</p>
+                        <div class="grid-2">
+                            
+    <div class="grid-item">
+        <div class="label">20日峰顶线</div>
+        <div class="value">28.10（2026-09-11）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">20日谷底线</div>
+        <div class="value">24.80（2026-09-10）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">60日峰顶线</div>
+        <div class="value">28.10（2026-09-11）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">60日谷底线</div>
+        <div class="value">24.80（2026-09-10）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">120日峰顶线</div>
+        <div class="value">38.71（2026-06-22）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">120日谷底线</div>
+        <div class="value">37.37（2026-04-30）</div>
+    </div>
+    
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">高量柱安全线/风险线：</p>
+                        <div class="grid-2">
+                            <div class="grid-item">
+                                <div class="label">20日安全线</div>
+                                <div class="value">28.10（2026-09-11）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">20日风险线</div>
+                                <div class="value">26.43（2026-09-11）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">60日安全线</div>
+                                <div class="value">27.52（2026-08-06）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">60日风险线</div>
+                                <div class="value">25.96（2026-08-06）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">120日安全线</div>
+                                <div class="value">47.46（2026-06-04）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">120日风险线</div>
+                                <div class="value">43.19（2026-06-04）</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <!-- ② 从上往下看：比较量价的真假大小 -->
             <div class="step-section">
                 <div class="step-title">② 从上往下看：比较量价的真假大小</div>
@@ -1127,6 +1938,10 @@
                         <div class="grid-item">
                             <div class="label">量价真假判断</div>
                             <div class="value">量平（正常调整）</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">今日量柱形态</div>
+                            <div class="value">缩量柱</div>
                         </div>
                     </div>
                 </div>
@@ -1152,6 +1967,14 @@
                         <div class="grid-item">
                             <div class="label">量的多少对比</div>
                             <div class="value">今天量更大</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">关键位量影响力</div>
+                            <div class="value" style="color:#fbbf24">中</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">今日量vs关键位量</div>
+                            <div class="value">62.4%</div>
                         </div>
                     </div>
                 </div>
@@ -1289,6 +2112,134 @@
                 </div>
             </div>
             
+            <!-- 所有量线 -->
+            <div class="step-section">
+                <div class="step-title">量线体系</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">平衡线（大阴实顶）</div>
+                            <div class="value">241.01（2026-09-01）</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">精准线：</p>
+                        <div class="grid-2">
+                            
+                <div class="grid-item">
+                    <div class="label">精准线1（8点）</div>
+                    <div class="value">343.13（2026-04-20~2026-06-24）</div>
+                </div>
+                
+                <div class="grid-item">
+                    <div class="label">精准线2（6点）</div>
+                    <div class="value">326.73（2026-04-17~2026-07-01）</div>
+                </div>
+                
+                <div class="grid-item">
+                    <div class="label">精准线3（6点）</div>
+                    <div class="value">332.10（2026-04-21~2026-06-10）</div>
+                </div>
+                
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">斜衡线：</p>
+                        <div class="grid-2">
+                            
+        <div class="grid-item">
+            <div class="label">上升斜衡线（支撑）</div>
+            <div class="value">
+                304.00（2026-04-29）
+                → 306.56（2026-06-08）
+                <br><span style="font-size:11px; color:#94a3b8;">当前在下方</span>
+            </div>
+        </div>
+        
+        <div class="grid-item">
+            <div class="label">下降斜衡线（阻力）</div>
+            <div class="value value-none">无</div>
+        </div>
+        
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">峰顶线/谷底线：</p>
+                        <div class="grid-2">
+                            
+    <div class="grid-item">
+        <div class="label">20日峰顶线</div>
+        <div class="value">264.94（2026-08-27）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">20日谷底线</div>
+        <div class="value value-none value-weak">无（寻底中·偏弱）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">60日峰顶线</div>
+        <div class="value">287.68（2026-08-13）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">60日谷底线</div>
+        <div class="value">177.88（2026-07-30）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">120日峰顶线</div>
+        <div class="value">287.68（2026-08-13）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">120日谷底线</div>
+        <div class="value">306.56（2026-06-08）</div>
+    </div>
+    
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">高量柱安全线/风险线：</p>
+                        <div class="grid-2">
+                            <div class="grid-item">
+                                <div class="label">20日安全线</div>
+                                <div class="value">255.68（2026-08-28）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">20日风险线</div>
+                                <div class="value">241.60（2026-08-28）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">60日安全线</div>
+                                <div class="value">236.35（2026-08-05）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">60日风险线</div>
+                                <div class="value">191.10（2026-08-05）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">120日安全线</div>
+                                <div class="value">375.50（2026-05-22）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">120日风险线</div>
+                                <div class="value">346.04（2026-05-22）</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <!-- ② 从上往下看：比较量价的真假大小 -->
             <div class="step-section">
                 <div class="step-title">② 从上往下看：比较量价的真假大小</div>
@@ -1301,6 +2252,10 @@
                         <div class="grid-item">
                             <div class="label">量价真假判断</div>
                             <div class="value">量平（正常调整）</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">今日量柱形态</div>
+                            <div class="value">梯量柱</div>
                         </div>
                     </div>
                 </div>
@@ -1326,6 +2281,14 @@
                         <div class="grid-item">
                             <div class="label">量的多少对比</div>
                             <div class="value">今天量更大</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">关键位量影响力</div>
+                            <div class="value" style="color:#fbbf24">中</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">今日量vs关键位量</div>
+                            <div class="value">53.7%</div>
                         </div>
                     </div>
                 </div>
@@ -1463,6 +2426,134 @@
                 </div>
             </div>
             
+            <!-- 所有量线 -->
+            <div class="step-section">
+                <div class="step-title">量线体系</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">平衡线（大阴实顶）</div>
+                            <div class="value">93.50（2026-09-08）</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">精准线：</p>
+                        <div class="grid-2">
+                            
+                <div class="grid-item">
+                    <div class="label">精准线1（10点）</div>
+                    <div class="value">98.85（2026-07-13~2026-08-25）</div>
+                </div>
+                
+                <div class="grid-item">
+                    <div class="label">精准线2（8点）</div>
+                    <div class="value">93.52（2026-07-28~2026-09-07）</div>
+                </div>
+                
+                <div class="grid-item">
+                    <div class="label">精准线3（6点）</div>
+                    <div class="value">148.17（2026-04-09~2026-04-22）</div>
+                </div>
+                
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">斜衡线：</p>
+                        <div class="grid-2">
+                            
+        <div class="grid-item">
+            <div class="label">上升斜衡线（支撑）</div>
+            <div class="value value-none">无</div>
+        </div>
+        
+        <div class="grid-item">
+            <div class="label">下降斜衡线（阻力）</div>
+            <div class="value">
+                117.36（2026-07-15）
+                → 109.69（2026-08-18）
+                <br><span style="font-size:11px; color:#94a3b8;">当前在下方</span>
+            </div>
+        </div>
+        
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">峰顶线/谷底线：</p>
+                        <div class="grid-2">
+                            
+    <div class="grid-item">
+        <div class="label">20日峰顶线</div>
+        <div class="value">96.66（2026-09-04）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">20日谷底线</div>
+        <div class="value">89.24（2026-08-26）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">60日峰顶线</div>
+        <div class="value">109.69（2026-08-18）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">60日谷底线</div>
+        <div class="value">89.24（2026-08-26）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">120日峰顶线</div>
+        <div class="value">109.69（2026-08-18）</div>
+    </div>
+    
+                            
+    <div class="grid-item">
+        <div class="label">120日谷底线</div>
+        <div class="value">80.00（2026-07-20）</div>
+    </div>
+    
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px;">
+                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">高量柱安全线/风险线：</p>
+                        <div class="grid-2">
+                            <div class="grid-item">
+                                <div class="label">20日安全线</div>
+                                <div class="value">98.74（2026-08-26）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">20日风险线</div>
+                                <div class="value">89.88（2026-08-26）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">60日安全线</div>
+                                <div class="value">98.74（2026-08-26）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">60日风险线</div>
+                                <div class="value">89.88（2026-08-26）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">120日安全线</div>
+                                <div class="value">138.93（2026-06-05）</div>
+                            </div>
+                            <div class="grid-item">
+                                <div class="label">120日风险线</div>
+                                <div class="value">129.90（2026-06-05）</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <!-- ② 从上往下看：比较量价的真假大小 -->
             <div class="step-section">
                 <div class="step-title">② 从上往下看：比较量价的真假大小</div>
@@ -1475,6 +2566,10 @@
                         <div class="grid-item">
                             <div class="label">量价真假判断</div>
                             <div class="value">量平（正常调整）</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">今日量柱形态</div>
+                            <div class="value">梯量柱</div>
                         </div>
                     </div>
                 </div>
@@ -1500,6 +2595,14 @@
                         <div class="grid-item">
                             <div class="label">量的多少对比</div>
                             <div class="value">差不多</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">关键位量影响力</div>
+                            <div class="value" style="color:#fbbf24">中</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">今日量vs关键位量</div>
+                            <div class="value">29.7%</div>
                         </div>
                     </div>
                 </div>
