@@ -118,50 +118,43 @@
         <div class="header">
             <h1>四维循环看盘报告</h1>
             <div class="date"></div>
-            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">ATR自适应版：价格参数自动适配每只股票波动率</div>
+            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">量能自适应版 · 核心定义保留官方 · 辅助判断用分位数</div>
         </div>
         
         <div class="signal-guide">
-            <h2>信号说明</h2>
+            <h2>参数说明（全部参数化，方便调整）</h2>
             
             <div class="signal-item">
-                <h3>ATR自适应机制</h3>
-                <p><strong>ATR（平均真实波幅）</strong>：衡量每只股票每天平均波动多大</p>
-                <p><strong>自动调整：</strong>波动率大的股票，阈值自动放宽；波动率小的股票，阈值自动收紧</p>
-                <p><strong>价格类：</strong>中大阴线、大阳线、振幅、兵临城下距离、跳空缺口、长腿影线 → 都用ATR×倍数自动算</p>
-                <p><strong>量能类：</strong>天量地量用分位数自动判断（90%/10%分位）</p>
-                <p><strong>时间类：</strong>保持固定（ATR调不了时间）</p>
+                <h3>【核心定义·保留官方】</h3>
+                <p>倍量柱：今天量/昨天量 ≥ 1.8（官方最低90%）</p>
+                <p>高量柱：前20天最高</p>
+                <p>低量柱：前20天最低</p>
+                <p>梯量柱：连续3天递增</p>
+                <p>缩量柱：连续3天递减</p>
+                <p>平量柱：和前5天平均差不超过15%</p>
+                <p class="source">来源：股海明灯官网</p>
             </div>
             
             <div class="signal-item">
-                <h3>起点：大阴实顶</h3>
-                <p><strong>定义：</strong>从今天往左找最近的中大阴线（1.5倍ATR），其实体顶部就是「大阴实顶」</p>
-                <p><strong>原理：</strong>大阴实顶是多空双方上次休战的「警戒点」</p>
-                <p class="source">来源：股海明灯（量学官网）</p>
+                <h3>【辅助判断·分位数自适应】</h3>
+                <p>大量/放量：过去20日量的80%分位以上</p>
+                <p>小量/缩量：过去20日量的20%分位以下</p>
+                <p>王牌柱基柱：基柱量在过去20日的60%分位以上</p>
+                <p>倍量伸缩：放量到80%分位 + 缩量到20%分位</p>
+                <p class="source">来源：量化行业通用做法</p>
             </div>
             
             <div class="signal-item">
-                <h3>四维看盘法</h3>
-                <p>① 从右向左看：比较价柱的高低阴阳</p>
-                <p>② 从上往下看：比较量价的真假大小</p>
-                <p>③ 从左往右看：比较量柱的远近多少</p>
-                <p>④ 从下往上看：比较量价的长短伸缩</p>
-                <p class="source">来源：股海明灯《量柱擒涨停》黑马王子著</p>
+                <h3>【王牌柱官方定义】</h3>
+                <p>三原则：①三日收盘不破底 ②量柱三日不过头 ③基柱是相对高量</p>
+                <p>搜索优先级：元帅柱 > 黄金柱 > 将军柱</p>
+                <p class="source">来源：股海明灯官网《王子老师语录十》</p>
             </div>
             
             <div class="signal-item">
-                <h3>王牌柱体系</h3>
-                <p><strong>将军柱</strong>：基柱（阳线+放量2.5倍）+ 三日不破 + 量柱不抬头</p>
-                <p><strong>黄金柱</strong>：将军柱 + 价升 + 量缩</p>
-                <p><strong>元帅柱</strong>：黄金柱 + 基柱跳空高开</p>
-                <p class="source">来源：股海明灯《量柱擒涨停》黑马王子著 + 2026年化量化升级</p>
-            </div>
-            
-            <div class="signal-item">
-                <h3>最高原则</h3>
+                <h3>【最高原则】</h3>
                 <p><strong>所有参数、阈值都要适配当前最新市场环境</strong></p>
                 <p><strong>代码不要写死，能用参数阈值的就用参数阈值</strong></p>
-                <p><strong>ATR自动调参：价格类随波动率自动变，量能类随分位数自动变</strong></p>
                 <p><strong>不构成任何交易建议，只做客观描述</strong></p>
             </div>
         </div>
