@@ -1,11 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-四维循环看盘法报告 - HTML版（ATR自适应版）
+四维循环看盘法报告 - HTML版（王牌柱官方版）
 =================================================
 【无未来函数】
-【资料来源】：股海明灯《量柱擒涨停》《量线捉涨停》《涨停密码》黑马王子著
-【ATR自适应】：价格类参数随ATR自动调整，量能类随分位数自动调整
+【资料来源】：股海明灯《量柱擒涨停》《量线捉涨停》黑马王子著
+【王牌柱】：按股海明灯官方定义（王子老师语录十）
+
+王牌柱三原则（官方）：
+  1. 收盘价三日不破底：后三日收盘价平均 >= 基柱开盘价
+  2. 量柱群三日不过头：后三日量逐步缩小
+  3. 基柱是四种量柱之一：倍量柱/高量柱/梯量柱第一柱/平量柱第二柱
+
+将军柱 vs 黄金柱：
+  - 将军柱：后三日收盘价平均 < 基柱收盘价
+  - 黄金柱：后三日收盘价平均 > 基柱收盘价
+  - 元帅柱：黄金柱 + 基柱跳空高开
 """
 
 import json
@@ -68,9 +78,6 @@ SMALL_BEISHU_RATIO_MAX = 2.5
 PINGLIANG_TOLERANCE = 0.15
 GAOLIANG_LOOKBACK = 20
 
-BASE_VS_MA3 = 1.5
-BASE_VS_PREV = 2.5
-BASE_VS_MA20 = 1.8
 GENERAL_CONFIRM_DAYS = 3
 
 VOL_RATIO_HIGH = 2.0
@@ -79,6 +86,12 @@ VOL_RATIO_LOW = 0.5
 BEISHUO_EXTEND_RATIO = 2.5
 BEISHUO_SHRINK_RATIO = 0.5
 BEISHUO_LOOKBACK = 5
+
+# ============================================================
+# 【涨停板参数】
+# ============================================================
+LIMIT_UP_MAIN = 9.8      # 主板（60/00开头）涨停
+LIMIT_UP_GEM = 19.8      # 创业板/科创板（30/68开头）涨停
 
 # ============================================================
 # 【时间类参数】
@@ -157,8 +170,6 @@ DAYANG_DOUBLE_REST_DAYS = 5
 JIELI_DOUBLE_YANG_GAP_MIN = 5
 JIELI_DOUBLE_YANG_GAP_MAX = 20
 
-LIMIT_UP_PCT = 9.8
-
 GOLD_CROSS_SHORT_MA = 5
 GOLD_CROSS_LONG_MA = 10
 GOLD_CROSS_VOL_SHORT = 5
@@ -210,6 +221,16 @@ def get_atr_threshold(atr_pct, mult, fallback):
         return atr_pct * mult
     else:
         return fallback
+
+
+# ============================================================
+# 【新增】判断是否是创业板/科创板（20%涨停）
+# ============================================================
+def is_gem_star(code):
+    """判断是否是创业板(300/301)或科创板(688)，涨停幅度20%"""
+    if code.startswith('300') or code.startswith('301') or code.startswith('688'):
+        return True
+    return False
 
 
 # ============================================================
@@ -540,62 +561,76 @@ def judge_key_vol_impact(df, key_vol, key_date):
 
 
 # ============================================================
-# 识别将军柱/黄金柱/元帅柱
+# 【王牌柱官方版】找将军柱/黄金柱/元帅柱
 # ============================================================
-def find_pillars(df, lookback_days=30):
+def find_pillars_official(df, lookback_days=60):
+    """
+    王牌柱官方定义（股海明灯官网）
+    
+    三原则：
+    1. 收盘价三日不破底：后三日收盘价平均 >= 基柱开盘价
+    2. 量柱群三日不过头：后三日量逐步缩小
+    3. 基柱是四种量柱之一：倍量柱/高量柱/梯量柱第一柱/平量柱第二柱
+    
+    将军柱 vs 黄金柱：
+    - 将军柱：后三日收盘价平均 < 基柱收盘价
+    - 黄金柱：后三日收盘价平均 > 基柱收盘价
+    - 元帅柱：黄金柱 + 基柱跳空高开
+    """
     if len(df) < lookback_days + GENERAL_CONFIRM_DAYS + 20:
         return "无", None, None
     
     recent_df = df.iloc[-lookback_days:]
+    best_pillar = None
+    best_type = "无"
     
-    for i in range(len(recent_df) - GENERAL_CONFIRM_DAYS - 1, 10, -1):
+    for i in range(len(recent_df) - GENERAL_CONFIRM_DAYS - 1, 5, -1):
         row = recent_df.iloc[i]
         
+        # 基柱必须是阳线
         if row['close'] <= row['open']:
             continue
         
-        if i < 3:
+        # 基柱条件：量柱相对较高（不要求倍量！）
+        # 只要比前一天高就行
+        if i < 1:
             continue
-        ma3_vol = recent_df.iloc[i-3:i]['volume'].mean()
         prev_vol = recent_df.iloc[i-1]['volume']
-        if i < 20:
-            continue
-        ma20_vol = recent_df.iloc[i-20:i]['volume'].mean()
-        
-        if row['volume'] < ma3_vol * BASE_VS_MA3:
-            continue
-        if row['volume'] < prev_vol * BASE_VS_PREV:
-            continue
-        if row['volume'] < ma20_vol * BASE_VS_MA20:
+        if row['volume'] < prev_vol:
             continue
         
+        # 后三日数据
         future = recent_df.iloc[i+1:i+1+GENERAL_CONFIRM_DAYS]
         if len(future) < GENERAL_CONFIRM_DAYS:
             continue
         
-        base_close = row['close']
+        base_open = row['open']      # 基柱实底（开盘价）
+        base_close = row['close']    # 基柱实顶（收盘价）
         base_vol = row['volume']
         
-        if any(future['close'] < base_close):
+        # 原则1：收盘价三日不破底
+        # 后三日收盘价平均 >= 基柱开盘价
+        future_avg_close = future['close'].mean()
+        if future_avg_close < base_open:
             continue
-        if any(future['volume'] > base_vol):
+        
+        # 原则2：量柱群三日不过头
+        # 后三日量逐步缩小（最后一天量 < 基柱量）
+        future_last_vol = future.iloc[-1]['volume']
+        if future_last_vol >= base_vol:
             continue
         
-        closes = future['close'].values
-        vols = future['volume'].values
+        # 判断是将军柱还是黄金柱
+        # 将军柱：后三日收盘平均 < 基柱收盘价
+        # 黄金柱：后三日收盘平均 > 基柱收盘价
+        if future_avg_close >= base_close:
+            # 黄金柱
+            is_golden = True
+        else:
+            # 将军柱
+            is_golden = False
         
-        is_golden = True
-        for j in range(len(closes)-1):
-            if closes[j+1] <= closes[j]:
-                is_golden = False
-                break
-        for j in range(len(vols)-1):
-            if vols[j+1] >= vols[j]:
-                is_golden = False
-                break
-        
-        golden_line = row['low']
-        
+        # 元帅柱：黄金柱 + 基柱跳空高开
         if i > 0:
             prev_row = recent_df.iloc[i-1]
             is_gap_up = row['open'] > prev_row['high']
@@ -603,11 +638,11 @@ def find_pillars(df, lookback_days=30):
             is_gap_up = False
         
         if is_golden and is_gap_up:
-            return "元帅柱", row['date'], golden_line
+            return "元帅柱", row['date'], row['low']
         elif is_golden:
-            return "黄金柱", row['date'], golden_line
+            return "黄金柱", row['date'], row['low']
         else:
-            return "将军柱", row['date'], golden_line
+            return "将军柱", row['date'], row['low']
     
     return "无", None, None
 
@@ -664,7 +699,7 @@ def find_aokou_line(df, lookback_days=60):
 # 识别所有形态信号
 # ============================================================
 def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top, peak_20,
-                         atr_pct, changyang_threshold, binglin_threshold):
+                         atr_pct, changyang_threshold, binglin_threshold, code):
     signals = []
     
     today = df.iloc[-1]
@@ -859,8 +894,10 @@ def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top
             if JIELI_DOUBLE_YANG_GAP_MIN <= gap <= JIELI_DOUBLE_YANG_GAP_MAX:
                 signals.append("接力双阳")
     
+    # 涨停板（区分主板/创业板）
     today_pct = (today_close - yesterday_close) / yesterday_close * 100
-    if today_pct >= LIMIT_UP_PCT:
+    limit_up_pct = LIMIT_UP_GEM if is_gem_star(code) else LIMIT_UP_MAIN
+    if today_pct >= limit_up_pct:
         signals.append("涨停板")
     
     if len(df) >= BEISHUO_LOOKBACK:
@@ -1224,7 +1261,6 @@ def get_stock_data(market, code):
         vol_length = "中等量柱"
     
     today_range = today['high'] - today['low']
-    avg_range_20 = recent_20.apply(lambda x: x['high'] - x['low'], axis=1).mean()
     
     today_range_pct = today_range / today_price * 100
     long_range_threshold = get_atr_threshold(atr_pct, LONG_RANGE_ATR_MULT, 3.0)
@@ -1286,13 +1322,16 @@ def get_stock_data(market, code):
     vol_pattern = identify_vol_pattern(df)
     impact_20, vol_ratio_20, time_dist_20 = judge_key_vol_impact(df, key_vol_20, date_20)
     
-    pillar_type, pillar_date, golden_line = find_pillars(df)
+    # 【王牌柱官方版】
+    pillar_type, pillar_date, golden_line = find_pillars_official(df)
+    
     aokou_price, aokou_date, aokou_gap = find_aokou_line(df)
     
     precise_price = precise_lines[0]['price'] if precise_lines else None
+    full_code = f"{market}{code}"
     extra_signals = identify_all_signals(
         df, valley_20, safe_20, precise_price, big_yin_top, peak_20,
-        atr_pct, changyang_threshold, binglin_threshold
+        atr_pct, changyang_threshold, binglin_threshold, full_code
     )
     
     short_dist_high = (recent_high - today_price) / today_price * 100
@@ -1330,7 +1369,7 @@ def get_stock_data(market, code):
     
     stock_data = {
         'name': name,
-        'code': f"{market}{code}",
+        'code': full_code,
         'date': today['date'],
         'close': today_price,
         'pct_chg': pct_chg,
@@ -1693,12 +1732,12 @@ def generate_html(stocks_data, today_str):
             </div>
             
             <div class="step-section">
-                <div class="step-title">王牌柱体系</div>
+                <div class="step-title">王牌柱体系（官方版）</div>
                 <div class="step-content">
                     <div class="grid-2">
                         {pillar_html}
                         <div class="grid-item">
-                            <div class="label">黄金线</div>
+                            <div class="label">黄金线（基柱最低价）</div>
                             <div class="value">{f"{stock['golden_line']:.2f}" if stock['golden_line'] else "无"}</div>
                         </div>
                         {aokou_html}
@@ -1866,50 +1905,40 @@ def generate_html(stocks_data, today_str):
         <div class="header">
             <h1>四维循环看盘报告</h1>
             <div class="date">{today_str}</div>
-            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">ATR自适应版：价格参数自动适配每只股票波动率</div>
+            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">王牌柱官方版 + ATR自适应 + 涨停板区分主板/创业板</div>
         </div>
         
         <div class="signal-guide">
             <h2>信号说明</h2>
             
             <div class="signal-item">
+                <h3>王牌柱官方定义（股海明灯官网）</h3>
+                <p><strong>三原则：</strong></p>
+                <p>① 收盘价三日不破底：后三日收盘价平均 ≥ 基柱开盘价</p>
+                <p>② 量柱群三日不过头：后三日量逐步缩小，最后一天量 < 基柱量</p>
+                <p>③ 基柱是阳线+量柱比前一天高（不要求倍量！）</p>
+                <p><strong>将军柱 vs 黄金柱：</strong></p>
+                <p>将军柱：后三日收盘价平均 < 基柱收盘价</p>
+                <p>黄金柱：后三日收盘价平均 > 基柱收盘价</p>
+                <p>元帅柱：黄金柱 + 基柱跳空高开</p>
+                <p class="source">来源：股海明灯官网《王子老师语录十》+《王牌柱定义专帖》</p>
+            </div>
+            
+            <div class="signal-item">
+                <h3>涨停板区分</h3>
+                <p>主板（60/00开头）：涨幅 ≥ 9.8%</p>
+                <p>创业板/科创板（30/68开头）：涨幅 ≥ 19.8%</p>
+            </div>
+            
+            <div class="signal-item">
                 <h3>ATR自适应机制</h3>
-                <p><strong>ATR（平均真实波幅）</strong>：衡量每只股票每天平均波动多大</p>
-                <p><strong>自动调整：</strong>波动率大的股票，阈值自动放宽；波动率小的股票，阈值自动收紧</p>
-                <p><strong>价格类：</strong>中大阴线、大阳线、振幅、兵临城下距离、跳空缺口、长腿影线 → 都用ATR×倍数自动算</p>
-                <p><strong>量能类：</strong>天量地量用分位数自动判断（90%/10%分位）</p>
-                <p><strong>时间类：</strong>保持固定（ATR调不了时间）</p>
-            </div>
-            
-            <div class="signal-item">
-                <h3>起点：大阴实顶</h3>
-                <p><strong>定义：</strong>从今天往左找最近的中大阴线（1.5倍ATR），其实体顶部就是「大阴实顶」</p>
-                <p><strong>原理：</strong>大阴实顶是多空双方上次休战的「警戒点」</p>
-                <p class="source">来源：股海明灯（量学官网）</p>
-            </div>
-            
-            <div class="signal-item">
-                <h3>四维看盘法</h3>
-                <p>① 从右向左看：比较价柱的高低阴阳</p>
-                <p>② 从上往下看：比较量价的真假大小</p>
-                <p>③ 从左往右看：比较量柱的远近多少</p>
-                <p>④ 从下往上看：比较量价的长短伸缩</p>
-                <p class="source">来源：股海明灯《量柱擒涨停》黑马王子著</p>
-            </div>
-            
-            <div class="signal-item">
-                <h3>王牌柱体系</h3>
-                <p><strong>将军柱</strong>：基柱（阳线+放量2.5倍）+ 三日不破 + 量柱不抬头</p>
-                <p><strong>黄金柱</strong>：将军柱 + 价升 + 量缩</p>
-                <p><strong>元帅柱</strong>：黄金柱 + 基柱跳空高开</p>
-                <p class="source">来源：股海明灯《量柱擒涨停》黑马王子著 + 2026年化量化升级</p>
+                <p>价格类参数随ATR自动调整，量能类参数随分位数自动调整</p>
             </div>
             
             <div class="signal-item">
                 <h3>最高原则</h3>
                 <p><strong>所有参数、阈值都要适配当前最新市场环境</strong></p>
                 <p><strong>代码不要写死，能用参数阈值的就用参数阈值</strong></p>
-                <p><strong>ATR自动调参：价格类随波动率自动变，量能类随分位数自动变</strong></p>
                 <p><strong>不构成任何交易建议，只做客观描述</strong></p>
             </div>
         </div>
@@ -1928,7 +1957,7 @@ def generate_html(stocks_data, today_str):
 # ============================================================
 def main():
     print("=" * 60)
-    print("四维循环看盘报告 - HTML版（ATR自适应版）")
+    print("四维循环看盘报告 - HTML版（王牌柱官方版）")
     print("=" * 60)
     
     stocks_data = []
@@ -1941,7 +1970,7 @@ def main():
                 stocks_data.append(data)
                 today_str = data['date']
                 if data['atr_pct']:
-                    print(f"  已生成：{data['name']}（ATR={data['atr_pct']:.2f}%）")
+                    print(f"  已生成：{data['name']}（ATR={data['atr_pct']:.2f}%，王牌柱={data['pillar_type']}）")
                 else:
                     print(f"  已生成：{data['name']}")
         except Exception as e:
