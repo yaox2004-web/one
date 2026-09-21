@@ -23,20 +23,11 @@ from pathlib import Path
 DATA_DIR = Path(__file__).parent.parent / "data" / "kline"
 OUTPUT_DIR = Path(__file__).parent.parent / "data" / "analysis"
 
-# 测试股票代码
-TEST_STOCKS = [
-    ("sh", "600519"),  # 贵州茅台
-    ("sz", "002594"),  # 比亚迪
-    ("sh", "601138"),  # 工业富联
-]
-
 
 # ============================================================
 # 数据读取
 # ============================================================
-def load_klines(market, code):
-    filepath = DATA_DIR / market / f"{code}.json"
-    
+def load_klines(filepath):
     with open(filepath, 'r') as f:
         data = json.load(f)
     
@@ -57,14 +48,30 @@ def load_klines(market, code):
     
     df = df.dropna(subset=['open', 'close', 'high', 'low', 'volume'])
     
-    return df, data.get('name', code)
+    return df, data.get('name', filepath.stem)
 
 
 # ============================================================
-# 主函数
+# 找测试股票
 # ============================================================
-def generate_report(market, code):
-    df, name = load_klines(market, code)
+def find_test_stocks():
+    # 找前几个文件测试
+    all_files = []
+    for market_dir in DATA_DIR.iterdir():
+        if market_dir.is_dir():
+            for f in market_dir.glob('*.json'):
+                all_files.append(f)
+                if len(all_files) >= 3:
+                    return all_files
+    
+    return all_files
+
+
+# ============================================================
+# 生成报告
+# ============================================================
+def generate_report(filepath):
+    df, name = load_klines(filepath)
     
     today = df.iloc[-1]
     yesterday = df.iloc[-2]
@@ -74,7 +81,7 @@ def generate_report(market, code):
     
     report = []
     report.append("=" * 60)
-    report.append(f"【{name} {code}】")
+    report.append(f"【{name}】")
     report.append(f"日期：{today['date']}")
     report.append("=" * 60)
     
@@ -244,14 +251,22 @@ def generate_report(market, code):
     else:
         report.append("    无明显压力位")
     
-    # ========== 第八步：总结 ==========
+    # ========== 第八步：客观总结 ==========
     report.append("")
     report.append("=" * 60)
-    report.append("【客观总结】")
+    report.append("【第八步：客观总结】")
     report.append("=" * 60)
     
+    # 计算近120日位置
+    if len(df) > 120:
+        position_120 = (today_price - long_low) / (long_high - long_low) * 100
+    elif len(df) > 60:
+        position_120 = (today_price - mid_low) / (mid_high - mid_low) * 100
+    else:
+        position_120 = (today_price - recent_low) / (recent_high - recent_low) * 100
+    
     report.append(f"  今日{name}{'上涨' if pct_chg > 0 else '下跌'}{abs(pct_chg):.2f}%，{'放量' if vol_ratio_yesterday > 1.5 else '缩量' if vol_ratio_yesterday < 0.7 else '平量'}。")
-    report.append(f"  当前价格在近120日{position:.1f}%位置。")
+    report.append(f"  当前价格在近120日{position_120:.1f}%位置。")
     
     if supports:
         report.append(f"  下方最近支撑：{supports[0][0]:.2f}（{supports[0][1]}）。")
@@ -269,16 +284,17 @@ def main():
     print("八步客观描述报告")
     print("=" * 60)
     
-    for market, code in TEST_STOCKS:
+    test_files = find_test_stocks()
+    
+    for filepath in test_files:
         try:
-            report = generate_report(market, code)
+            report = generate_report(filepath)
             print(report)
             print("\n\n")
         except Exception as e:
-            print(f"Error: {code} {e}")
+            print(f"Error: {filepath} {e}")
             print("\n")
 
 
 if __name__ == "__main__":
     main()
-
