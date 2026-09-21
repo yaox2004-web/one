@@ -1475,44 +1475,176 @@ def generate_html(stocks_data, today_str):
             
             <div class="signal-item">
                 <h3>起点：大阴实顶</h3>
-                <p><strong>定义：</strong>从今天往左找最近的中大阴线，其实体顶部就是"大阴实顶"</p>
+                <p><strong>定义：</strong>从今天往左找最近的中大阴线（实体幅度≥3%），其实体顶部就是"大阴实顶"</p>
                 <p><strong>原理：</strong>大阴实顶是多空双方上次休战的"警戒点"，下次争夺的"起动点"</p>
+                <p><strong>参数：</strong>近60日搜索，阴线实体幅度≥3%</p>
+                <p><strong>设计思路：</strong>以最近的大阴线为基准，建立对比锚点</p>
+                <p><strong>注意事项：</strong>必须是最近的，不能用太远的</p>
                 <p class="source">来源：股海明灯（量学官网）</p>
             </div>
             
             <div class="signal-item">
                 <h3>① 从右向左看：比较价柱的高低阴阳</h3>
                 <p><strong>视线：</strong>从今天往左，往大阴实顶方向看</p>
-                <p><strong>对比内容：</strong>高低、阴阳</p>
+                <p><strong>对比内容：</strong>价格高低、阴阳数量、阴阳比</p>
+                <p><strong>参数：</strong>统计从大阴实顶到今天的所有K线</p>
+                <p><strong>设计思路：</strong>看多空双方力量对比</p>
+                <p class="source">来源：股海明灯《量柱擒涨停》黑马王子著</p>
             </div>
             
             <div class="signal-item">
                 <h3>② 从上往下看：比较量价的真假大小</h3>
                 <p><strong>视线：</strong>从大阴实顶的价柱往下看量柱</p>
-                <p><strong>对比内容：</strong>大小、真假</p>
+                <p><strong>对比内容：</strong>量柱大小、量价真假</p>
+                <p><strong>量柱形态：</strong>高量柱、低量柱、平量柱、倍量柱、梯量柱、缩量柱</p>
+                <p><strong>设计思路：</strong>判断大阴实顶那天的量是真还是假</p>
+                <p class="source">来源：股海明灯《量柱擒涨停》黑马王子著</p>
             </div>
             
             <div class="signal-item">
                 <h3>③ 从左往右看：比较量柱的远近多少</h3>
                 <p><strong>视线：</strong>从大阴实顶的量柱往右看，看到今天的量柱</p>
-                <p><strong>对比内容：</strong>远近、多少</p>
+                <p><strong>对比内容：</strong>时间距离、量的多少对比</p>
+                <p><strong>时间影响力：</strong>很近（≤10天）、较近（11-30天）、较远（31-60天）、很远（>60天）</p>
+                <p><strong>关键位量影响力：</strong>强/中/弱</p>
+                <p><strong>设计思路：</strong>看大阴实顶的量对当下的影响力</p>
+                <p class="source">来源：股海明灯《量柱擒涨停》黑马王子著</p>
             </div>
             
             <div class="signal-item">
                 <h3>④ 从下往上看：比较量价的长短伸缩</h3>
                 <p><strong>视线：</strong>从今天的量柱往上看价柱</p>
-                <p><strong>对比内容：</strong>长短、伸缩</p>
+                <p><strong>对比内容：</strong>量柱长短、价柱伸缩、实体长短</p>
+                <p><strong>实体占比：</strong>实体长度/振幅长度</p>
+                <p><strong>设计思路：</strong>判断当下的量价建构</p>
+                <p class="source">来源：股海明灯《量柱擒涨停》黑马王子著</p>
             </div>
             
             <div class="signal-item">
                 <h3>量线体系</h3>
-                <p><strong>包含：</strong>平衡线、精准线、斜衡线、峰顶线、谷底线、高量柱安全线/风险线</p>
                 <p class="source">来源：股海明灯《量线捉涨停》黑马王子著</p>
+            </div>
+            
+            <div class="signal-item">
+                <h3>平衡线（大阴实顶）</h3>
+                <p><strong>定义：</strong>最近大阴线的实体顶部</p>
+                <p><strong>原理：</strong>多空双方上次休战的"警戒点"</p>
+                <p><strong>参数：</strong>近60日搜索</p>
+                <p><strong>设计思路：</strong>以最近的大阴实顶为基准</p>
+                <p class="source">来源：股海明灯《量线捉涨停》黑马王子著</p>
+            </div>
+            
+            <div class="signal-item">
+                <h3>精准线</h3>
+                <p><strong>定义：</strong>多个价格点重合在同一水平线上</p>
+                <p><strong>原理：</strong>多空双方多次在同一价位博弈，形成"精准"支撑/压力</p>
+                <p><strong>参数：</strong>至少3个价格点重合，误差≤1%</p>
+                <p><strong>设计思路：</strong>找多空双方反复争夺的关键价位</p>
+                <p><strong>注意事项：</strong>需要右确认（至少3个点）</p>
+                <p class="source">来源：股海明灯《量线捉涨停》黑马王子著</p>
+            </div>
+            
+            <div class="signal-item">
+                <h3>斜衡线</h3>
+                <p><strong>定义：</strong>连接两个或多个峰顶/谷底的斜线</p>
+                <p><strong>原理：</strong>反映趋势的斜率和方向</p>
+                <p><strong>参数：</strong>至少2个点，上升斜衡线=支撑，下降斜衡线=阻力</p>
+                <p><strong>设计思路：</strong>看趋势的方向和斜率</p>
+                <p class="source">来源：股海明灯《量线捉涨停》黑马王子著</p>
+            </div>
+            
+            <div class="signal-item">
+                <h3>峰顶线/谷底线</h3>
+                <p><strong>定义：</strong>多空双方激烈博弈过的高点/低点</p>
+                <p><strong>原理：</strong>峰顶=卖方赢了，谷底线=买方赢了</p>
+                <p><strong>参数：</strong>峰边距≥3天（左右各3天，取中间最高/最低），成交量要求适配当前环境</p>
+                <p><strong>设计思路：</strong>找真正博弈过的关键位，不用左侧历史极值法</p>
+                <p><strong>注意事项：</strong>需要右确认（峰边距≥3天）</p>
+                <p><strong>没有峰顶/谷底的情况：</strong>无峰顶=寻顶中（偏强势），无谷底=寻底中（偏弱势）</p>
+                <p class="source">来源：股海明灯《量线捉涨停》黑马王子著</p>
+            </div>
+            
+            <div class="signal-item">
+                <h3>高量柱安全线/风险线</h3>
+                <p><strong>定义：</strong>高量柱的最高价=安全线，最低价=风险线</p>
+                <p><strong>原理：</strong>高量柱那天多空博弈最激烈，最高价和最低价就是关键位</p>
+                <p><strong>参数：</strong>20日/60日/120日高量柱</p>
+                <p><strong>设计思路：</strong>以高量柱的高低点为基准</p>
+                <p><strong>注意事项：</strong>取实（最高价/最低价），不取虚</p>
+                <p class="source">来源：股海明灯《量线捉涨停》黑马王子著</p>
+            </div>
+            
+            <div class="signal-item">
+                <h3>量柱六种形态</h3>
+                <p class="source">来源：股海明灯《量柱擒涨停》黑马王子著</p>
+            </div>
+            
+            <div class="signal-item">
+                <h3>高量柱</h3>
+                <p><strong>定义：</strong>近N日最大成交量</p>
+                <p><strong>原理：</strong>多空博弈最激烈的一天</p>
+                <p><strong>参数：</strong>近20日/60日/120日天量</p>
+                <p><strong>设计思路：</strong>找博弈最激烈的位置</p>
+            </div>
+            
+            <div class="signal-item">
+                <h3>低量柱</h3>
+                <p><strong>定义：</strong>近N日最小成交量</p>
+                <p><strong>原理：</strong>多空双方都休息了，无人关注</p>
+                <p><strong>参数：</strong>近20日/60日/120日地量</p>
+                <p><strong>设计思路：</strong>找无人关注的位置</p>
+            </div>
+            
+            <div class="signal-item">
+                <h3>平量柱</h3>
+                <p><strong>定义：</strong>与昨日量差不多（±20%以内）</p>
+                <p><strong>原理：</strong>多空双方力量平衡</p>
+                <p><strong>参数：</strong>±20%以内</p>
+                <p><strong>设计思路：</strong>看量能是否平稳</p>
+            </div>
+            
+            <div class="signal-item">
+                <h3>倍量柱</h3>
+                <p><strong>定义：</strong>今日量≥昨日量×1.9</p>
+                <p><strong>原理：</strong>多空一方突然发力</p>
+                <p><strong>参数：</strong>≥1.9倍</p>
+                <p><strong>设计思路：</strong>看是否有突然放量</p>
+            </div>
+            
+            <div class="signal-item">
+                <h3>梯量柱</h3>
+                <p><strong>定义：</strong>连续3天放量</p>
+                <p><strong>原理：</strong>多空双方逐步加码</p>
+                <p><strong>参数：</strong>连续3天递增</p>
+                <p><strong>设计思路：</strong>看是否有连续放量</p>
+            </div>
+            
+            <div class="signal-item">
+                <h3>缩量柱</h3>
+                <p><strong>定义：</strong>连续3天缩量</p>
+                <p><strong>原理：</strong>多空双方逐步退场</p>
+                <p><strong>参数：</strong>连续3天递减</p>
+                <p><strong>设计思路：</strong>看是否有连续缩量</p>
+            </div>
+            
+            <div class="signal-item">
+                <h3>关键位量影响力</h3>
+                <p><strong>定义：</strong>判断关键位的量对当下的影响力</p>
+                <p><strong>原理：</strong>量越大、时间越近，影响力越强</p>
+                <p><strong>参数：</strong>强/中/弱</p>
+                <p><strong>设计思路：</strong>综合时间距离和量大小判断</p>
             </div>
             
             <div class="signal-item">
                 <h3>个股解读</h3>
                 <p><strong>原则：</strong>客观描述，不做主观判断</p>
+                <p><strong>方法：</strong>用四维看盘法逐步描述</p>
+            </div>
+            
+            <div class="signal-item">
+                <h3>最高原则</h3>
+                <p><strong>所有参数、阈值都要适配当前最新市场环境</strong></p>
+                <p><strong>代码不要写死，能用参数阈值的就用参数阈值</strong></p>
             </div>
         </div>
         
