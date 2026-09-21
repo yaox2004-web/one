@@ -1,0 +1,35 @@
+name: 四维看盘法回测
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 18 * * 0'  # 每周日下午6点自动跑一次
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 拉取代码
+        uses: actions/checkout@v4
+      
+      - name: 安装Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: 安装依赖
+        run: |
+          pip install pandas numpy
+      
+      - name: 跑回测脚本
+        run: |
+          cd scripts
+          python3 backtest_4d.py
+      
+      - name: 上传回测结果
+        uses: actions/upload-artifact@v4
+        with:
+          name: backtest-results
+          path: data/analysis/backtest_4d_summary.txt
+
