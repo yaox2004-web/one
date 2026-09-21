@@ -3,16 +3,6 @@
 """
 四维循环看盘法报告 - HTML版（量学理论推导版）
 =================================================
-设计思路：
-  1. 起点：大阴实顶（量学四维看盘的起点）
-  2. 四维对比：从大阴实顶开始做四维对比
-  3. 左侧关键位：所有量线（平衡线/精准线/斜衡线/峰顶线/谷底线/高量柱线）
-  4. 综合解读：量学理论驱动的逻辑推导，不是数据罗列
-     - 每一步都有市场机理
-     - 每一步都有量学理论依据
-     - 每一步都能推导下一步
-     - 最终形成逻辑闭环
-
 【无未来函数】：所有判断只用截止到今天收盘的数据
 【资料来源】：股海明灯《量柱擒涨停》《量线捉涨停》黑马王子著
 """
@@ -438,18 +428,18 @@ def generate_interpretation(stock):
             'title': '【起点】大阴实顶的市场意义',
             'content': [
                 f"大阴实顶发生在{stock['days_since_yin']}天前（{stock['big_yin_date']}），价格{stock['big_yin_top']:.2f}元。",
-                f"<strong>市场机理</strong>：这是多空双方上次"休战"的警戒点。那天卖方赢了，但休战后买方开始组织反击。",
-                f"<strong>推导</strong>：现在价格在大阴实顶<strong>{above_text}</strong> {pct_text}，{conclusion}",
-                f"<strong>量学依据</strong>：大阴实顶是回形针看盘法的起点，是多空力量转换的分水岭。"
+                '<strong>市场机理</strong>：这是多空双方上次「休战」的警戒点。那天卖方赢了，但休战后买方开始组织反击。',
+                f'<strong>推导</strong>：现在价格在大阴实顶<strong>{above_text}</strong> {pct_text}，{conclusion}',
+                '<strong>量学依据</strong>：大阴实顶是回形针看盘法的起点，是多空力量转换的分水岭。'
             ]
         })
     else:
         sections.append({
             'title': '【起点】大阴实顶的市场意义',
             'content': [
-                "近60日没有出现中大阴线。",
-                "<strong>市场机理</strong>：说明近期没有明显的多空大战分界线，市场处于相对平稳的状态。",
-                "<strong>量学依据</strong>：没有大阴实顶，说明多空双方还没有进行过大规模决战。"
+                '近60日没有出现中大阴线。',
+                '<strong>市场机理</strong>：说明近期没有明显的多空大战分界线，市场处于相对平稳的状态。',
+                '<strong>量学依据</strong>：没有大阴实顶，说明多空双方还没有进行过大规模决战。'
             ]
         })
     
@@ -457,22 +447,19 @@ def generate_interpretation(stock):
     if stock['yang_count'] + stock['yin_count'] > 0:
         ratio = stock['yang_yin_ratio']
         if ratio > 1.5:
-            power = "买方"
             detail = "阳线明显多于阴线，说明买方赢得更频繁，在这个区间有持续性优势。"
         elif ratio < 0.67:
-            power = "卖方"
             detail = "阴线明显多于阳线，说明卖方赢得更频繁，在这个区间仍占主动。"
         else:
-            power = "多空双方"
             detail = "阴阳数量相当，说明多空双方在这个区间力量均衡，处于拉锯状态。"
         
         sections.append({
             'title': '【第一步】从右向左看——多空力量对比',
             'content': [
                 f"从大阴实顶到今天：阳线{stock['yang_count']}根、阴线{stock['yin_count']}根，阴阳比{ratio:.2f}。",
-                f"<strong>市场机理</strong>：每根K线都是多空一天的战斗结果。阳线多=买方赢的天数多，阴线多=卖方赢的天数多。",
-                f"<strong>推导</strong>：阴阳比{ratio:.2f}，{detail}",
-                f"<strong>量学依据</strong>：价柱的阴阳数量对比，是多空力量最直观的体现。"
+                '<strong>市场机理</strong>：每根K线都是多空一天的战斗结果。阳线多=买方赢的天数多，阴线多=卖方赢的天数多。',
+                f'<strong>推导</strong>：阴阳比{ratio:.2f}，{detail}',
+                '<strong>量学依据</strong>：价柱的阴阳数量对比，是多空力量最直观的体现。'
             ]
         })
     
@@ -483,7 +470,7 @@ def generate_interpretation(stock):
             mechanism = "那天多空双方真刀真枪干了一架，卖方放量砸盘，说明卖方是真出货。"
             conclusion = "大阴实顶那天是<strong>大量</strong>，说明上方的抛压是真实的，后面突破起来会比较费劲。"
         elif vol_size == "小量":
-            mechanism = "那天虽然价格跌了，但成交很清淡，说明没人接盘的"假跌"，卖方只是虚晃一枪。"
+            mechanism = "那天虽然价格跌了，但成交很清淡，说明没人接盘的「假跌」，卖方只是虚晃一枪。"
             conclusion = "大阴实顶那天是<strong>小量</strong>，说明那天的下跌是无量空跌，卖方力量其实不强，后面可能要涨。"
         else:
             mechanism = "那天的量和平时差不多，说明是正常的调整，没有明显的多空意图。"
@@ -493,9 +480,9 @@ def generate_interpretation(stock):
             'title': '【第二步】从上往下看——量的真假判断',
             'content': [
                 f"大阴实顶那天的成交量：{vol_size}。",
-                f"<strong>市场机理</strong>：{mechanism}",
-                f"<strong>推导</strong>：{conclusion}",
-                f"<strong>量学依据</strong>：量是因，价是果。量大说明真有人卖，量小说明跌了也没人接。"
+                f'<strong>市场机理</strong>：{mechanism}',
+                f'<strong>推导</strong>：{conclusion}',
+                '<strong>量学依据</strong>：量是因，价是果。量大说明真有人卖，量小说明跌了也没人接。'
             ]
         })
     
@@ -512,7 +499,7 @@ def generate_interpretation(stock):
             vol_judge = f"今天的量和大阴实顶那天差不多（{vol_ratio:.1f}%）。"
         
         if days <= 10:
-            time_judge = f"时间距离只有{days}天，那个位置的"记忆"还很新鲜。"
+            time_judge = f"时间距离只有{days}天，那个位置的「记忆」还很新鲜。"
         elif days <= 30:
             time_judge = f"时间距离{days}天，那个位置还有一定的影响力。"
         else:
@@ -523,9 +510,9 @@ def generate_interpretation(stock):
             'content': [
                 f"{vol_judge}",
                 f"{time_judge}",
-                f"<strong>市场机理</strong>：量越大、时间越近，那个位置的"记忆"就越新鲜，对当下的影响力就越强。就像打仗，刚打完的战场大家都记得住，隔了几个月的战场就没人在乎了。",
-                f"<strong>推导</strong>：综合量的大小和时间距离，大阴实顶的量对当下的影响力是<strong>{stock['time_impact']}</strong>。",
-                f"<strong>量学依据</strong>：量柱的远近多少，决定了那个量柱对当下的影响力大小。"
+                '<strong>市场机理</strong>：量越大、时间越近，那个位置的「记忆」就越新鲜，对当下的影响力就越强。就像打仗，刚打完的战场大家都记得住，隔了几个月的战场就没人在乎了。',
+                f'<strong>推导</strong>：综合量的大小和时间距离，大阴实顶的量对当下的影响力是<strong>{stock["time_impact"]}</strong>。',
+                '<strong>量学依据</strong>：量柱的远近多少，决定了那个量柱对当下的影响力大小。'
             ]
         })
     
@@ -548,9 +535,9 @@ def generate_interpretation(stock):
         'content': [
             f"今天的量柱：{vol_len}；今天的价柱：{price_len}。",
             f"{body_judge}",
-            f"<strong>市场机理</strong>：量柱长短=今天多空双方投入了多少兵力；价柱长短=今天战斗的激烈程度；实体长短=今天哪一方赢了，赢得彻不彻底。",
-            f"<strong>推导</strong>：今天{vol_len}、{price_len}、{body_judge}",
-            f"<strong>量学依据</strong>：量价的长短伸缩，是当下多空力量最直接的体现。"
+            '<strong>市场机理</strong>：量柱长短=今天多空双方投入了多少兵力；价柱长短=今天战斗的激烈程度；实体长短=今天哪一方赢了，赢得彻不彻底。',
+            f'<strong>推导</strong>：今天{vol_len}、{price_len}、{body_judge}',
+            '<strong>量学依据</strong>：量价的长短伸缩，是当下多空力量最直接的体现。'
         ]
     })
     
@@ -582,17 +569,16 @@ def generate_interpretation(stock):
         sections.append({
             'title': '【第五步】左侧关键位的约束',
             'content': [
-                f"当前价格与左侧关键位的关系：",
+                '当前价格与左侧关键位的关系：',
                 *[f"• {kp}" for kp in key_points],
-                f"<strong>市场机理</strong>：峰顶线=上次卖方赢了的位置，现在变成压力位；谷底线=上次买方赢了的位置，现在变成支撑位；精准线=多空双方多次在同一价位交手，说明这个位置双方都很看重；高量柱安全线=上次多空最激烈战斗中买方守住的位置。",
-                f"<strong>量学依据</strong>：量线是多空双方的"记忆"，每次打到这个位置，都会触发上次的记忆，产生支撑或压力。"
+                '<strong>市场机理</strong>：峰顶线=上次卖方赢了的位置，现在变成压力位；谷底线=上次买方赢了的位置，现在变成支撑位；精准线=多空双方多次在同一价位交手，说明这个位置双方都很看重；高量柱安全线=上次多空最激烈战斗中买方守住的位置。',
+                '<strong>量学依据</strong>：量线是多空双方的「记忆」，每次打到这个位置，都会触发上次的记忆，产生支撑或压力。'
             ]
         })
     
     # ========== 【综合结论】逻辑闭环 ==========
     conclusion_points = []
     
-    # 串起前面的推导
     if stock['big_yin_top']:
         if bool(stock['price_above_yintop']):
             conclusion_points.append("买方已经收复了大阴实顶，说明买方在这个区间占优")
@@ -615,10 +601,10 @@ def generate_interpretation(stock):
     sections.append({
         'title': '【综合结论】逻辑闭环',
         'content': [
-            f"把以上五步串起来：",
+            '把以上五步串起来：',
             *[f"{i+1}. {p}" for i, p in enumerate(conclusion_points)],
-            f"<strong>最终判断</strong>：当前价格在{stock['pos_status']}，{stock['power']}，近3日涨跌{stock['pct_3d']:+.2f}%，近5日涨跌{stock['pct_5d']:+.2f}%。",
-            f"<strong>注意</strong>：以上是基于量学理论的客观描述，不构成任何交易建议。"
+            f'<strong>最终判断</strong>：当前价格在{stock["pos_status"]}，{stock["power"]}，近3日涨跌{stock["pct_3d"]:+.2f}%，近5日涨跌{stock["pct_5d"]:+.2f}%。',
+            '<strong>注意</strong>：以上是基于量学理论的客观描述，不构成任何交易建议。'
         ]
     })
     
@@ -1248,8 +1234,8 @@ def generate_html(stocks_data, today_str):
             
             <div class="signal-item">
                 <h3>起点：大阴实顶</h3>
-                <p><strong>定义：</strong>从今天往左找最近的中大阴线，其实体顶部就是"大阴实顶"</p>
-                <p><strong>原理：</strong>大阴实顶是多空双方上次休战的"警戒点"，下次争夺的"起动点"</p>
+                <p><strong>定义：</strong>从今天往左找最近的中大阴线，其实体顶部就是「大阴实顶」</p>
+                <p><strong>原理：</strong>大阴实顶是多空双方上次休战的「警戒点」，下次争夺的「起动点」</p>
                 <p class="source">来源：股海明灯（量学官网）</p>
             </div>
             
