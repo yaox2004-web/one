@@ -31,7 +31,6 @@ HOLDINGS = [
     ("sh", "603516"),
 ]
 
-# 持有周期
 HOLD_PERIODS = [5, 10, 20]
 
 # ============================================================
@@ -40,9 +39,6 @@ HOLD_PERIODS = [5, 10, 20]
 ATR_ADAPTIVE = True
 ATR_PERIOD = 14
 
-# ============================================================
-# 【价格类参数】
-# ============================================================
 YIN_BODY_ATR_MULT = 1.5
 YIN_BODY_FALLBACK = 5.0
 YIN_LOOKBACK = 60
@@ -179,11 +175,10 @@ def load_klines(market, code):
 
 
 # ============================================================
-# 【信号识别函数】
+# 【信号判断函数】
 # ============================================================
 
 def check_bei_liang(df, i):
-    """倍量柱"""
     if i < 2:
         return False
     today_vol = df.iloc[i]['volume']
@@ -194,7 +189,6 @@ def check_bei_liang(df, i):
 
 
 def check_gao_liang(df, i):
-    """高量柱"""
     if i < GAOLIANG_LOOKBACK:
         return False
     recent = df.iloc[i-GAOLIANG_LOOKBACK:i+1]
@@ -205,7 +199,6 @@ def check_gao_liang(df, i):
 
 
 def check_di_liang(df, i):
-    """低量柱"""
     if i < GAOLIANG_LOOKBACK:
         return False
     recent = df.iloc[i-GAOLIANG_LOOKBACK:i+1]
@@ -216,7 +209,6 @@ def check_di_liang(df, i):
 
 
 def check_ti_liang(df, i):
-    """梯量柱"""
     if i < 3:
         return False
     v1 = df.iloc[i-2]['volume']
@@ -228,7 +220,6 @@ def check_ti_liang(df, i):
 
 
 def check_suo_liang(df, i):
-    """缩量柱"""
     if i < 3:
         return False
     v1 = df.iloc[i-2]['volume']
@@ -240,7 +231,6 @@ def check_suo_liang(df, i):
 
 
 def check_ping_liang(df, i):
-    """平量柱"""
     if i < 6:
         return False
     today_vol = df.iloc[i]['volume']
@@ -253,7 +243,6 @@ def check_ping_liang(df, i):
 
 
 def check_xiao_bei_yang(df, i):
-    """小倍阳（矮将军）"""
     if i < 2:
         return False
     today = df.iloc[i]
@@ -266,7 +255,6 @@ def check_xiao_bei_yang(df, i):
 
 
 def check_yang_sheng_jin(df, i):
-    """阳胜进"""
     if i < 2:
         return False
     today = df.iloc[i]
@@ -277,7 +265,6 @@ def check_yang_sheng_jin(df, i):
 
 
 def check_yin_sheng_chu(df, i):
-    """阴胜出"""
     if i < 2:
         return False
     today = df.iloc[i]
@@ -288,7 +275,6 @@ def check_yin_sheng_chu(df, i):
 
 
 def check_chang_duan_yin(df, i, atr_pct):
-    """长阴短柱"""
     if i < 6:
         return False
     today = df.iloc[i]
@@ -301,7 +287,6 @@ def check_chang_duan_yin(df, i, atr_pct):
 
 
 def check_yang_bao_yin(df, i):
-    """阳包阴"""
     if i < 2:
         return False
     today = df.iloc[i]
@@ -312,7 +297,6 @@ def check_yang_bao_yin(df, i):
 
 
 def check_ban_zhang(df, i, code):
-    """涨停板"""
     if i < 2:
         return False
     today = df.iloc[i]
@@ -325,7 +309,6 @@ def check_ban_zhang(df, i, code):
 
 
 def check_guo_zuofeng(df, i, peak_20):
-    """过左峰"""
     if peak_20 is None:
         return False
     today = df.iloc[i]
@@ -335,7 +318,6 @@ def check_guo_zuofeng(df, i, peak_20):
 
 
 def check_jiayin_ciyang(df, i, atr_pct):
-    """极阴次阳"""
     if i < 6:
         return False
     today = df.iloc[i]
@@ -355,7 +337,6 @@ def check_jiayin_ciyang(df, i, atr_pct):
 
 
 def check_changyang_aizhu(df, i, atr_pct):
-    """长阳矮柱"""
     if i < 2:
         return False
     today = df.iloc[i]
@@ -369,7 +350,6 @@ def check_changyang_aizhu(df, i, atr_pct):
 
 
 def check_beiliang_buchuan(df, i, code):
-    """倍量不穿"""
     if i < 60:
         return False
     recent_60 = df.iloc[i-59:i+1]
@@ -386,7 +366,6 @@ def check_beiliang_buchuan(df, i, code):
 
 
 def check_gaoliang_bupo(df, i):
-    """高量不破"""
     if i < 60:
         return False
     recent_60 = df.iloc[i-59:i+1]
@@ -400,7 +379,6 @@ def check_gaoliang_bupo(df, i):
 
 
 def check_diliang_qun(df, i):
-    """地量群"""
     if i < 100:
         return False
     recent_100 = df.iloc[i-99:i+1]
@@ -412,7 +390,6 @@ def check_diliang_qun(df, i):
 
 
 def check_jiasheng_liangsou(df, i):
-    """价升量缩"""
     if i < 3:
         return False
     recent_3 = df.iloc[i-2:i+1]
@@ -424,7 +401,6 @@ def check_jiasheng_liangsou(df, i):
 
 
 def check_beishuo_shensuo(df, i):
-    """倍量伸缩"""
     if i < 5:
         return False
     recent_5 = df.iloc[i-4:i+1]
@@ -436,7 +412,6 @@ def check_beishuo_shensuo(df, i):
 
 
 def check_huicai_jingzhun(df, i, precise_price):
-    """回踩精准线"""
     if precise_price is None:
         return False
     if i < 10:
@@ -445,12 +420,6 @@ def check_huicai_jingzhun(df, i, precise_price):
     touched = any(abs(row['low'] - precise_price) / precise_price < TOUCH_LINE_TOLERANCE for _, row in recent_10.iterrows())
     if touched:
         return True
-    return False
-
-
-def check_yin_shen_fuding(df, i):
-    """阴胜伏击（回测用：阴胜出后买入）"""
-    # 这个信号在回测里不单独用，跳过
     return False
 
 
@@ -494,8 +463,6 @@ def find_precise_at(df, end_idx, lookback_days=120, min_points=3, price_toleranc
         return None
     recent_df = df.iloc[end_idx-lookback_days+1:end_idx+1]
     prices = recent_df['close'].values
-    from scipy.cluster.hierarchy import fcluster, linkage
-    from scipy.spatial.distance import pdist
     if len(prices) < min_points:
         return None
     clusters = {}
@@ -619,152 +586,6 @@ def find_pillars_at(df, end_idx, lookback_days=60):
 
 
 # ============================================================
-# 【单只股票回测】
-# ============================================================
-def backtest_one_stock(market, code):
-    df = load_klines(market, code)
-    if df is None:
-        return {}
-    
-    full_code = f"{market}{code}"
-    n = len(df)
-    
-    # 初始化信号记录
-    signal_trades = defaultdict(list)
-    
-    # 从第120天开始，确保有足够历史数据
-    start_idx = 120
-    
-    for i in range(start_idx, n - max(HOLD_PERIODS) - 1):
-        today = df.iloc[i]
-        tomorrow = df.iloc[i+1]
-        
-        # 排除一字涨停买不进去的情况
-        if tomorrow['open'] == tomorrow['close'] and (tomorrow['close'] - df.iloc[i]['close']) / df.iloc[i]['close'] * 100 > 9.5:
-            continue
-        
-        # 计算ATR
-        atr_value, atr_pct = calculate_atr(df.iloc[:i+1], ATR_PERIOD)
-        yin_body_thresh = get_atr_threshold(atr_pct, YIN_BODY_ATR_MULT, YIN_BODY_FALLBACK)
-        changyang_thresh = get_atr_threshold(atr_pct, CHANGYANG_ATR_MULT, CHANGYANG_FALLBACK)
-        binglin_thresh = get_atr_threshold(atr_pct, BINGLIN_ATR_MULT, BINGLIN_FALLBACK)
-        
-        # 找关键位
-        peak_20, valley_20 = find_fenggu_at(df, i, SHORT_WINDOW, PEAK_SIDE_SHORT, CONFIRM_DAYS_SHORT, VOL_PERCENTILE)
-        precise_price = find_precise_at(df, i)
-        safe_20, risk_20 = find_gaoliang_lines_at(df, i, SHORT_WINDOW)
-        big_yin_top, big_yin_date = find_big_yin_top_at(df, i, YIN_LOOKBACK, yin_body_thresh)
-        pillar_type, pillar_date = find_pillars_at(df, i)
-        
-        # T+1开盘价买入
-        buy_price = tomorrow['open']
-        
-        # ===== 信号判断 =====
-        
-        # 量柱六种
-        if check_bei_liang(df, i):
-            signal_trades["倍量柱"].append(i)
-        if check_gao_liang(df, i):
-            signal_trades["高量柱"].append(i)
-        if check_di_liang(df, i):
-            signal_trades["低量柱（地量）"].append(i)
-        if check_ti_liang(df, i):
-            signal_trades["梯量柱"].append(i)
-        if check_suo_liang(df, i):
-            signal_trades["缩量柱"].append(i)
-        if check_ping_liang(df, i):
-            signal_trades["平量柱"].append(i)
-        
-        # 形态信号
-        if check_xiao_bei_yang(df, i):
-            signal_trades["小倍阳（矮将军）"].append(i)
-        if check_yang_sheng_jin(df, i):
-            signal_trades["阳胜进"].append(i)
-        if check_yin_sheng_chu(df, i):
-            signal_trades["阴胜出"].append(i)
-        if check_chang_duan_yin(df, i, atr_pct):
-            signal_trades["长阴短柱"].append(i)
-        if check_yang_bao_yin(df, i):
-            signal_trades["阳包阴"].append(i)
-        if check_ban_zhang(df, i, full_code):
-            signal_trades["涨停板"].append(i)
-        if check_guo_zuofeng(df, i, peak_20):
-            signal_trades["过左峰"].append(i)
-        if check_jiayin_ciyang(df, i, atr_pct):
-            signal_trades["极阴次阳"].append(i)
-        if check_changyang_aizhu(df, i, atr_pct):
-            signal_trades["长阳矮柱"].append(i)
-        if check_beiliang_buchuan(df, i, full_code):
-            signal_trades["倍量不穿"].append(i)
-        if check_gaoliang_bupo(df, i):
-            signal_trades["高量不破"].append(i)
-        if check_diliang_qun(df, i):
-            signal_trades["地量群"].append(i)
-        if check_jiasheng_liangsou(df, i):
-            signal_trades["价升量缩"].append(i)
-        if check_beishuo_shensuo(df, i):
-            signal_trades["倍量伸缩"].append(i)
-        if check_huicai_jingzhun(df, i, precise_price):
-            signal_trades["回踩精准线"].append(i)
-        
-        # 王牌柱
-        if pillar_type == "元帅柱":
-            signal_trades["元帅柱"].append(i)
-        elif pillar_type == "黄金柱":
-            signal_trades["黄金柱"].append(i)
-        elif pillar_type == "将军柱":
-            signal_trades["将军柱"].append(i)
-        
-        # 量线信号
-        if valley_20:
-            touched = abs(today['low'] - valley_20) / valley_20 < TOUCH_LINE_TOLERANCE
-            if touched and today['close'] > valley_20:
-                signal_trades["回踩谷底线不破"].append(i)
-        
-        if big_yin_top:
-            if today['close'] > big_yin_top:
-                signal_trades["突破大阴实顶"].append(i)
-    
-    # 计算收益
-    results = {}
-    for signal_name, signal_indices in signal_trades.items():
-        results[signal_name] = {}
-        for hold_days in HOLD_PERIODS:
-            returns = []
-            for idx in signal_indices:
-                buy_idx = idx + 1  # T+1开盘价买入
-                sell_idx = buy_idx + hold_days  # 持有N天后收盘卖出
-                if sell_idx >= n:
-                    continue
-                buy_price = df.iloc[buy_idx]['open']
-                sell_price = df.iloc[sell_idx]['close']
-                if buy_price <= 0:
-                    continue
-                ret = (sell_price - buy_price) / buy_price * 100
-                returns.append(ret)
-            
-            if len(returns) > 0:
-                avg_ret = np.mean(returns)
-                median_ret = np.median(returns)
-                win_rate = sum(1 for r in returns if r > 0) / len(returns) * 100
-                results[signal_name][hold_days] = {
-                    'count': len(returns),
-                    'avg_ret': avg_ret,
-                    'median_ret': median_ret,
-                    'win_rate': win_rate,
-                }
-            else:
-                results[signal_name][hold_days] = {
-                    'count': 0,
-                    'avg_ret': 0,
-                    'median_ret': 0,
-                    'win_rate': 0,
-                }
-    
-    return results
-
-
-# ============================================================
 # 【主函数】
 # ============================================================
 def main():
@@ -775,34 +596,12 @@ def main():
     print(f"\n回测股票数：{len(HOLDINGS)}只")
     print(f"持有周期：{HOLD_PERIODS}个交易日")
     print(f"无未来函数：每个信号只用截止到当天的数据")
-    print(f"回测标准：T日收盘确认 → T+1开盘价买入 → T+1+N日收盘卖出")
-    print()
+    print(f"回测标准：T日收盘确认 → T+1开盘价买入 → T+1+N日收盘卖出\n")
     
-    all_results = {}
-    
-    for market, code in HOLDINGS:
-        print(f"  回测中：{market}{code} ...")
-        results = backtest_one_stock(market, code)
-        for signal_name, signal_data in results.items():
-            if signal_name not in all_results:
-                all_results[signal_name] = {h: {'returns': []} for h in HOLD_PERIODS}
-            for hold_days, data in signal_data.items():
-                if data['count'] > 0:
-                    # 这里简化处理，只汇总统计
-                    pass
-    
-    # 重新计算汇总统计
-    # 因为上面的简化了，重新跑一遍汇总
-    print("\n" + "=" * 70)
-    print("四维循环看盘法 - 历史回测结果")
-    print("=" * 70)
-    print(f"\n总股票数：{len(HOLDINGS)}只")
-    print(f"持有周期：{HOLD_PERIODS}个交易日\n")
-    
-    # 重新跑一遍收集所有交易
     all_trades = defaultdict(lambda: {h: [] for h in HOLD_PERIODS})
     
     for market, code in HOLDINGS:
+        print(f"  回测中：{market}{code} ...")
         df = load_klines(market, code)
         if df is None:
             continue
@@ -814,6 +613,7 @@ def main():
             today = df.iloc[i]
             tomorrow = df.iloc[i+1]
             
+            # 排除一字涨停买不进去
             if tomorrow['open'] == tomorrow['close'] and (tomorrow['close'] - df.iloc[i]['close']) / df.iloc[i]['close'] * 100 > 9.5:
                 continue
             
@@ -824,13 +624,13 @@ def main():
             
             peak_20, valley_20 = find_fenggu_at(df, i, SHORT_WINDOW, PEAK_SIDE_SHORT, CONFIRM_DAYS_SHORT, VOL_PERCENTILE)
             precise_price = find_precise_at(df, i)
-            safe_20, risk_20 = find_gaoliang_lines_at(df, i, SHORT_WINDOW)
             big_yin_top, big_yin_date = find_big_yin_top_at(df, i, YIN_LOOKBACK, yin_body_thresh)
             pillar_type, pillar_date = find_pillars_at(df, i)
             
             buy_price = tomorrow['open']
             signals_today = []
             
+            # 量柱六种
             if check_bei_liang(df, i):
                 signals_today.append("倍量柱")
             if check_gao_liang(df, i):
@@ -843,6 +643,8 @@ def main():
                 signals_today.append("缩量柱")
             if check_ping_liang(df, i):
                 signals_today.append("平量柱")
+            
+            # 形态信号
             if check_xiao_bei_yang(df, i):
                 signals_today.append("小倍阳（矮将军）")
             if check_yang_sheng_jin(df, i):
@@ -873,6 +675,8 @@ def main():
                 signals_today.append("倍量伸缩")
             if check_huicai_jingzhun(df, i, precise_price):
                 signals_today.append("回踩精准线")
+            
+            # 王牌柱
             if pillar_type == "元帅柱":
                 signals_today.append("元帅柱")
             elif pillar_type == "黄金柱":
@@ -880,6 +684,7 @@ def main():
             elif pillar_type == "将军柱":
                 signals_today.append("将军柱")
             
+            # 量线信号
             if valley_20:
                 touched = abs(today['low'] - valley_20) / valley_20 < TOUCH_LINE_TOLERANCE
                 if touched and today['close'] > valley_20:
@@ -889,6 +694,7 @@ def main():
                 if today['close'] > big_yin_top:
                     signals_today.append("突破大阴实顶")
             
+            # 计算收益
             for signal_name in signals_today:
                 for hold_days in HOLD_PERIODS:
                     buy_idx = i + 1
@@ -903,6 +709,12 @@ def main():
                     all_trades[signal_name][hold_days].append(ret)
     
     # 输出结果
+    print("\n" + "=" * 70)
+    print("四维循环看盘法 - 历史回测结果")
+    print("=" * 70)
+    print(f"\n总股票数：{len(HOLDINGS)}只")
+    print(f"持有周期：{HOLD_PERIODS}个交易日\n")
+    
     for hold_days in HOLD_PERIODS:
         print(f"\n=== 持有{hold_days}天 ===")
         print(f"{'信号':<20} {'样本数':>8} {'平均收益%':>10} {'中位数%':>10} {'胜率%':>8} {'结论':>10}")
