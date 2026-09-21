@@ -35,4 +35,3 @@ jobs:
             git commit -m "data: 持仓股客观报告 $(date -u +%Y%m%d)"
             git push
           fi
-
