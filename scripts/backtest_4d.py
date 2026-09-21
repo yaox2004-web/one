@@ -6,6 +6,7 @@
 【无未来函数】：每个信号只用截止到当天收盘的数据
 【目的】：验证四维看盘法+量线体系的信号在全市场是否普遍有效
 【设计思路】：自动扫描data/kline目录下所有股票，不用手动列股票池
+【鲁棒性】：自动适配各种文件名格式（600584.json / sh600584.json等）
 """
 
 import json
@@ -35,44 +36,52 @@ HOLD_DAYS_LIST = [5, 10, 20]
 
 
 # ============================================================
-# 自动扫描所有股票
+# 自动扫描所有股票（鲁棒版，适配各种文件名格式）
 # ============================================================
 def find_all_stocks():
     """
     自动扫描data/kline目录下的所有股票
-    不用手动列股票池，有多少回测多少
+    不管文件名是 600584.json 还是 sh600584.json，都能正确识别
     """
     stocks = []
     
-    # 扫描sh目录
-    sh_dir = DATA_DIR / "sh"
-    if sh_dir.exists():
-        for f in sh_dir.glob("*.json"):
-            code = f.stem
-            # 排除非股票文件（如指数）
-            if code.startswith(("60", "68", "900")):
-                stocks.append(("sh", code))
+    if not DATA_DIR.exists():
+        print(f"  警告：数据目录不存在！{DATA_DIR}")
+        return stocks
     
-    # 扫描sz目录
-    sz_dir = DATA_DIR / "sz"
-    if sz_dir.exists():
-        for f in sz_dir.glob("*.json"):
-            code = f.stem
-            # 排除非股票文件
-            if code.startswith(("00", "30", "200")):
-                stocks.append(("sz", code))
+    # 遍历data/kline下的所有子目录（sh/sz等）
+    for market_dir in DATA_DIR.iterdir():
+        if not market_dir.is_dir():
+            continue
+        
+        market = market_dir.name  # sh / sz / bj
+        
+        for f in market_dir.glob("*.json"):
+            filename = f.stem  # 去掉.json后缀
+            
+            # 从文件名提取code：去掉market前缀
+            # 可能的情况：600584 / sh600584 / sz002156
+            if filename.startswith(market):
+                code = filename[len(market):]
+            else:
+                code = filename
+            
+            # 只保留6位数字的code
+            if len(code) == 6 and code.isdigit():
+                stocks.append((market, code))
     
     return stocks
 
 
 # ============================================================
-# 数据读取
+# 数据读取（和报告脚本完全一致，确保能读到）
 # ============================================================
 def load_klines(market, code):
     possible_paths = [
         DATA_DIR / market / f"{code}.json",
         DATA_DIR / market / f"{market}{code}.json",
         DATA_DIR / f"{market}{code}.json",
+        DATA_DIR / f"{code}.json",
     ]
     
     for filepath in possible_paths:
@@ -340,13 +349,14 @@ def main():
     # 自动扫描所有股票
     all_stocks = find_all_stocks()
     print(f"\n自动扫描到股票数：{len(all_stocks)}只")
+    print(f"数据目录：{DATA_DIR}")
     print(f"持有周期：{HOLD_DAYS_LIST}个交易日")
     print(f"无未来函数：每个信号只用截止到当天的数据\n")
     
     all_results = []
     
     for i, (market, code) in enumerate(all_stocks):
-        if (i+1) % 100 == 0:
+        if (i+1) % 200 == 0:
             print(f"  进度：{i+1}/{len(all_stocks)} 已完成")
         try:
             result = backtest_stock(market, code, HOLD_DAYS_LIST)
