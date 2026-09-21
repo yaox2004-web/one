@@ -200,6 +200,138 @@ XUANYIN31_DAYS = 3
 T4_VARIANT_DAYS = 4
 T4_VARIANT_UP_PCT = 5.0
 
+# ============================================================
+# 【新增：位置分档参数】
+# ============================================================
+POSITION_LOOKBACK = 120
+LOW_PCTL = 0.30
+HIGH_PCTL = 0.70
+
+# ============================================================
+# 【新增：趋势判断参数】
+# ============================================================
+TREND_MA_PERIOD = 20
+
+# ============================================================
+# 【新增：回测胜率数据（持有20天）】
+# 格式：{位置: {趋势: {信号: 胜率}}}
+# ============================================================
+BACKTEST_WINRATE = {
+    "低位": {
+        "上升趋势": {
+            "过左峰": 63.9,
+            "元帅柱": 67.2,
+            "回踩精准线": 51.7,
+            "阳包阴": 53.7,
+            "地量群": 47.4,
+            "平量柱": 45.0,
+            "黄金柱": 42.6,
+            "将军柱": 35.1,
+        },
+        "下降趋势": {
+            "倍量柱": 57.0,
+            "价升量缩": 55.7,
+            "地量群": 49.2,
+            "平量柱": 50.8,
+            "黄金柱": 50.8,
+        }
+    },
+    "中位": {
+        "上升趋势": {
+            "突破大阴实顶": 68.4,
+            "过左峰": 66.1,
+            "地量群": 65.3,
+            "低量柱（地量）": 64.9,
+            "平量柱": 60.0,
+            "黄金柱": 59.8,
+            "回踩精准线": 58.1,
+            "倍量伸缩": 58.0,
+            "缩量柱": 57.9,
+            "梯量柱": 58.6,
+            "小倍阳（矮将军）": 58.8,
+            "阳胜进": 57.5,
+            "阴胜出": 56.9,
+            "将军柱": 55.8,
+            "倍量柱": 55.9,
+            "倍量不穿": 55.7,
+            "阳包阴": 51.3,
+        },
+        "下降趋势": {
+            "过左峰": 71.4,
+            "倍量柱": 54.5,
+            "将军柱": 52.9,
+            "倍量伸缩": 50.5,
+            "价升量缩": 51.2,
+        }
+    },
+    "高位": {
+        "上升趋势": {
+            "过左峰": 56.2,
+            "阴胜出": 56.8,
+            "低量柱（地量）": 56.6,
+            "平量柱": 51.9,
+            "高量柱": 53.0,
+            "缩量柱": 51.3,
+        },
+        "下降趋势": {
+            "突破大阴实顶": 55.6,
+            "价升量缩": 69.2,
+            "过左峰": 60.0,
+            "倍量柱": 54.8,
+        }
+    }
+}
+
+
+# ============================================================
+# 【新增：位置计算】
+# ============================================================
+def get_position_level(df):
+    if len(df) < POSITION_LOOKBACK:
+        return "未知", 50
+    recent_df = df.iloc[-POSITION_LOOKBACK:]
+    today_price = df.iloc[-1]['close']
+    pct = (recent_df['close'] < today_price).sum() / len(recent_df)
+    if pct < LOW_PCTL:
+        return "低位", pct * 100
+    elif pct > HIGH_PCTL:
+        return "高位", pct * 100
+    else:
+        return "中位", pct * 100
+
+
+# ============================================================
+# 【新增：趋势判断】
+# ============================================================
+def get_stock_trend(df):
+    if len(df) < TREND_MA_PERIOD:
+        return "未知"
+    ma = df.iloc[-TREND_MA_PERIOD:]['close'].mean()
+    today_close = df.iloc[-1]['close']
+    if today_close > ma:
+        return "上升趋势"
+    else:
+        return "下降趋势"
+
+
+# ============================================================
+# 【新增：信号有效性查询】
+# ============================================================
+def get_signal_effectiveness(signal_name, position, trend):
+    if position == "未知" or trend == "未知":
+        return None, None
+    pos_data = BACKTEST_WINRATE.get(position, {})
+    trend_data = pos_data.get(trend, {})
+    winrate = trend_data.get(signal_name)
+    if winrate is None:
+        return None, None
+    if winrate >= 55:
+        return winrate, "有效"
+    elif winrate >= 50:
+        return winrate, "一般"
+    else:
+        return winrate, "无效"
+
 
 # ============================================================
 # 【ATR计算】
@@ -1328,6 +1460,24 @@ def get_stock_data(market, code):
         'extra_signals': extra_signals,
     }
     
+    # 新增：位置和趋势计算
+    position, position_pct = get_position_level(df)
+    stock_trend = get_stock_trend(df)
+    stock_data['position'] = position
+    stock_data['position_pct'] = position_pct
+    stock_data['stock_trend'] = stock_trend
+    
+    # 新增：给信号加上有效性标签
+    signals_with_effectiveness = []
+    for sig in extra_signals:
+        winrate, effectiveness = get_signal_effectiveness(sig, position, stock_trend)
+        signals_with_effectiveness.append({
+            'name': sig,
+            'winrate': winrate,
+            'effectiveness': effectiveness
+        })
+    stock_data['signals_with_effectiveness'] = signals_with_effectiveness
+    
     stock_data['interpretations'] = generate_interpretation(stock_data)
     
     return stock_data
@@ -1453,9 +1603,28 @@ def generate_html(stocks_data, today_str):
             """
         
         extra_html = ""
-        if stock['extra_signals']:
-            for sig in stock['extra_signals']:
-                extra_html += f'<span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">{sig}</span>'
+        if stock.get('signals_with_effectiveness'):
+            for sig_info in stock['signals_with_effectiveness']:
+                sig_name = sig_info['name']
+                winrate = sig_info['winrate']
+                effectiveness = sig_info['effectiveness']
+                if effectiveness == "有效":
+                    badge_color = "#22c55e"
+                    badge_text = "✅"
+                elif effectiveness == "一般":
+                    badge_color = "#eab308"
+                    badge_text = "⚠️"
+                elif effectiveness == "无效":
+                    badge_color = "#ef4444"
+                    badge_text = "❌"
+                else:
+                    badge_color = "#60a5fa"
+                    badge_text = ""
+                
+                if winrate is not None:
+                    extra_html += f'<span style="display:inline-block; background:{badge_color}20; color:{badge_color}; padding:4px 8px; border-radius:4px; font-size:11px; margin:2px; border:1px solid {badge_color};">{sig_name} {badge_text}<br><span style="font-size:10px;">胜率{winrate:.1f}%</span></span>'
+                else:
+                    extra_html += f'<span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">{sig_name}</span>'
         else:
             extra_html = '<span style="color:#94a3b8; font-size:12px;">无</span>'
         
@@ -1472,6 +1641,20 @@ def generate_html(stocks_data, today_str):
         atr_text = f"{stock['atr_pct']:.2f}%" if stock['atr_pct'] else "未知"
         yin_thresh_text = f"{stock['yin_body_threshold']:.2f}%" if stock.get('yin_body_threshold') else "未知"
         
+        # 新增：位置+趋势的颜色和文字
+        if stock.get('position') == "低位" and stock.get('stock_trend') == "上升趋势":
+            pos_trend_color = "#22c55e"
+            pos_trend_text = "✅ 黄金组合！适合做多"
+        elif stock.get('stock_trend') == "下降趋势":
+            pos_trend_color = "#ef4444"
+            pos_trend_text = "❌ 下降趋势，谨慎操作"
+        elif stock.get('position') == "高位":
+            pos_trend_color = "#f97316"
+            pos_trend_text = "⚠️ 高位，注意风险"
+        else:
+            pos_trend_color = "#eab308"
+            pos_trend_text = "⚠️ 一般，轻仓试错"
+        
         item_html = f"""
         <div class="stock-card">
             <div class="stock-header">
@@ -1480,6 +1663,16 @@ def generate_html(stocks_data, today_str):
                     <div class="stock-code">{stock['code']}</div>
                 </div>
                 <div class="stock-price {price_class}">{stock['close']:.2f}元 ({stock['pct_chg']:+.2f}%)</div>
+            </div>
+            
+            <!-- 新增：位置+趋势总览 -->
+            <div style="background:{pos_trend_color}20; border-radius:8px; padding:12px; margin-bottom:15px; border-left:4px solid {pos_trend_color};">
+                <div style="font-size:16px; font-weight:bold; color:{pos_trend_color};">
+                    📊 {stock['position']}（{stock['position_pct']:.0f}%分位）· {stock['stock_trend']}
+                </div>
+                <div style="font-size:13px; color:{pos_trend_color}; margin-top:4px;">
+                    {pos_trend_text}
+                </div>
             </div>
             
             <div class="step-section">
