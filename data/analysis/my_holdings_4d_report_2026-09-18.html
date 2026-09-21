@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>四维循环看盘报告 - 2026-09-18</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: #0f172a; 
+            color: #e2e8f0; 
+            line-height: 1.6;
+            padding: 20px;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        .header { 
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); 
+            color: white; 
+            padding: 30px; 
+            border-radius: 12px; 
+            margin-bottom: 20px;
+            border-left: 4px solid #fbbf24;
+        }
+        .header h1 { font-size: 24px; color: #fbbf24; margin-bottom: 8px; }
+        .header .date { opacity: 0.8; font-size: 14px; }
+        
+        .stock-card { 
+            background: #1e293b; 
+            border-radius: 12px; 
+            padding: 20px; 
+            margin-bottom: 15px; 
+            border: 1px solid #334155;
+        }
+        .stock-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 15px; 
+            padding-bottom: 15px; 
+            border-bottom: 1px solid #334155;
+        }
+        .stock-name { font-size: 18px; font-weight: bold; color: #e2e8f0; }
+        .stock-code { font-size: 12px; color: #94a3b8; }
+        .stock-price { font-size: 22px; font-weight: bold; }
+        .price-up { color: #ef4444; }
+        .price-down { color: #22c55e; }
+        
+        .step-section { margin-bottom: 15px; }
+        .step-title { 
+            font-size: 14px; 
+            font-weight: bold; 
+            color: #60a5fa; 
+            margin-bottom: 8px; 
+            padding-left: 8px; 
+            border-left: 3px solid #fbbf24; 
+        }
+        .step-content { 
+            background: #0f172a; 
+            padding: 12px; 
+            border-radius: 8px; 
+            font-size: 13px; 
+            color: #cbd5e1; 
+        }
+        .step-content p { margin-bottom: 4px; }
+        
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .grid-item { 
+            background: #0f172a; 
+            padding: 8px; 
+            border-radius: 6px; 
+            font-size: 13px; 
+        }
+        .grid-item .label { color: #94a3b8; font-size: 11px; }
+        .grid-item .value { font-weight: bold; color: #e2e8f0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>四维循环看盘报告</h1>
+            <div class="date">2026-09-18</div>
+            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">从右向左找位置 + 从上往下看量柱 + 从左往右比量能 + 从下往上看量价</div>
+        </div>
+
+        <div class="stock-card">
+            <div class="stock-header">
+                <div>
+                    <div class="stock-name">长电科技</div>
+                    <div class="stock-code">sh600584</div>
+                </div>
+                <div class="stock-price price-up">73.00元 (+7.75%)</div>
+            </div>
+            
+            <!-- ① 从右向左看 -->
+            <div class="step-section">
+                <div class="step-title">① 从右向左看：找位置</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">20日高点</div>
+                            <div class="value">78.56</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">20日低点</div>
+                            <div class="value">65.50</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">20日位置</div>
+                            <div class="value">57.4%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">120日位置</div>
+                            <div class="value">46.2%（中位）</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ② 从上往下看 -->
+            <div class="step-section">
+                <div class="step-title">② 从上往下看：看量柱</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">20日天量</div>
+                            <div class="value">1610179</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">20日地量</div>
+                            <div class="value">458552</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量比(vs昨日)</div>
+                            <div class="value">2.24</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量能位置(20日)</div>
+                            <div class="value">100.0%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ③ 从左往右看 -->
+            <div class="step-section">
+                <div class="step-title">③ 从左往右看：比量能</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">vs 20日天量</div>
+                            <div class="value">100.0%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">vs 20日地量</div>
+                            <div class="value">351.1%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量比(vs5日)</div>
+                            <div class="value">2.52</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量能趋势</div>
+                            <div class="value">无连续趋势</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ④ 从下往上看 -->
+            <div class="step-section">
+                <div class="step-title">④ 从下往上看：看量价</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">量价组合</div>
+                            <div class="value">放量涨</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">实体占比</div>
+                            <div class="value">71.4%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="stock-card">
+            <div class="stock-header">
+                <div>
+                    <div class="stock-name">通富微电</div>
+                    <div class="stock-code">sz002156</div>
+                </div>
+                <div class="stock-price price-up">61.38元 (+5.26%)</div>
+            </div>
+            
+            <!-- ① 从右向左看 -->
+            <div class="step-section">
+                <div class="step-title">① 从右向左看：找位置</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">20日高点</div>
+                            <div class="value">65.90</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">20日低点</div>
+                            <div class="value">56.22</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">20日位置</div>
+                            <div class="value">53.3%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">120日位置</div>
+                            <div class="value">47.5%（中位）</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ② 从上往下看 -->
+            <div class="step-section">
+                <div class="step-title">② 从上往下看：看量柱</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">20日天量</div>
+                            <div class="value">1191684</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">20日地量</div>
+                            <div class="value">373743</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量比(vs昨日)</div>
+                            <div class="value">2.26</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量能位置(20日)</div>
+                            <div class="value">100.0%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ③ 从左往右看 -->
+            <div class="step-section">
+                <div class="step-title">③ 从左往右看：比量能</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">vs 20日天量</div>
+                            <div class="value">100.0%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">vs 20日地量</div>
+                            <div class="value">318.9%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量比(vs5日)</div>
+                            <div class="value">2.34</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量能趋势</div>
+                            <div class="value">无连续趋势</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ④ 从下往上看 -->
+            <div class="step-section">
+                <div class="step-title">④ 从下往上看：看量价</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">量价组合</div>
+                            <div class="value">放量涨</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">实体占比</div>
+                            <div class="value">50.9%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="stock-card">
+            <div class="stock-header">
+                <div>
+                    <div class="stock-name">赛腾股份</div>
+                    <div class="stock-code">sh603283</div>
+                </div>
+                <div class="stock-price price-up">47.36元 (+3.11%)</div>
+            </div>
+            
+            <!-- ① 从右向左看 -->
+            <div class="step-section">
+                <div class="step-title">① 从右向左看：找位置</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">20日高点</div>
+                            <div class="value">49.94</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">20日低点</div>
+                            <div class="value">42.04</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">20日位置</div>
+                            <div class="value">67.3%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">120日位置</div>
+                            <div class="value">27.6%（低位）</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ② 从上往下看 -->
+            <div class="step-section">
+                <div class="step-title">② 从上往下看：看量柱</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">20日天量</div>
+                            <div class="value">276300</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">20日地量</div>
+                            <div class="value">86068</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量比(vs昨日)</div>
+                            <div class="value">1.57</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量能位置(20日)</div>
+                            <div class="value">32.1%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ③ 从左往右看 -->
+            <div class="step-section">
+                <div class="step-title">③ 从左往右看：比量能</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">vs 20日天量</div>
+                            <div class="value">53.2%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">vs 20日地量</div>
+                            <div class="value">170.9%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量比(vs5日)</div>
+                            <div class="value">1.35</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量能趋势</div>
+                            <div class="value">无连续趋势</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ④ 从下往上看 -->
+            <div class="step-section">
+                <div class="step-title">④ 从下往上看：看量价</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">量价组合</div>
+                            <div class="value">放量涨</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">实体占比</div>
+                            <div class="value">29.8%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="stock-card">
+            <div class="stock-header">
+                <div>
+                    <div class="stock-name">天孚通信</div>
+                    <div class="stock-code">sz300394</div>
+                </div>
+                <div class="stock-price price-up">284.66元 (+2.52%)</div>
+            </div>
+            
+            <!-- ① 从右向左看 -->
+            <div class="step-section">
+                <div class="step-title">① 从右向左看：找位置</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">20日高点</div>
+                            <div class="value">292.07</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">20日低点</div>
+                            <div class="value">237.30</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">20日位置</div>
+                            <div class="value">86.5%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">120日位置</div>
+                            <div class="value">59.2%（中位）</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ② 从上往下看 -->
+            <div class="step-section">
+                <div class="step-title">② 从上往下看：看量柱</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">20日天量</div>
+                            <div class="value">644778</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">20日地量</div>
+                            <div class="value">254888</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量比(vs昨日)</div>
+                            <div class="value">1.00</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量能位置(20日)</div>
+                            <div class="value">51.6%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ③ 从左往右看 -->
+            <div class="step-section">
+                <div class="step-title">③ 从左往右看：比量能</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">vs 20日天量</div>
+                            <div class="value">70.7%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">vs 20日地量</div>
+                            <div class="value">178.9%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量比(vs5日)</div>
+                            <div class="value">1.15</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量能趋势</div>
+                            <div class="value">无连续趋势</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ④ 从下往上看 -->
+            <div class="step-section">
+                <div class="step-title">④ 从下往上看：看量价</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">量价组合</div>
+                            <div class="value">平量整理</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">实体占比</div>
+                            <div class="value">7.4%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="stock-card">
+            <div class="stock-header">
+                <div>
+                    <div class="stock-name">工业富联</div>
+                    <div class="stock-code">sh601138</div>
+                </div>
+                <div class="stock-price price-up">62.71元 (+2.35%)</div>
+            </div>
+            
+            <!-- ① 从右向左看 -->
+            <div class="step-section">
+                <div class="step-title">① 从右向左看：找位置</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">20日高点</div>
+                            <div class="value">66.88</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">20日低点</div>
+                            <div class="value">58.75</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">20日位置</div>
+                            <div class="value">48.7%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">120日位置</div>
+                            <div class="value">41.0%（中位）</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ② 从上往下看 -->
+            <div class="step-section">
+                <div class="step-title">② 从上往下看：看量柱</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">20日天量</div>
+                            <div class="value">1743476</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">20日地量</div>
+                            <div class="value">567595</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量比(vs昨日)</div>
+                            <div class="value">1.91</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量能位置(20日)</div>
+                            <div class="value">46.3%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ③ 从左往右看 -->
+            <div class="step-section">
+                <div class="step-title">③ 从左往右看：比量能</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">vs 20日天量</div>
+                            <div class="value">63.8%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">vs 20日地量</div>
+                            <div class="value">195.9%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量比(vs5日)</div>
+                            <div class="value">1.61</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量能趋势</div>
+                            <div class="value">无连续趋势</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ④ 从下往上看 -->
+            <div class="step-section">
+                <div class="step-title">④ 从下往上看：看量价</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">量价组合</div>
+                            <div class="value">放量跌</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">实体占比</div>
+                            <div class="value">13.8%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="stock-card">
+            <div class="stock-header">
+                <div>
+                    <div class="stock-name">环旭电子</div>
+                    <div class="stock-code">sh601231</div>
+                </div>
+                <div class="stock-price price-up">26.99元 (+2.16%)</div>
+            </div>
+            
+            <!-- ① 从右向左看 -->
+            <div class="step-section">
+                <div class="step-title">① 从右向左看：找位置</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">20日高点</div>
+                            <div class="value">28.49</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">20日低点</div>
+                            <div class="value">24.48</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">20日位置</div>
+                            <div class="value">62.6%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">120日位置</div>
+                            <div class="value">21.5%（低位）</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ② 从上往下看 -->
+            <div class="step-section">
+                <div class="step-title">② 从上往下看：看量柱</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">20日天量</div>
+                            <div class="value">611843</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">20日地量</div>
+                            <div class="value">168088</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量比(vs昨日)</div>
+                            <div class="value">0.96</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量能位置(20日)</div>
+                            <div class="value">48.1%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ③ 从左往右看 -->
+            <div class="step-section">
+                <div class="step-title">③ 从左往右看：比量能</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">vs 20日天量</div>
+                            <div class="value">62.4%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">vs 20日地量</div>
+                            <div class="value">227.0%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量比(vs5日)</div>
+                            <div class="value">0.82</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量能趋势</div>
+                            <div class="value">连续缩量</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ④ 从下往上看 -->
+            <div class="step-section">
+                <div class="step-title">④ 从下往上看：看量价</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">量价组合</div>
+                            <div class="value">平量整理</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">实体占比</div>
+                            <div class="value">11.1%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="stock-card">
+            <div class="stock-header">
+                <div>
+                    <div class="stock-name">胜宏科技</div>
+                    <div class="stock-code">sz300476</div>
+                </div>
+                <div class="stock-price price-up">227.05元 (+1.86%)</div>
+            </div>
+            
+            <!-- ① 从右向左看 -->
+            <div class="step-section">
+                <div class="step-title">① 从右向左看：找位置</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">20日高点</div>
+                            <div class="value">264.94</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">20日低点</div>
+                            <div class="value">217.44</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">20日位置</div>
+                            <div class="value">20.2%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">120日位置</div>
+                            <div class="value">21.9%（低位）</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ② 从上往下看 -->
+            <div class="step-section">
+                <div class="step-title">② 从上往下看：看量柱</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">20日天量</div>
+                            <div class="value">572833</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">20日地量</div>
+                            <div class="value">157302</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量比(vs昨日)</div>
+                            <div class="value">1.07</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量能位置(20日)</div>
+                            <div class="value">36.2%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ③ 从左往右看 -->
+            <div class="step-section">
+                <div class="step-title">③ 从左往右看：比量能</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">vs 20日天量</div>
+                            <div class="value">53.7%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">vs 20日地量</div>
+                            <div class="value">195.6%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量比(vs5日)</div>
+                            <div class="value">1.32</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量能趋势</div>
+                            <div class="value">连续放量</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ④ 从下往上看 -->
+            <div class="step-section">
+                <div class="step-title">④ 从下往上看：看量价</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">量价组合</div>
+                            <div class="value">平量整理</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">实体占比</div>
+                            <div class="value">19.6%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="stock-card">
+            <div class="stock-header">
+                <div>
+                    <div class="stock-name">淳中科技</div>
+                    <div class="stock-code">sh603516</div>
+                </div>
+                <div class="stock-price price-up">86.88元 (+1.52%)</div>
+            </div>
+            
+            <!-- ① 从右向左看 -->
+            <div class="step-section">
+                <div class="step-title">① 从右向左看：找位置</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">20日高点</div>
+                            <div class="value">102.09</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">20日低点</div>
+                            <div class="value">81.43</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">20日位置</div>
+                            <div class="value">26.4%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">120日位置</div>
+                            <div class="value">7.9%（低位）</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ② 从上往下看 -->
+            <div class="step-section">
+                <div class="step-title">② 从上往下看：看量柱</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">20日天量</div>
+                            <div class="value">118585</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">20日地量</div>
+                            <div class="value">28515</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量比(vs昨日)</div>
+                            <div class="value">1.14</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量能位置(20日)</div>
+                            <div class="value">7.4%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ③ 从左往右看 -->
+            <div class="step-section">
+                <div class="step-title">③ 从左往右看：比量能</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">vs 20日天量</div>
+                            <div class="value">29.7%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">vs 20日地量</div>
+                            <div class="value">123.4%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量比(vs5日)</div>
+                            <div class="value">0.92</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量能趋势</div>
+                            <div class="value">连续放量</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ④ 从下往上看 -->
+            <div class="step-section">
+                <div class="step-title">④ 从下往上看：看量价</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">量价组合</div>
+                            <div class="value">平量整理</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">实体占比</div>
+                            <div class="value">30.4%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>
