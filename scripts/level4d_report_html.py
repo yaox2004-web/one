@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-四维循环看盘法报告 - HTML版（含第六步全景总结）
+四维循环看盘法报告 - HTML版（含高量柱安全线/风险线）
 =================================================
 设计思路（为什么这样写）：
   按照四维循环看盘法步骤生成报告！
   ①从右向左找位置 ②从上往下看量柱 ③从左往右比量能 ④从下往上看量价
   ⑤和历史对比 ⑥全景总结
-  客观描述，不做主观判断！
+  加高量柱的安全线和风险线！
+
+量学理论来源：
+  - 股海明灯（量学官网论坛）
+  - 《量柱擒涨停》黑马王子著
+  - 《量线捉涨停》黑马王子著
 
 硬约束：
   - 绝对不用未来函数
@@ -75,6 +80,60 @@ def load_klines(market, code):
 
 
 # ============================================================
+# 找高量柱的安全线和风险线
+# ============================================================
+def find_gaoliang_lines(recent_df):
+    """
+    找最近N日的高量柱，计算安全线和风险线
+    
+    量学理论定义：
+    - 高量柱 = 某一阶段成交量最大的量柱
+    - 安全线 = 高量柱K线的顶部
+    - 风险线 = 高量柱K线的底部
+    
+    取实还是取虚：
+    - 实体长、影线短 → 取实体顶底
+    - 实体短、影线长 → 取K线最低价
+    """
+    if len(recent_df) < 5:
+        return None, None, None, None
+    
+    # 找最高量柱
+    max_vol_idx = recent_df['volume'].idxmax()
+    max_vol_row = recent_df.loc[max_vol_idx]
+    
+    # K线数据
+    open_price = max_vol_row['open']
+    close_price = max_vol_row['close']
+    high_price = max_vol_row['high']
+    low_price = max_vol_row['low']
+    
+    # 计算实体大小和影线大小
+    body_size = abs(close_price - open_price)
+    total_range = high_price - low_price
+    
+    if total_range == 0:
+        return None, None, None, None
+    
+    # 实体占比
+    body_ratio = body_size / total_range
+    
+    # 决定取实还是取虚
+    if body_ratio > 0.6:
+        # 实体长、影线短 → 取实体顶底
+        safe_line = max(open_price, close_price)  # 实体顶部
+        risk_line = min(open_price, close_price)   # 实体底部
+        line_type = "实体"
+    else:
+        # 实体短、影线长 → 取K线最低价
+        safe_line = high_price   # 最高价
+        risk_line = low_price    # 最低价
+        line_type = "影线"
+    
+    return safe_line, risk_line, line_type, max_vol_row['date']
+
+
+# ============================================================
 # 生成单只股票的报告数据
 # ============================================================
 def get_stock_data(market, code):
@@ -96,8 +155,6 @@ def get_stock_data(market, code):
     recent_20 = df.iloc[-20:]
     recent_high = recent_20['high'].max()
     recent_low = recent_20['low'].min()
-    recent_high_date = recent_20.loc[recent_20['high'].idxmax(), 'date']
-    recent_low_date = recent_20.loc[recent_20['low'].idxmin(), 'date']
     
     # 中期（60日）
     recent_60 = df.iloc[-60:] if len(df) > 60 else None
@@ -112,6 +169,20 @@ def get_stock_data(market, code):
     if recent_120 is not None:
         long_high = recent_120['high'].max()
         long_low = recent_120['low'].min()
+    
+    # ========== 高量柱的安全线和风险线 ==========
+    # 短期（20日）
+    safe_20, risk_20, type_20, date_20 = find_gaoliang_lines(recent_20)
+    
+    # 中期（60日）
+    safe_60 = risk_60 = type_60 = date_60 = None
+    if recent_60 is not None:
+        safe_60, risk_60, type_60, date_60 = find_gaoliang_lines(recent_60)
+    
+    # 长期（120日）
+    safe_120 = risk_120 = type_120 = date_120 = None
+    if recent_120 is not None:
+        safe_120, risk_120, type_120, date_120 = find_gaoliang_lines(recent_120)
     
     # ========== ② 从上往下看：看量柱 ==========
     vol_high_20 = recent_20['volume'].max()
@@ -164,7 +235,6 @@ def get_stock_data(market, code):
     long_dist_low = (today_price - long_low) / today_price * 100 if long_low else 0
     
     # ========== ⑥ 全景总结 ==========
-    # 位置状态
     pos_120 = (today_price - long_low) / (long_high - long_low) * 100 if long_high else 50
     if pos_120 > 70:
         pos_status = "高位"
@@ -173,7 +243,6 @@ def get_stock_data(market, code):
     else:
         pos_status = "中位"
     
-    # 量能状态
     if vol_pos_20 > 80:
         vol_status = "天量"
     elif vol_pos_20 < 20:
@@ -181,13 +250,11 @@ def get_stock_data(market, code):
     else:
         vol_status = "正常"
     
-    # 多空力量
     if is_yang:
         power = "买方占优"
     else:
         power = "卖方占优"
     
-    # 连续涨跌幅
     pct_3d = (today['close'] - df.iloc[-4]['close']) / df.iloc[-4]['close'] * 100
     pct_5d = (today['close'] - df.iloc[-6]['close']) / df.iloc[-6]['close'] * 100
     
@@ -204,6 +271,19 @@ def get_stock_data(market, code):
         'mid_low': mid_low,
         'long_high': long_high,
         'long_low': long_low,
+        # 高量柱安全线/风险线
+        'safe_20': safe_20,
+        'risk_20': risk_20,
+        'type_20': type_20,
+        'date_20': date_20,
+        'safe_60': safe_60,
+        'risk_60': risk_60,
+        'type_60': type_60,
+        'date_60': date_60,
+        'safe_120': safe_120,
+        'risk_120': risk_120,
+        'type_120': type_120,
+        'date_120': date_120,
         # ②从上往下
         'vol_high_20': vol_high_20,
         'vol_low_20': vol_low_20,
@@ -238,7 +318,6 @@ def get_stock_data(market, code):
 # 生成HTML
 # ============================================================
 def generate_html(stocks_data, today_str):
-    # 先处理变量，避免f-string里的条件表达式bug
     items = []
     for stock in stocks_data:
         if stock is None:
@@ -248,6 +327,14 @@ def generate_html(stocks_data, today_str):
         
         mid_high_str = f"{stock['mid_high']:.2f}" if stock['mid_high'] else '-'
         mid_low_str = f"{stock['mid_low']:.2f}" if stock['mid_low'] else '-'
+        
+        # 高量柱安全线/风险线字符串
+        safe_20_str = f"{stock['safe_20']:.2f}" if stock['safe_20'] else '-'
+        risk_20_str = f"{stock['risk_20']:.2f}" if stock['risk_20'] else '-'
+        safe_60_str = f"{stock['safe_60']:.2f}" if stock['safe_60'] else '-'
+        risk_60_str = f"{stock['risk_60']:.2f}" if stock['risk_60'] else '-'
+        safe_120_str = f"{stock['safe_120']:.2f}" if stock['safe_120'] else '-'
+        risk_120_str = f"{stock['risk_120']:.2f}" if stock['risk_120'] else '-'
         
         item_html = f"""
         <div class="stock-card">
@@ -279,6 +366,39 @@ def generate_html(stocks_data, today_str):
                         <div class="grid-item">
                             <div class="label">60日低点</div>
                             <div class="value">{mid_low_str}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 高量柱安全线/风险线 -->
+            <div class="step-section">
+                <div class="step-title">高量柱安全线/风险线</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">20日安全线</div>
+                            <div class="value">{safe_20_str}</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">20日风险线</div>
+                            <div class="value">{risk_20_str}</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">60日安全线</div>
+                            <div class="value">{safe_60_str}</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">60日风险线</div>
+                            <div class="value">{risk_60_str}</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">120日安全线</div>
+                            <div class="value">{safe_120_str}</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">120日风险线</div>
+                            <div class="value">{risk_120_str}</div>
                         </div>
                     </div>
                 </div>
@@ -476,7 +596,7 @@ def generate_html(stocks_data, today_str):
         <div class="header">
             <h1>四维循环看盘报告</h1>
             <div class="date">{today_str}</div>
-            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">从右向左找位置 + 从上往下看量柱 + 从左往右比量能 + 从下往上看量价 + 和历史对比 + 全景总结</div>
+            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">四维循环看盘 + 高量柱安全线/风险线</div>
         </div>
         
         {''.join(items)}
@@ -493,7 +613,7 @@ def generate_html(stocks_data, today_str):
 # ============================================================
 def main():
     print("=" * 60)
-    print("四维循环看盘报告 - HTML版（含第六步全景总结）")
+    print("四维循环看盘报告 - HTML版（含高量柱安全线/风险线）")
     print("=" * 60)
     
     stocks_data = []
