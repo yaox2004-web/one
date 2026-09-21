@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-四维循环看盘法报告 - HTML版（信号说明区放顶部）
+四维循环看盘法报告 - HTML版（含精准线）
 =================================================
 设计思路（为什么这样写）：
   1. 报告顶部放【信号说明区】：定义、来源、参数、设计思路、注意事项、使用方法
   2. 个股部分只显示信号，不重复说明
   3. 所有参数阈值全部提取到【配置区】，方便根据市场环境调整
+  4. 加精准线识别（量学理论：多个价格重合的位置）
 
 【重要：无未来函数保证】
   1. 所有判断只用截止到今天收盘的数据
   2. 峰顶线/谷底线必须是至少 (确认天数+峰边距) 天之前的
-  3. 平衡线只是画线，不需要右确认
+  3. 平衡线/精准线只是画线，不需要右确认
 
 量学理论来源：
   - 股海明灯（量学官网论坛）
@@ -75,6 +76,14 @@ BODY_RATIO_THRESHOLD = 0.6  # 实体占比超过60%取实体顶底，否则取K�
 # 中大阴线定义：实体跌幅大于3%
 BALANCE_YIN_BODY_PCT = 3.0  # 中大阴线实体跌幅阈值（%）
 BALANCE_LOOKBACK = 30        # 往前找多少天内的中大阴线
+
+# --- 精准线参数 ---
+# 依据：量学理论（股海明灯）
+# 精准线 = 多个价格重合的位置
+# 至少N个价格点重合，且价格相差不超过X%
+PRECISE_MIN_POINTS = 3        # 至少3个价格点重合
+PRECISE_PRICE_TOLERANCE = 1.0 # 价格相差不超过1%
+PRECISE_LOOKBACK = 120         # 往前找多少天内的价格点
 
 # --- 量价组合参数 ---
 VOL_RATIO_HIGH = 1.5     # 量比>1.5算放量
@@ -187,6 +196,85 @@ def find_balance_line(df, lookback_days, yin_body_pct):
 
 
 # ============================================================
+# 找精准线（量学理论：多个价格重合的位置）
+# ============================================================
+def find_precise_lines(df, lookback_days, min_points, price_tolerance):
+    """
+    找历史上多个价格重合的位置（精准线）
+    
+    量学理论（来源：股海明灯）：
+    - 精准线 = 多个价格重合在一条线上
+    - 也就是：多次触及同一个价位，然后都反弹了/回落了
+    - 这说明这个价位有很强的支撑/阻力
+    
+    【无未来函数】：只用历史数据
+    【不需要右确认】：精准线只是画线，不是信号
+    
+    参数：
+    - lookback_days: 往前找多少天
+    - min_points: 至少几个价格点重合
+    - price_tolerance: 价格相差不超过多少%算重合
+    """
+    if len(df) < lookback_days:
+        return []
+    
+    recent_df = df.iloc[-lookback_days:]
+    
+    # 收集所有的价格点（用收盘价）
+    prices = recent_df['close'].values
+    
+    # 聚类：找价格很接近的点
+    precise_lines = []
+    
+    # 遍历每个价格点，看看有没有其他点和它很接近
+    used_indices = set()
+    
+    for i in range(len(prices)):
+        if i in used_indices:
+            continue
+        
+        # 找和这个价格相差不超过price_tolerance%的所有点
+        price_i = prices[i]
+        cluster_indices = [i]
+        
+        for j in range(len(prices)):
+            if i == j or j in used_indices:
+                continue
+            
+            price_j = prices[j]
+            
+            # 计算价格差异百分比
+            diff_pct = abs(price_i - price_j) / price_i * 100
+            
+            if diff_pct <= price_tolerance:
+                cluster_indices.append(j)
+        
+        # 如果这个聚类的点数>=min_points，就是一条精准线
+        if len(cluster_indices) >= min_points:
+            # 计算平均价格
+            avg_price = np.mean([prices[idx] for idx in cluster_indices])
+            
+            # 找最早和最晚的日期
+            dates = [recent_df.iloc[idx]['date'] for idx in cluster_indices]
+            
+            precise_lines.append({
+                'price': avg_price,
+                'points': len(cluster_indices),
+                'first_date': min(dates),
+                'last_date': max(dates),
+            })
+            
+            # 标记这些点已被使用
+            for idx in cluster_indices:
+                used_indices.add(idx)
+    
+    # 按点数排序，取前3条
+    precise_lines.sort(key=lambda x: x['points'], reverse=True)
+    
+    return precise_lines[:3]
+
+
+# ============================================================
 # 找峰顶线和谷底线（多空双方博弈过的）
 # ============================================================
 def find_fenggu_lines(df, lookback_days, peak_side, confirm_days, vol_percentile):
@@ -289,6 +377,9 @@ def get_stock_data(market, code):
     
     # ========== 平衡线 ==========
     balance_price, balance_date = find_balance_line(df, BALANCE_LOOKBACK, BALANCE_YIN_BODY_PCT)
+    
+    # ========== 精准线 ==========
+    precise_lines = find_precise_lines(df, PRECISE_LOOKBACK, PRECISE_MIN_POINTS, PRECISE_PRICE_TOLERANCE)
     
     # ========== 峰顶线和谷底线 ==========
     peak_20, peak_date_20, valley_20, valley_date_20 = find_fenggu_lines(
@@ -396,6 +487,7 @@ def get_stock_data(market, code):
         'long_low': long_low,
         'balance_price': balance_price,
         'balance_date': balance_date,
+        'precise_lines': precise_lines,
         'safe_20': safe_20,
         'risk_20': risk_20,
         'date_20': date_20,
@@ -493,6 +585,24 @@ def generate_html(stocks_data, today_str):
         
         balance_str = f"{stock['balance_price']:.2f}（{stock['balance_date']}）" if stock['balance_price'] else '-'
         
+        # 精准线HTML
+        precise_html = ""
+        if stock['precise_lines']:
+            for i, line in enumerate(stock['precise_lines']):
+                precise_html += f"""
+                <div class="grid-item">
+                    <div class="label">精准线{i+1}（{line['points']}点）</div>
+                    <div class="value">{line['price']:.2f}（{line['first_date']}~{line['last_date']}）</div>
+                </div>
+                """
+        else:
+            precise_html = """
+            <div class="grid-item">
+                <div class="label">精准线</div>
+                <div class="value value-none">无</div>
+            </div>
+            """
+        
         safe_20_str = f"{stock['safe_20']:.2f}（{stock['date_20']}）" if stock['safe_20'] else '-'
         risk_20_str = f"{stock['risk_20']:.2f}（{stock['date_20']}）" if stock['risk_20'] else '-'
         safe_60_str = f"{stock['safe_60']:.2f}（{stock['date_60']}）" if stock['safe_60'] else '-'
@@ -549,6 +659,15 @@ def generate_html(stocks_data, today_str):
                             <div class="label">最近平衡线（近30日）</div>
                             <div class="value">{balance_str}</div>
                         </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="step-section">
+                <div class="step-title">精准线（多价格重合）</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        {precise_html}
                     </div>
                 </div>
             </div>
@@ -826,7 +945,7 @@ def generate_html(stocks_data, today_str):
         <div class="header">
             <h1>四维循环看盘报告</h1>
             <div class="date">{today_str}</div>
-            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">四维循环看盘 + 峰顶线/谷底线 + 平衡线 + 高量柱安全线/风险线</div>
+            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">四维循环看盘 + 峰顶线/谷底线 + 平衡线 + 精准线 + 高量柱安全线/风险线</div>
         </div>
         
         <!-- 信号说明区（顶部，只放一次） -->
@@ -844,6 +963,18 @@ def generate_html(stocks_data, today_str):
                 <h3>平衡线（大阴实顶）</h3>
                 <p><strong>定义：</strong>股票下跌后，由其左侧中大阴线实体顶部向右侧画出的水平线</p>
                 <p><strong>原理：</strong>左侧大阴线顶部"实点"是多空双方上次休战的"警戒点"，下次争夺的"起动点"</p>
+                <p><strong>是否需要右确认：</strong>不需要（只是画线，不是信号）</p>
+                <p class="source">来源：股海明灯（量学官网）</p>
+            </div>
+            
+            <div class="signal-item">
+                <h3>精准线（多价格重合）</h3>
+                <p><strong>定义：</strong>多个价格重合在一条线上的位置</p>
+                <p><strong>原理：</strong>多次触及同一个价位，然后都反弹了/回落了，说明这个价位有很强的支撑/阻力</p>
+                <p><strong>识别条件：</strong></p>
+                <p>  1. 至少3个价格点重合</p>
+                <p>  2. 价格相差不超过1%</p>
+                <p>  3. 时间间隔开（不是同一天的）</p>
                 <p><strong>是否需要右确认：</strong>不需要（只是画线，不是信号）</p>
                 <p class="source">来源：股海明灯（量学官网）</p>
             </div>
@@ -921,7 +1052,7 @@ def generate_html(stocks_data, today_str):
 # ============================================================
 def main():
     print("=" * 60)
-    print("四维循环看盘报告 - HTML版（信号说明区放顶部）")
+    print("四维循环看盘报告 - HTML版（含精准线）")
     print("=" * 60)
     
     stocks_data = []
