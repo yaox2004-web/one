@@ -1,381 +1,328 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-每日复盘报告生成器（V2：带交易计划）
+八步客观描述报告 - 持仓股版
 =================================================
-设计思路（为什么做这个）：
-  V1只输出了信号列表，但新手看到信号还是不知道怎么操作。
-  V2加上交易计划：止损价、止盈价、最多持有天数。
-  
-  这样报告就是完整的：
-  1. 今天有什么信号？
-  2. 现在什么位置？
-  3. 买了之后止损价多少？
-  4. 止盈价多少？
-  5. 最多拿几天？
-  
-  新手照着报告操作就行。
+设计思路（为什么这样写）：
+  对着我们推导的八步，每一步都客观描述！
+  第八步只描述距当下最近的左侧短中长期数据！
+  加上量能位置分析！
 
 硬约束：
-  - 不用未来函数
+  - 绝对不用未来函数
+  - 客观描述，不做主观判断
 """
 
 import json
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from datetime import datetime
 
 # ============================================================
 # 配置
 # ============================================================
 DATA_DIR = Path(__file__).parent.parent / "data" / "kline"
 OUTPUT_DIR = Path(__file__).parent.parent / "data" / "analysis"
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# 位置过滤参数（来自回测验证）
-STRONG_DIST_FROM_HIGH = 5.0
-STRONG_MIN_POS = 35
-
-# 交易计划参数（全部来自回测验证）
-STOP_LOSS_STRONG = 3.0    # 稳健型止损：亏3%就跑
-STOP_LOSS_AGGRO = 5.0     # 激进型止损：亏5%再跑
-TAKE_PROFIT_STRONG = 8.0  # 稳健型止盈：赚8%就卖
-TAKE_PROFIT_AGGRO = 15.0  # 激进型止盈：赚15%再卖
-MAX_HOLD_DAYS = 5          # 最多持有5天（回测验证5日最优）
+# 你的持仓股（8只）
+HOLDINGS = [
+    ("sh", "600584"),  # 长电科技
+    ("sz", "002156"),  # 通富微电
+    ("sh", "603283"),  # 赛腾股份
+    ("sz", "300394"),  # 天孚通信
+    ("sh", "601138"),  # 工业富联
+    ("sh", "601231"),  # 环旭电子
+    ("sz", "300476"),  # 胜宏科技
+    ("sh", "603516"),  # 淳中科技
+]
 
 
 # ============================================================
 # 数据读取
 # ============================================================
-def load_klines(filepath):
-    """读取K线数据，自动适配6列/7列"""
-    with open(filepath, 'r') as f:
-        data = json.load(f)
-    klines = data.get('klines', [])
-    if not klines:
-        return None, None
+def load_klines(market, code):
+    # 尝试不同的文件路径
+    possible_paths = [
+        DATA_DIR / market / f"{code}.json",
+        DATA_DIR / market / f"{market}{code}.json",
+        DATA_DIR / f"{market}{code}.json",
+    ]
     
-    ncols = len(klines[0])
-    if ncols == 6:
-        cols = ['date', 'open', 'close', 'high', 'low', 'volume']
-    elif ncols == 7:
-        cols = ['date', 'open', 'close', 'high', 'low', 'volume', 'amount']
+    for filepath in possible_paths:
+        if filepath.exists():
+            with open(filepath, 'r') as f:
+                data = json.load(f)
+            
+            klines = data.get('klines', [])
+            ncols = len(klines[0])
+            
+            if ncols == 6:
+                cols = ['date', 'open', 'close', 'high', 'low', 'volume']
+            else:
+                cols = ['date', 'open', 'close', 'high', 'low', 'volume', 'amount']
+            
+            df = pd.DataFrame(klines)
+            df = df.iloc[:, :ncols]
+            df.columns = cols[:ncols]
+            
+            for col in ['open', 'close', 'high', 'low', 'volume']:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+            
+            df = df.dropna(subset=['open', 'close', 'high', 'low', 'volume'])
+            
+            return df, data.get('name', code)
+    
+    return None, None
+
+
+# ============================================================
+# 生成报告
+# ============================================================
+def generate_report(market, code):
+    df, name = load_klines(market, code)
+    
+    if df is None:
+        return f"【{code}】文件未找到\n"
+    
+    today = df.iloc[-1]
+    yesterday = df.iloc[-2]
+    
+    today_price = today['close']
+    today_volume = today['volume']
+    
+    report = []
+    report.append("=" * 60)
+    report.append(f"【{name} {market}{code}】")
+    report.append(f"日期：{today['date']}")
+    report.append("=" * 60)
+    
+    # ========== 第一步：今日数据 ==========
+    report.append("")
+    report.append("【第一步：今日数据】")
+    report.append(f"  开盘价：{today['open']:.2f}")
+    report.append(f"  收盘价：{today_price:.2f}")
+    report.append(f"  最高价：{today['high']:.2f}")
+    report.append(f"  最低价：{today['low']:.2f}")
+    report.append(f"  成交量：{today_volume:.0f}")
+    
+    # ========== 第二步：今日情况 ==========
+    report.append("")
+    report.append("【第二步：今日情况】")
+    
+    pct_chg = (today['close'] - yesterday['close']) / yesterday['close'] * 100
+    amplitude = (today['high'] - today['low']) / yesterday['close'] * 100
+    body_size = abs(today['close'] - today['open'])
+    body_ratio = body_size / (today['high'] - today['low']) * 100
+    vol_ratio_yesterday = today_volume / yesterday['volume']
+    
+    report.append(f"  涨跌幅：{pct_chg:+.2f}%")
+    report.append(f"  振幅：{amplitude:.2f}%")
+    report.append(f"  实体占比：{body_ratio:.1f}%")
+    report.append(f"  量比(vs昨日)：{vol_ratio_yesterday:.2f}")
+    
+    # ========== 第三步：今日多空力量 ==========
+    report.append("")
+    report.append("【第三步：今日多空力量】")
+    
+    if today['close'] > today['open']:
+        report.append("  阳线：买方占优")
     else:
-        return None, None
+        report.append("  阴线：卖方占优")
     
-    df = pd.DataFrame(klines, columns=cols[:ncols])
-    for col in ['open', 'close', 'high', 'low', 'volume']:
-        df[col] = pd.to_numeric(df[col], errors='coerce')
-    df = df.dropna(subset=['open', 'close', 'high', 'low', 'volume'])
-    
-    name = data.get('name', filepath.stem)
-    return df, name
-
-
-# ============================================================
-# 信号检查
-# ============================================================
-def check_golden(df, idx):
-    """
-    检查是不是黄金柱（T+3确认）
-    为什么要三日定性？
-    量学理论：基柱后3天不破=将军柱，价升量缩=黄金柱
-    为什么要等3天？因为一天的信号可能是假的，3天确认更可靠
-    """
-    if idx < 5 or idx + 3 >= len(df):
-        return False
-    
-    prev_vol = df['volume'].iloc[idx - 1]
-    if prev_vol <= 0:
-        return False
-    if df['volume'].iloc[idx] < prev_vol * 1.8:
-        return False
-    if df['close'].iloc[idx] <= df['open'].iloc[idx]:
-        return False
-    
-    # 后3日价升（为什么？价升量缩=主力锁仓不卖）
-    up = all(df['close'].iloc[idx+1+j] > df['close'].iloc[idx+j] for j in range(3))
-    # 后3日量缩
-    down_vol = all(df['volume'].iloc[idx+1+j] < df['volume'].iloc[idx+j] for j in range(3))
-    # 三日不破基柱实底（为什么？不破=主力护盘）
-    base_low = min(df['open'].iloc[idx], df['close'].iloc[idx])
-    not_break = all(
-        min(df['open'].iloc[idx+j+1], df['close'].iloc[idx+j+1]) >= base_low 
-        for j in range(3)
-    )
-    
-    return up and down_vol and not_break
-
-
-# ============================================================
-# 位置分析
-# ============================================================
-def analyze_position(df, idx):
-    """分析当前位置"""
-    if idx < 20:
-        return {}
-    
-    h = df['high'].iloc[:idx+1]
-    l = df['low'].iloc[:idx+1]
-    c = df['close'].iloc[:idx+1]
-    v = df['volume'].iloc[:idx+1]
-    
-    current_price = c.iloc[-1]
-    lookback = min(120, len(h) - 1)
-    
-    recent_high = h.iloc[-lookback:-1].max()
-    recent_low = l.iloc[-lookback:-1].min()
-    
-    dist_to_high = (recent_high - current_price) / current_price * 100
-    dist_to_low = (current_price - recent_low) / current_price * 100
-    
-    range_ = recent_high - recent_low
-    pos_pct = (current_price - recent_low) / range_ * 100 if range_ > 0 else 50
-    
-    # 判断位置类型
-    if pos_pct < 20:
-        pos_type = "凹底（最好的位置）"
-        pos_tip = "从底部起来，安全边际最高"
-    elif pos_pct < 35:
-        pos_type = "低位"
-        pos_tip = "刚从底部起来，风险不大"
-    elif pos_pct < 65:
-        pos_type = "中位"
-        pos_tip = "中间位置，上下都有可能"
-    elif pos_pct < 85:
-        pos_type = "高位"
-        pos_tip = "涨了不少了，注意风险"
+    if vol_ratio_yesterday > 1.5:
+        report.append("  放量：成交活跃")
+    elif vol_ratio_yesterday < 0.7:
+        report.append("  缩量：成交冷清")
     else:
-        pos_type = "过峰（已突破历史高点）"
-        pos_tip = "创新高了，波动会很大"
+        report.append("  平量：成交正常")
     
-    # 量能状态
-    vol_ma20 = v.iloc[-20:].mean()
-    vol_ratio = v.iloc[-1] / vol_ma20 if vol_ma20 > 0 else 0
+    report.append(f"  实体占比{body_ratio:.1f}%：{'实体明确' if body_ratio > 50 else '影线较多'}")
     
-    if vol_ratio < 0.5:
-        vol_state = "极致缩量（惜售）"
-    elif vol_ratio < 0.8:
-        vol_state = "缩量（卖的人少）"
-    elif vol_ratio < 1.5:
-        vol_state = "正常量"
+    # ========== 第四步：连续趋势 ==========
+    report.append("")
+    report.append("【第四步：连续趋势】")
+    
+    for days in [3, 5, 10]:
+        if len(df) > days:
+            pct = (today['close'] - df.iloc[-days-1]['close']) / df.iloc[-days-1]['close'] * 100
+            report.append(f"  近{days}日涨跌幅：{pct:+.2f}%")
+    
+    # 连续放量/缩量
+    if len(df) >= 3:
+        v1 = df.iloc[-1]['volume']
+        v2 = df.iloc[-2]['volume']
+        v3 = df.iloc[-3]['volume']
+        
+        if v1 > v2 > v3:
+            report.append("  连续放量：量能逐步放大")
+        elif v1 < v2 < v3:
+            report.append("  连续缩量：量能逐步缩小")
+        else:
+            report.append("  量能无连续趋势")
+    
+    # ========== 第五步：和历史对比 ==========
+    report.append("")
+    report.append("【第五步：和历史对比】")
+    
+    for period in [20, 60, 120]:
+        if len(df) > period:
+            high = df['high'].iloc[-period:].max()
+            low = df['low'].iloc[-period:].min()
+            position = (today_price - low) / (high - low) * 100
+            report.append(f"  价格位置：近{period}日{position:.1f}%（最高{high:.2f}，最低{low:.2f}）")
+            
+            # 量能位置
+            vol_high = df['volume'].iloc[-period:].max()
+            vol_low = df['volume'].iloc[-period:].min()
+            vol_position = (today_volume - vol_low) / (vol_high - vol_low) * 100
+            report.append(f"  量能位置：近{period}日{vol_position:.1f}%（天量{vol_high:.0f}，地量{vol_low:.0f}）")
+    
+    # ========== 第六步：历史重要位置 ==========
+    report.append("")
+    report.append("【第六步：历史重要位置】")
+    
+    # 短期（20日）
+    recent_20 = df.iloc[-20:]
+    recent_high = recent_20['high'].max()
+    recent_low = recent_20['low'].min()
+    recent_high_date = recent_20.loc[recent_20['high'].idxmax(), 'date']
+    recent_low_date = recent_20.loc[recent_20['low'].idxmin(), 'date']
+    
+    # 量能
+    recent_vol_high = recent_20['volume'].max()
+    recent_vol_low = recent_20['volume'].min()
+    
+    report.append(f"  短期(20日)：")
+    report.append(f"    价格高点：{recent_high:.2f}（{recent_high_date}）")
+    report.append(f"    价格低点：{recent_low:.2f}（{recent_low_date}）")
+    report.append(f"    量能天量：{recent_vol_high:.0f}")
+    report.append(f"    量能地量：{recent_vol_low:.0f}")
+    
+    # 中期（60日）
+    if len(df) > 60:
+        recent_60 = df.iloc[-60:]
+        mid_high = recent_60['high'].max()
+        mid_low = recent_60['low'].min()
+        mid_high_date = recent_60.loc[recent_60['high'].idxmax(), 'date']
+        mid_low_date = recent_60.loc[recent_60['low'].idxmin(), 'date']
+        
+        mid_vol_high = recent_60['volume'].max()
+        mid_vol_low = recent_60['volume'].min()
+        
+        report.append(f"  中期(60日)：")
+        report.append(f"    价格高点：{mid_high:.2f}（{mid_high_date}）")
+        report.append(f"    价格低点：{mid_low:.2f}（{mid_low_date}）")
+        report.append(f"    量能天量：{mid_vol_high:.0f}")
+        report.append(f"    量能地量：{mid_vol_low:.0f}")
+    
+    # 长期（120日）
+    if len(df) > 120:
+        recent_120 = df.iloc[-120:]
+        long_high = recent_120['high'].max()
+        long_low = recent_120['low'].min()
+        long_high_date = recent_120.loc[recent_120['high'].idxmax(), 'date']
+        long_low_date = recent_120.loc[recent_120['low'].idxmin(), 'date']
+        
+        long_vol_high = recent_120['volume'].max()
+        long_vol_low = recent_120['volume'].min()
+        
+        report.append(f"  长期(120日)：")
+        report.append(f"    价格高点：{long_high:.2f}（{long_high_date}）")
+        report.append(f"    价格低点：{long_low:.2f}（{long_low_date}）")
+        report.append(f"    量能天量：{long_vol_high:.0f}")
+        report.append(f"    量能地量：{long_vol_low:.0f}")
+    
+    # ========== 第七步：支撑位/压力位 ==========
+    report.append("")
+    report.append("【第七步：支撑位/压力位】")
+    
+    # 下方支撑位
+    supports = []
+    supports.append((recent_low, "20日低点"))
+    
+    if len(df) > 60:
+        supports.append((mid_low, "60日低点"))
+    
+    if len(df) > 120:
+        supports.append((long_low, "120日低点"))
+    
+    supports = [(price, label) for price, label in supports if price < today_price]
+    supports.sort(key=lambda x: x[0], reverse=True)
+    
+    report.append("  下方支撑位：")
+    if supports:
+        for price, label in supports[:3]:
+            dist = (today_price - price) / today_price * 100
+            report.append(f"    {price:.2f}（{label}）距当前{dist:.2f}%")
     else:
-        vol_state = "放量（关注）"
+        report.append("    无明显支撑位")
     
-    # MA20状态
-    ma20 = c.iloc[-20:].mean()
-    above_ma20 = current_price > ma20
+    # 上方压力位
+    resistances = []
+    resistances.append((recent_high, "20日高点"))
     
-    return {
-        'price': current_price,
-        'pos_pct': round(pos_pct, 1),
-        'pos_type': pos_type,
-        'pos_tip': pos_tip,
-        'dist_to_high': round(dist_to_high, 2),
-        'dist_to_low': round(dist_to_low, 2),
-        'vol_state': vol_state,
-        'above_ma20': above_ma20,
-        'is_breakout': dist_to_high <= 0,
-    }
-
-
-# ============================================================
-# 交易计划生成
-# ============================================================
-def gen_trade_plan(entry_price, signal_type):
-    """
-    生成交易计划（止损止盈规则）
-    为什么这些参数？全部来自回测验证
-    """
-    if signal_type == 'strong':
-        stop_loss = STOP_LOSS_STRONG    # 稳健型：亏3%就跑
-        take_profit = TAKE_PROFIT_STRONG  # 稳健型：赚8%就卖
+    if len(df) > 60:
+        resistances.append((mid_high, "60日高点"))
+    
+    if len(df) > 120:
+        resistances.append((long_high, "120日高点"))
+    
+    resistances = [(price, label) for price, label in resistances if price > today_price]
+    resistances.sort(key=lambda x: x[0])
+    
+    report.append("  上方压力位：")
+    if resistances:
+        for price, label in resistances[:3]:
+            dist = (price - today_price) / today_price * 100
+            report.append(f"    {price:.2f}（{label}）距当前{dist:.2f}%")
     else:
-        stop_loss = STOP_LOSS_AGGRO     # 激进型：亏5%再跑（波动大）
-        take_profit = TAKE_PROFIT_AGGRO  # 激进型：赚15%再卖
+        report.append("    无明显压力位")
     
-    stop_price = entry_price * (1 - stop_loss / 100)
-    profit_price = entry_price * (1 + take_profit / 100)
+    # ========== 第八步：客观总结 ==========
+    report.append("")
+    report.append("=" * 60)
+    report.append("【第八步：客观总结】")
+    report.append("=" * 60)
     
-    return {
-        'stop_loss_pct': stop_loss,
-        'take_profit_pct': take_profit,
-        'stop_price': round(stop_price, 2),
-        'profit_price': round(profit_price, 2),
-        'max_hold': MAX_HOLD_DAYS,
-    }
-
-
-# ============================================================
-# 生成单只股票的报告
-# ============================================================
-def gen_report_line(code, name, pos, signal_type):
-    """生成单只股票的报告行（带交易计划）"""
-    
-    # 生成交易计划
-    plan = gen_trade_plan(pos['price'], signal_type)
-    
-    if signal_type == 'strong':
-        signal_desc = "稳健型（高胜率85%）"
-        action = "重点关注，可小仓位试错"
+    # 计算近120日位置
+    if len(df) > 120:
+        position_120 = (today_price - long_low) / (long_high - long_low) * 100
+        vol_position_120 = (today_volume - long_vol_low) / (long_vol_high - long_vol_low) * 100
+    elif len(df) > 60:
+        position_120 = (today_price - mid_low) / (mid_high - mid_low) * 100
+        vol_position_120 = (today_volume - mid_vol_low) / (mid_vol_high - mid_vol_low) * 100
     else:
-        signal_desc = "激进型（高收益15%）"
-        action = "小仓位博，别重仓"
+        position_120 = (today_price - recent_low) / (recent_high - recent_low) * 100
+        vol_position_120 = (today_volume - recent_vol_low) / (recent_vol_high - recent_vol_low) * 100
     
-    line = f"""
-┌─────────────────────────────────
-│ {code} {name}
-│ 信号类型：{signal_desc}
-│ 当前价格：{pos['price']:.2f}
-│ 位置：{pos['pos_type']}（{pos['pos_pct']:.1f}%）
-│ {pos['pos_tip']}
-│ 距上方压力：{pos['dist_to_high']:.1f}%
-│ 距下方支撑：{pos['dist_to_low']:.1f}%
-│ 量能状态：{pos['vol_state']}
-│
-│ 【交易计划】
-│ 止损价：{plan['stop_price']:.2f}（亏{plan['stop_loss_pct']}%就跑）
-│ 止盈价：{plan['profit_price']:.2f}（赚{plan['take_profit_pct']}%就卖）
-│ 最多持有：{plan['max_hold']}天（不涨就走）
-│
-│ 操作建议：{action}
-└─────────────────────────────────
-"""
-    return line
+    report.append(f"  今日{name}{'上涨' if pct_chg > 0 else '下跌'}{abs(pct_chg):.2f}%，{'放量' if vol_ratio_yesterday > 1.5 else '缩量' if vol_ratio_yesterday < 0.7 else '平量'}。")
+    report.append(f"  价格位置：近120日{position_120:.1f}%（{'高位' if position_120 > 70 else '低位' if position_120 < 30 else '中位'}）。")
+    report.append(f"  量能位置：近120日{vol_position_120:.1f}%（{'天量' if vol_position_120 > 80 else '地量' if vol_position_120 < 20 else '正常'}）。")
+    
+    if supports:
+        report.append(f"  下方最近支撑：{supports[0][0]:.2f}（{supports[0][1]}）。")
+    if resistances:
+        report.append(f"  上方最近压力：{resistances[0][0]:.2f}（{resistances[0][1]}）。")
+    
+    return "\n".join(report)
 
 
 # ============================================================
 # 主函数
 # ============================================================
 def main():
-    strong_list = []
-    aggro_list = []
+    print("=" * 60)
+    print("八步客观描述报告 - 持仓股版")
+    print("=" * 60)
     
-    stock_files = []
-    for market_dir in DATA_DIR.iterdir():
-        if market_dir.is_dir():
-            for f in market_dir.glob('*.json'):
-                stock_files.append(f)
-    
-    print(f"共 {len(stock_files)} 只股票")
-    
-    for i, f in enumerate(stock_files):
+    for market, code in HOLDINGS:
         try:
-            df, name = load_klines(f)
-            if df is None or len(df) < 60:
-                continue
-            
-            # MA20过滤
-            ma20 = df['close'].rolling(20).mean().iloc[-1]
-            if df['close'].iloc[-1] < ma20:
-                continue
-            
-            # 检查今天确认的黄金柱
-            confirm_idx = len(df) - 1
-            base_idx = confirm_idx - 3
-            
-            if not check_golden(df, base_idx):
-                continue
-            
-            # 分析位置
-            pos = analyze_position(df, confirm_idx)
-            if not pos:
-                continue
-            
-            # 判断类型
-            is_strong = (pos['dist_to_high'] > STRONG_DIST_FROM_HIGH and 
-                         pos['pos_pct'] > STRONG_MIN_POS)
-            is_aggro = (pos['is_breakout'] and 
-                        pos['pos_pct'] > STRONG_MIN_POS)
-            
-            if is_strong:
-                strong_list.append((f.stem, name, pos, 'strong'))
-            elif is_aggro:
-                aggro_list.append((f.stem, name, pos, 'aggro'))
-            
-            if (i + 1) % 1000 == 0:
-                print(f"  进度 {i+1}/{len(stock_files)}")
-                
+            report = generate_report(market, code)
+            print(report)
+            print("\n\n")
         except Exception as e:
-            continue
-    
-    # 生成报告
-    today = datetime.now().strftime('%Y-%m-%d')
-    report = f"""
-╔═══════════════════════════════════════════╗
-║           每日复盘报告 - {today}        ║
-╚═══════════════════════════════════════════╝
-
-【系统说明】
-  本系统基于量学理论，经过全市场5220只回测验证。
-  核心信号：黄金柱（三日定性确认）
-  交易成本：1.1%往返
-  持有周期：5个交易日
-  过滤条件：MA20之上才做
-
-{'='*45}
-
-【稳健型信号】高胜率策略
-  条件：黄金柱 + 距上方高点>5% + 中位以上
-  回测胜率：85.6%
-  止损：亏3%就跑
-  止盈：赚8%就卖
-
-{'-'*45}
-"""
-    
-    if strong_list:
-        strong_list.sort(key=lambda x: -x[2]['pos_pct'])
-        for code, name, pos, stype in strong_list:
-            report += gen_report_line(code, name, pos, stype)
-    else:
-        report += "\n  今日无稳健型信号\n"
-    
-    report += f"""
-{'='*45}
-
-【激进型信号】高收益策略
-  条件：黄金柱 + 已突破历史高点 + 中位以上
-  回测收益：+15.18%中位数
-  止损：亏5%再跑
-  止盈：赚15%再卖
-
-{'-'*45}
-"""
-    
-    if aggro_list:
-        aggro_list.sort(key=lambda x: -x[2]['pos_pct'])
-        for code, name, pos, stype in aggro_list:
-            report += gen_report_line(code, name, pos, stype)
-    else:
-        report += "\n  今日无激进型信号\n"
-    
-    report += f"""
-{'='*45}
-
-【总结】
-  稳健型信号：{len(strong_list)} 只
-  激进型信号：{len(aggro_list)} 只
-  
-  操作原则：
-  1. 没信号就空仓等待，不要强行交易
-  2. 稳健型信号来了再重点关注
-  3. 激进型小仓位博，别重仓
-  4. 到了止损价，无条件跑
-  5. 到了止盈价，可以卖
-  6. 拿了5天还没涨，也走
-
-{'='*45}
-"""
-    
-    print(report)
-    
-    # 保存报告
-    output_file = OUTPUT_DIR / f"daily_report_{today}.txt"
-    with open(output_file, 'w', encoding='utf-8') as f:
-        f.write(report)
-    print(f"\n已保存: {output_file}")
+            print(f"Error: {market}{code} {e}")
+            print("\n")
 
 
 if __name__ == "__main__":
