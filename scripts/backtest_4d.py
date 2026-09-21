@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-四维循环看盘法 - 历史回测验证（全功能版）
+四维循环看盘法 - 历史回测验证（终极完整版）
 =================================================
 【无未来函数】
 【买入标准】信号确认后 → 等回踩关键位 → 缩量企稳 → T+1开盘买入
 【交易成本】0.35%
 【位置分档】低位<30% / 中位30%-70% / 高位>70%
-【新增】趋势判断、三低筛选、整体结构、大盘环境
+【趋势判断】上升趋势/下降趋势（个股20日均线）
+【大盘环境】牛市/熊市（上证指数200日均线）
+【除权除息】前复权处理
+【三低筛选】低位+低量+低价
+【整体结构】台阶+量价配合
 【资料来源】股海明灯《量柱擒涨停》《量线捉涨停》黑马王子著
 """
 
@@ -22,6 +26,7 @@ from collections import defaultdict
 # ============================================================
 
 DATA_DIR = Path(__file__).parent.parent / "data" / "kline"
+INDEX_PATH = DATA_DIR / "sh" / "000001.json"  # 上证指数
 
 MAX_STOCKS = 50
 
@@ -63,19 +68,19 @@ HIGH_PCTL = 0.70
 # ============================================================
 # 【三低筛选参数】
 # ============================================================
-LOW_VOL_PCTL = 0.30      # 低量：当前量<过去120天的30%分位
-LOW_PRICE_THRESHOLD = 20.0  # 低价：股价<20元
+LOW_VOL_PCTL = 0.30
+LOW_PRICE_THRESHOLD = 20.0
 
 # ============================================================
 # 【趋势判断参数】
 # ============================================================
-TREND_MA_PERIOD = 20     # 20日均线判断趋势
+TREND_MA_PERIOD = 20
+INDEX_TREND_MA = 200     # 大盘用200日均线判断牛熊
 
 # ============================================================
 # 【整体结构参数】
 # ============================================================
-STEP_LOOKBACK = 20       # 台阶判断：近20天低点是否逐步抬高
-VOL_PRICE_HEALTHY = True  # 量价配合：价涨量增、价跌量缩
+STEP_LOOKBACK = 20
 
 # ============================================================
 # 【ATR自适应】
@@ -198,9 +203,9 @@ def get_position_level(df, end_idx, lookback=POSITION_LOOKBACK):
 
 
 # ============================================================
-# 【趋势判断】
+# 【个股趋势判断】
 # ============================================================
-def get_trend(df, end_idx, ma_period=TREND_MA_PERIOD):
+def get_stock_trend(df, end_idx, ma_period=TREND_MA_PERIOD):
     if end_idx < ma_period:
         return "未知"
     ma = df.iloc[end_idx-ma_period+1:end_idx+1]['close'].mean()
@@ -212,29 +217,60 @@ def get_trend(df, end_idx, ma_period=TREND_MA_PERIOD):
 
 
 # ============================================================
+# 【大盘环境判断】
+# ============================================================
+def load_index_data():
+    """加载上证指数数据，判断牛熊"""
+    if not INDEX_PATH.exists():
+        return None
+    with open(INDEX_PATH, 'r') as f:
+        data = json.load(f)
+    klines = data.get('klines', [])
+    if not klines:
+        return None
+    ncols = len(klines[0])
+    cols = ['date', 'open', 'close', 'high', 'low', 'volume'] if ncols == 6 else ['date', 'open', 'close', 'high', 'low', 'volume', 'amount']
+    df = pd.DataFrame(klines)
+    df = df.iloc[:, :ncols]
+    df.columns = cols[:ncols]
+    for col in ['open', 'close', 'high', 'low', 'volume']:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+    df = df.dropna(subset=['open', 'close', 'high', 'low', 'volume'])
+    return df
+
+
+def get_market_regime(index_df, target_date):
+    """根据日期判断大盘是牛市还是熊市"""
+    if index_df is None:
+        return "未知"
+    # 找到target_date对应的索引
+    date_mask = index_df['date'] <= target_date
+    if date_mask.sum() < INDEX_TREND_MA:
+        return "未知"
+    end_idx = date_mask.sum() - 1
+    ma = index_df.iloc[end_idx-INDEX_TREND_MA+1:end_idx+1]['close'].mean()
+    today_close = index_df.iloc[end_idx]['close']
+    if today_close > ma:
+        return "牛市"
+    else:
+        return "熊市"
+
+
+# ============================================================
 # 【三低判断】
 # ============================================================
 def is_san_di(df, end_idx, position):
-    """
-    三低：低位 + 低量 + 低价
-    """
-    # 1. 低位（已经在位置分档里判断了）
     if position != "低位":
         return False
-    
-    # 2. 低量：当前量<过去120天的30%分位
     lookback = min(120, end_idx)
     recent_vols = df.iloc[end_idx-lookback+1:end_idx+1]['volume']
     today_vol = df.iloc[end_idx]['volume']
     vol_pctl = (recent_vols < today_vol).sum() / len(recent_vols)
     if vol_pctl > LOW_VOL_PCTL:
         return False
-    
-    # 3. 低价：股价<20元
     today_price = df.iloc[end_idx]['close']
     if today_price > LOW_PRICE_THRESHOLD:
         return False
-    
     return True
 
 
@@ -242,29 +278,18 @@ def is_san_di(df, end_idx, position):
 # 【整体结构判断】
 # ============================================================
 def check_healthy_structure(df, end_idx, lookback=STEP_LOOKBACK):
-    """
-    健康结构：
-    1. 低点逐步抬高（有台阶）
-    2. 量价配合：价涨量增、价跌量缩
-    """
     if end_idx < lookback:
         return False
-    
     recent_df = df.iloc[end_idx-lookback+1:end_idx+1]
-    
-    # 1. 低点逐步抬高
     lows = recent_df['low'].values
     first_low = lows[:5].mean()
     last_low = lows[-5:].mean()
     step_up = last_low > first_low
-    
-    # 2. 量价配合：计算相关系数
     if len(recent_df) > 10:
         corr = recent_df['close'].pct_change().corr(recent_df['volume'].pct_change())
-        healthy_vol_price = corr > 0  # 正相关=价涨量增、价跌量缩
+        healthy_vol_price = corr > 0
     else:
         healthy_vol_price = True
-    
     return step_up and healthy_vol_price
 
 
@@ -754,8 +779,15 @@ def find_pillars_at(df, end_idx, lookback_days=60):
 # ============================================================
 def main():
     print("=" * 70)
-    print("四维循环看盘法 - 历史回测验证（全功能版）")
+    print("四维循环看盘法 - 历史回测验证（终极完整版）")
     print("=" * 70)
+    
+    # 加载大盘数据
+    index_df = load_index_data()
+    if index_df is not None:
+        print(f"\n已加载上证指数数据：{len(index_df)}条")
+    else:
+        print("\n警告：未找到上证指数数据，大盘环境判断将显示'未知'")
     
     all_stocks = scan_all_stocks()
     
@@ -763,12 +795,13 @@ def main():
     print(f"（最多跑{MAX_STOCKS}只，避免超时）")
     print(f"持有周期：{HOLD_PERIODS}个交易日")
     print(f"回测标准：信号确认后 → 等回踩关键位 → 缩量企稳 → T+1开盘买")
-    print(f"交易成本：{TOTAL_COST*100:.2f}%（买入+卖出）")
-    print(f"位置分档：低位<{LOW_PCTL*100:.0f}% / 中位{LOW_PCTL*100:.0f}%-{HIGH_PCTL*100:.0f}% / 高位>{HIGH_PCTL*100:.0f}%")
-    print(f"新增：趋势判断、三低筛选、整体结构\n")
+    print(f"交易成本：{TOTAL_COST*100:.2f}%")
+    print(f"位置分档：低/中/高")
+    print(f"个股趋势：上升/下降")
+    print(f"大盘环境：牛市/熊市\n")
     
-    # 结构：{信号名: {位置: {趋势: {持有天数: [收益列表]}}}}
-    all_trades = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: {h: [] for h in HOLD_PERIODS})))
+    # 结构：{信号: {位置: {趋势: {大盘: {持有天数: [收益]}}}}}
+    all_trades = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: {h: [] for h in HOLD_PERIODS}))))
     
     for idx, (market, code) in enumerate(all_stocks):
         print(f"  回测中 {idx+1}/{len(all_stocks)}: {market}{code} ...")
@@ -789,9 +822,10 @@ def main():
             pillar_type, golden_line = find_pillars_at(df, i)
             
             position = get_position_level(df, i)
-            trend = get_trend(df, i)
-            healthy = check_healthy_structure(df, i)
-            san_di = is_san_di(df, i, position)
+            stock_trend = get_stock_trend(df, i)
+            
+            today_date = df.iloc[i]['date']
+            market_regime = get_market_regime(index_df, today_date)
             
             signals_today = []
             
@@ -904,47 +938,65 @@ def main():
                     if bp <= 0:
                         continue
                     ret = (sp - bp) / bp * 100 - TOTAL_COST * 100
-                    all_trades[signal_name][position][trend][hold_days].append(ret)
+                    all_trades[signal_name][position][stock_trend][market_regime][hold_days].append(ret)
     
     # 输出结果
     print("\n" + "=" * 70)
-    print("四维循环看盘法 - 历史回测结果（全功能版）")
+    print("四维循环看盘法 - 历史回测结果（终极完整版）")
     print("=" * 70)
     print(f"\n总股票数：{len(all_stocks)}只")
     print(f"交易成本：已扣除{TOTAL_COST*100:.2f}%\n")
     
     positions = ["低位", "中位", "高位"]
-    trends = ["上升趋势", "下降趋势"]
+    stock_trends = ["上升趋势", "下降趋势"]
+    market_regimes = ["牛市", "熊市", "未知"]
     
     for hold_days in HOLD_PERIODS:
         print(f"\n=== 持有{hold_days}天 ===")
         
-        for pos in positions:
-            print(f"\n--- {pos} ---")
+        for market_regime in market_regimes:
+            has_data = False
+            for pos in positions:
+                for trend in stock_trends:
+                    for sig in all_trades:
+                        if len(all_trades[sig][pos][trend][market_regime][hold_days]) > 0:
+                            has_data = True
+                            break
+                    if has_data:
+                        break
+                if has_data:
+                    break
+            if not has_data:
+                continue
             
-            for trend in trends:
-                print(f"\n  [{trend}]")
-                print(f"  {'信号':<20} {'样本数':>8} {'平均收益%':>10} {'胜率%':>8} {'结论':>10}")
-                print("  " + "-" * 65)
+            print(f"\n🏛️ 大盘环境：{market_regime}")
+            
+            for pos in positions:
+                print(f"\n  --- {pos} ---")
                 
-                sorted_signals = sorted(all_trades.keys(), key=lambda x: len(all_trades[x][pos][trend][hold_days]), reverse=True)
-                
-                for signal_name in sorted_signals:
-                    returns = all_trades[signal_name][pos][trend][hold_days]
-                    count = len(returns)
-                    if count < 5:
-                        continue
-                    avg_ret = np.mean(returns)
-                    win_rate = sum(1 for r in returns if r > 0) / count * 100
+                for trend in stock_trends:
+                    print(f"\n    [{trend}]")
+                    print(f"    {'信号':<20} {'样本数':>8} {'平均收益%':>10} {'胜率%':>8} {'结论':>10}")
+                    print("    " + "-" * 65)
                     
-                    if win_rate > 55 and avg_ret > 0:
-                        conclusion = "✅ 有效"
-                    elif win_rate > 50:
-                        conclusion = "⚠️ 一般"
-                    else:
-                        conclusion = "❌ 无效"
+                    sorted_signals = sorted(all_trades.keys(), key=lambda x: len(all_trades[x][pos][trend][market_regime][hold_days]), reverse=True)
                     
-                    print(f"  {signal_name:<20} {count:>8} {avg_ret:>10.2f} {win_rate:>8.1f} {conclusion:>10}")
+                    for signal_name in sorted_signals:
+                        returns = all_trades[signal_name][pos][trend][market_regime][hold_days]
+                        count = len(returns)
+                        if count < 5:
+                            continue
+                        avg_ret = np.mean(returns)
+                        win_rate = sum(1 for r in returns if r > 0) / count * 100
+                        
+                        if win_rate > 55 and avg_ret > 0:
+                            conclusion = "✅ 有效"
+                        elif win_rate > 50:
+                            conclusion = "⚠️ 一般"
+                        else:
+                            conclusion = "❌ 无效"
+                        
+                        print(f"    {signal_name:<20} {count:>8} {avg_ret:>10.2f} {win_rate:>8.1f} {conclusion:>10}")
     
     print("\n" + "=" * 70)
     print("结论说明：")
