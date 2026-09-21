@@ -101,7 +101,6 @@
         .step-content p { margin-bottom: 4px; }
         
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .grid-1 { display: grid; grid-template-columns: 1fr; gap: 8px; }
         .grid-item { 
             background: #0f172a; 
             padding: 8px; 
@@ -110,9 +109,6 @@
         }
         .grid-item .label { color: #94a3b8; font-size: 11px; }
         .grid-item .value { font-weight: bold; color: #e2e8f0; font-size: 12px; }
-        .grid-item .value-none { color: #94a3b8; font-weight: normal; font-size: 11px; }
-        .grid-item .value-strong { color: #ef4444; font-weight: normal; font-size: 11px; }
-        .grid-item .value-weak { color: #22c55e; font-weight: normal; font-size: 11px; }
         
         .summary-box {
             background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
@@ -128,106 +124,69 @@
         <div class="header">
             <h1>四维循环看盘报告</h1>
             <div class="date">2026-09-18</div>
-            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">四维循环看盘 + 峰顶线/谷底线 + 平衡线 + 精准线 + 斜衡线 + 高量柱安全线/风险线</div>
+            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">量学原版：大阴实顶 + 四维对比 + 个股解读</div>
         </div>
         
         <!-- 信号说明区（顶部，只放一次） -->
         <div class="signal-guide">
-            <h2>信号说明</h2>
+            <h2>四维看盘法说明</h2>
             
             <div class="signal-item">
-                <h3>① 从右向左看：找位置</h3>
-                <p><strong>定义：</strong>从今天往左边看，找最近的高点和低点</p>
-                <p><strong>目的：</strong>看当前价格在什么位置</p>
-                <p><strong>使用方法：</strong>看当前价格离高点远还是低点远</p>
-            </div>
-            
-            <div class="signal-item">
-                <h3>平衡线（大阴实顶）</h3>
-                <p><strong>定义：</strong>股票下跌后，由其左侧中大阴线实体顶部向右侧画出的水平线</p>
-                <p><strong>原理：</strong>左侧大阴线顶部"实点"是多空双方上次休战的"警戒点"，下次争夺的"起动点"</p>
-                <p><strong>是否需要右确认：</strong>不需要（只是画线，不是信号）</p>
+                <h3>起点：大阴实顶</h3>
+                <p><strong>定义：</strong>从今天往左找最近的中大阴线，其实体顶部就是"大阴实顶"</p>
+                <p><strong>原理：</strong>大阴实顶是多空双方上次休战的"警戒点"，下次争夺的"起动点"</p>
+                <p><strong>为什么从这里开始？</strong>量学认为，最近的大阴线反映了最近一次多空力量的对比，从这里开始看最有意义</p>
                 <p class="source">来源：股海明灯（量学官网）</p>
             </div>
             
             <div class="signal-item">
-                <h3>精准线（多价格重合）</h3>
-                <p><strong>定义：</strong>多个价格重合在一条线上的位置</p>
-                <p><strong>原理：</strong>多次触及同一个价位，然后都反弹了/回落了，说明这个价位有很强的支撑/阻力</p>
-                <p><strong>识别条件：</strong></p>
-                <p>  1. 至少3个价格点重合</p>
-                <p>  2. 价格相差不超过1%</p>
-                <p>  3. 时间间隔开（不是同一天的）</p>
-                <p><strong>是否需要右确认：</strong>不需要（只是画线，不是信号）</p>
-                <p class="source">来源：股海明灯（量学官网）</p>
+                <h3>① 从右向左看：比较价柱的高低阴阳</h3>
+                <p><strong>视线：</strong>从今天往左，往大阴实顶方向看</p>
+                <p><strong>对比内容：</strong></p>
+                <p>  - 高低：价格在大阴实顶上方还是下方？</p>
+                <p>  - 阴阳：从大阴实顶到今天，阳线多还是阴线多？</p>
+                <p><strong>目的：</strong>看当前价格的位置和多空力量对比</p>
             </div>
             
             <div class="signal-item">
-                <h3>斜衡线（趋势线）</h3>
-                <p><strong>定义：</strong>连接两个或多个低点（或高点）的斜线</p>
-                <p><strong>上升斜衡线：</strong>连接两个依次抬高的谷底 → 支撑线</p>
-                <p><strong>下降斜衡线：</strong>连接两个依次降低的峰顶 → 阻力线</p>
-                <p><strong>原理：</strong>低点越来越高说明多头在逐步推高；高点越来越低说明空头在逐步压低</p>
-                <p><strong>是否需要右确认：</strong>不需要（只是画线，不是信号）</p>
-                <p class="source">来源：股海明灯（量学官网）</p>
+                <h3>② 从上往下看：比较量价的真假大小</h3>
+                <p><strong>视线：</strong>从大阴实顶的价柱往下看量柱</p>
+                <p><strong>对比内容：</strong></p>
+                <p>  - 大小：大阴实顶的量是大还是小？</p>
+                <p>  - 真假：价跌量缩是真跌？价跌量增是假跌？</p>
+                <p><strong>目的：</strong>看大阴实顶那天的量价结构</p>
             </div>
             
             <div class="signal-item">
-                <h3>峰顶线/谷底线（博弈过的）</h3>
-                <p><strong>定义：</strong>多空双方激烈博弈过的位置</p>
-                <p><strong>识别条件：</strong></p>
-                <p>  1. 局部极值：左右各N根K线内最高/最低（峰边距）</p>
-                <p>  2. 有量配合：近N天前30%以上</p>
-                <p>  3. 右确认：之后N天都没突破/跌破</p>
-                <p><strong>参数：</strong></p>
-                <p>  短期(20日)：左右各2根，3天确认</p>
-                <p>  中期(60日)：左右各2根，5天确认</p>
-                <p>  长期(120日)：左右各3根，10天确认</p>
-                <p><strong>无未来函数：</strong>所有判断只用截止到今天收盘的数据</p>
-                <p><strong>缺失说明：</strong></p>
-                <p>  - 无（寻顶中·偏强）= 空军还没组织起有效反击</p>
-                <p>  - 无（寻底中·偏弱）= 多军还没组织起有效防守</p>
-                <p class="source">来源：比尔·威廉姆斯分形指标 + 量学理论（股海明灯）</p>
+                <h3>③ 从左往右看：比较量柱的远近多少</h3>
+                <p><strong>视线：</strong>从大阴实顶的量柱往右看，看到今天的量柱</p>
+                <p><strong>对比内容：</strong></p>
+                <p>  - 远近：大阴实顶离今天多远？</p>
+                <p>  - 多少：今天的量 vs 大阴实顶的量，是多还是少？</p>
+                <p><strong>目的：</strong>看大阴实顶的量对今天的影响力</p>
             </div>
             
             <div class="signal-item">
-                <h3>高量柱安全线/风险线</h3>
-                <p><strong>定义：</strong>高量柱对应的支撑/阻力线</p>
-                <p><strong>安全线：</strong>高量柱K线的顶部（支撑）</p>
-                <p><strong>风险线：</strong>高量柱K线的底部（阻力）</p>
-                <p><strong>取实取虚：</strong>实体占比>60%取实体顶底，否则取K线最高最低</p>
-                <p><strong>是否需要右确认：</strong>不需要（高量柱已经发生了）</p>
-                <p class="source">来源：量学理论（股海明灯）</p>
+                <h3>④ 从下往上看：比较量价的长短伸缩</h3>
+                <p><strong>视线：</strong>从今天的量柱往上看价柱</p>
+                <p><strong>对比内容：</strong></p>
+                <p>  - 长短：量柱是长还是短？价柱是长还是短？</p>
+                <p>  - 伸缩：实体是长还是短？振幅是大还是小？</p>
+                <p><strong>目的：</strong>看今天的量价建构</p>
             </div>
             
             <div class="signal-item">
-                <h3>② 从上往下看：看量柱</h3>
-                <p><strong>定义：</strong>从这个价柱对应的量柱往下看</p>
-                <p><strong>目的：</strong>看这个位置的量能大小</p>
-            </div>
-            
-            <div class="signal-item">
-                <h3>③ 从左往右看：比量能</h3>
-                <p><strong>定义：</strong>把左侧找到的量柱和今天的量柱对比</p>
-                <p><strong>目的：</strong>看量能是放大还是缩小</p>
-            </div>
-            
-            <div class="signal-item">
-                <h3>④ 从下往上看：看量价</h3>
-                <p><strong>定义：</strong>从今天的量柱往上看价柱</p>
-                <p><strong>目的：</strong>看量价配合关系</p>
-            </div>
-            
-            <div class="signal-item">
-                <h3>⑤ 和历史对比</h3>
-                <p><strong>定义：</strong>和左侧短中长期目标对比</p>
-                <p><strong>目的：</strong>看当前位置离历史高低点多远</p>
-            </div>
-            
-            <div class="signal-item">
-                <h3>⑥ 全景总结</h3>
-                <p><strong>定义：</strong>客观总结当前状态</p>
+                <h3>个股解读</h3>
                 <p><strong>原则：</strong>客观描述，不做主观判断</p>
+                <p><strong>内容：</strong>用四维看盘法客观描述当前的状态</p>
+            </div>
+            
+            <div class="signal-item">
+                <h3>核心思想</h3>
+                <p><strong>本质：</strong>找阴阳失衡与平衡的区别</p>
+                <p><strong>原则：</strong>就近对比原则（找最近的，不是随便找的）</p>
+                <p><strong>方法：</strong>回形针看盘法（由此及彼、由里向外，逐层解剖）</p>
+                <p class="source">来源：股海明灯《四维循环看盘》学习心得</p>
             </div>
         </div>
         
@@ -241,10 +200,40 @@
                 <div class="stock-price price-up">73.00元 (+7.75%)</div>
             </div>
             
+            <!-- 【起点】大阴实顶 -->
             <div class="step-section">
-                <div class="step-title">① 从右向左看：找位置</div>
+                <div class="step-title">起点：大阴实顶</div>
                 <div class="step-content">
                     <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">大阴实顶（近60日）</div>
+                            <div class="value">71.39（2026-09-04）</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">当前位置</div>
+                            <div class="value" style="color:#94a3b8">未知</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ① 从右向左看：比较价柱的高低阴阳 -->
+            <div class="step-section">
+                <div class="step-title">① 从右向左看：比较价柱的高低阴阳</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">价格vs大阴实顶</div>
+                            <div class="value">+2.26%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">阳线/阴线数量</div>
+                            <div class="value">6阳 / 5阴</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">阴阳比</div>
+                            <div class="value">1.20</div>
+                        </div>
                         <div class="grid-item">
                             <div class="label">20日高点</div>
                             <div class="value">78.56</div>
@@ -253,204 +242,72 @@
                             <div class="label">20日低点</div>
                             <div class="value">65.50</div>
                         </div>
-                        <div class="grid-item">
-                            <div class="label">60日高点</div>
-                            <div class="value">113.87</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">60日低点</div>
-                            <div class="value">60.84</div>
-                        </div>
                     </div>
                 </div>
             </div>
             
+            <!-- ② 从上往下看：比较量价的真假大小 -->
             <div class="step-section">
-                <div class="step-title">平衡线（大阴实顶）</div>
-                <div class="step-content">
-                    <div class="grid-1">
-                        <div class="grid-item">
-                            <div class="label">最近平衡线（近30日）</div>
-                            <div class="value">71.39（2026-09-04）</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">精准线（多价格重合）</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        
-                <div class="grid-item">
-                    <div class="label">精准线1（7点）</div>
-                    <div class="value">75.44（2026-06-01~2026-08-31）</div>
-                </div>
-                
-                <div class="grid-item">
-                    <div class="label">精准线2（6点）</div>
-                    <div class="value">44.17（2026-04-14~2026-04-29）</div>
-                </div>
-                
-                <div class="grid-item">
-                    <div class="label">精准线3（6点）</div>
-                    <div class="value">85.78（2026-05-27~2026-08-18）</div>
-                </div>
-                
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">斜衡线（趋势线）</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        
-        <div class="grid-item">
-            <div class="label">上升斜衡线（支撑）</div>
-            <div class="value value-none">无</div>
-        </div>
-        
-        <div class="grid-item">
-            <div class="label">下降斜衡线（阻力）</div>
-            <div class="value value-none">无</div>
-        </div>
-        
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">峰顶线/谷底线（博弈过的）</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        
-    <div class="grid-item">
-        <div class="label">20日峰顶线</div>
-        <div class="value">77.98（2026-08-28）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">20日谷底线</div>
-        <div class="value">66.63（2026-09-04）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">60日峰顶线</div>
-        <div class="value">89.88（2026-07-22）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">60日谷底线</div>
-        <div class="value">69.29（2026-07-21）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">120日峰顶线</div>
-        <div class="value">113.87（2026-07-10）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">120日谷底线</div>
-        <div class="value value-none value-weak">无（寻底中·偏弱）</div>
-    </div>
-    
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">高量柱安全线/风险线</div>
+                <div class="step-title">② 从上往下看：比较量价的真假大小</div>
                 <div class="step-content">
                     <div class="grid-2">
                         <div class="grid-item">
-                            <div class="label">20日安全线</div>
-                            <div class="value">73.00（2026-09-18）</div>
+                            <div class="label">大阴实顶的量</div>
+                            <div class="value">平量</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">20日风险线</div>
-                            <div class="value">69.10（2026-09-18）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">60日安全线</div>
-                            <div class="value">105.80（2026-06-29）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">60日风险线</div>
-                            <div class="value">92.40（2026-06-29）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">120日安全线</div>
-                            <div class="value">94.80（2026-05-27）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">120日风险线</div>
-                            <div class="value">83.40（2026-05-27）</div>
+                            <div class="label">量价真假判断</div>
+                            <div class="value">量平（正常调整）</div>
                         </div>
                     </div>
                 </div>
             </div>
             
+            <!-- ③ 从左往右看：比较量柱的远近多少 -->
             <div class="step-section">
-                <div class="step-title">② 从上往下看：看量柱</div>
+                <div class="step-title">③ 从左往右看：比较量柱的远近多少</div>
                 <div class="step-content">
                     <div class="grid-2">
                         <div class="grid-item">
-                            <div class="label">20日天量</div>
-                            <div class="value">1610179</div>
+                            <div class="label">时间距离</div>
+                            <div class="value">10天前</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">20日地量</div>
-                            <div class="value">458552</div>
+                            <div class="label">时间影响力</div>
+                            <div class="value">很近（影响力强）</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">量比(vs昨日)</div>
-                            <div class="value">2.24</div>
+                            <div class="label">今天量vs大阴实顶量</div>
+                            <div class="value">138.5%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量的多少对比</div>
+                            <div class="value">今天量更大</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ④ 从下往上看：比较量价的长短伸缩 -->
+            <div class="step-section">
+                <div class="step-title">④ 从下往上看：比较量价的长短伸缩</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">量柱长短</div>
+                            <div class="value">长量柱（天量）</div>
                         </div>
                         <div class="grid-item">
                             <div class="label">量能位置(20日)</div>
                             <div class="value">100.0%</div>
                         </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">③ 从左往右看：比量能</div>
-                <div class="step-content">
-                    <div class="grid-2">
                         <div class="grid-item">
-                            <div class="label">vs 20日天量</div>
-                            <div class="value">100.0%</div>
+                            <div class="label">价柱伸缩</div>
+                            <div class="value">长价柱（振幅大）</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">vs 20日地量</div>
-                            <div class="value">351.1%</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">量比(vs5日)</div>
-                            <div class="value">2.52</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">量能趋势</div>
-                            <div class="value">无连续趋势</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">④ 从下往上看：看量价</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        <div class="grid-item">
-                            <div class="label">量价组合</div>
-                            <div class="value">放量涨</div>
+                            <div class="label">实体长短</div>
+                            <div class="value">长实体</div>
                         </div>
                         <div class="grid-item">
                             <div class="label">实体占比</div>
@@ -460,6 +317,7 @@
                 </div>
             </div>
             
+            <!-- ⑤ 和历史对比 -->
             <div class="step-section">
                 <div class="step-title">⑤ 和历史对比</div>
                 <div class="step-content">
@@ -478,14 +336,30 @@
                 </div>
             </div>
             
+            <!-- 个股解读 -->
+            <div class="step-section">
+                <div class="step-title">📖 个股解读（四维看盘法）</div>
+                <div class="step-content" style="background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);">
+                    <p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>当前价格在大阴实顶（71.39元，2026-09-04）上方，高出2.26%。说明大阴实顶那天卖出的人，卖出后价格又涨回来了。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>从大阴实顶到今天，阳线6根，阴线5根，阴阳比1.20，多空双方力量相当。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>大阴实顶发生在10天前，时间很近，这个位置的记忆还很新鲜。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>今天的成交量是大阴实顶那天的138.5%，说明今天的博弈比那天还激烈。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>今天的量柱：长量柱（天量）；今天的价柱：长价柱（振幅大）。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>今天K线实体占比71.4%，实体较长，说明今天多空一方赢了，而且赢得比较彻底。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>当前价格在近120日中位，近3日涨跌+9.18%，近5日涨跌+7.76%。</p>
+
+                </div>
+            </div>
+            
+            <!-- ⑥ 全景总结 -->
             <div class="step-section">
                 <div class="step-title">⑥ 全景总结</div>
                 <div class="summary-box">
                     <p>
-                        今日+7.75%，天量，中位。<br>
-                        量价组合：放量涨，买方占优。<br>
+                        今日+7.75%，中位，买方占优。<br>
+                        量柱：长量柱（天量），价柱：长价柱（振幅大）。<br>
+                        大阴实顶：71.39（2026-09-04）<br>
                         近3日涨跌：+9.18%，近5日涨跌：+7.76%。<br>
-                        无连续趋势。
                     </p>
                 </div>
             </div>
@@ -500,10 +374,40 @@
                 <div class="stock-price price-up">61.38元 (+5.26%)</div>
             </div>
             
+            <!-- 【起点】大阴实顶 -->
             <div class="step-section">
-                <div class="step-title">① 从右向左看：找位置</div>
+                <div class="step-title">起点：大阴实顶</div>
                 <div class="step-content">
                     <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">大阴实顶（近60日）</div>
+                            <div class="value">59.97（2026-09-04）</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">当前位置</div>
+                            <div class="value" style="color:#94a3b8">未知</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ① 从右向左看：比较价柱的高低阴阳 -->
+            <div class="step-section">
+                <div class="step-title">① 从右向左看：比较价柱的高低阴阳</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">价格vs大阴实顶</div>
+                            <div class="value">+2.35%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">阳线/阴线数量</div>
+                            <div class="value">6阳 / 5阴</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">阴阳比</div>
+                            <div class="value">1.20</div>
+                        </div>
                         <div class="grid-item">
                             <div class="label">20日高点</div>
                             <div class="value">65.90</div>
@@ -512,208 +416,72 @@
                             <div class="label">20日低点</div>
                             <div class="value">56.22</div>
                         </div>
-                        <div class="grid-item">
-                            <div class="label">60日高点</div>
-                            <div class="value">84.70</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">60日低点</div>
-                            <div class="value">51.23</div>
-                        </div>
                     </div>
                 </div>
             </div>
             
+            <!-- ② 从上往下看：比较量价的真假大小 -->
             <div class="step-section">
-                <div class="step-title">平衡线（大阴实顶）</div>
-                <div class="step-content">
-                    <div class="grid-1">
-                        <div class="grid-item">
-                            <div class="label">最近平衡线（近30日）</div>
-                            <div class="value">59.97（2026-09-04）</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">精准线（多价格重合）</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        
-                <div class="grid-item">
-                    <div class="label">精准线1（12点）</div>
-                    <div class="value">61.26（2026-05-11~2026-09-18）</div>
-                </div>
-                
-                <div class="grid-item">
-                    <div class="label">精准线2（12点）</div>
-                    <div class="value">63.35（2026-05-22~2026-08-28）</div>
-                </div>
-                
-                <div class="grid-item">
-                    <div class="label">精准线3（9点）</div>
-                    <div class="value">57.01（2026-05-06~2026-09-15）</div>
-                </div>
-                
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">斜衡线（趋势线）</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        
-        <div class="grid-item">
-            <div class="label">上升斜衡线（支撑）</div>
-            <div class="value value-none">无</div>
-        </div>
-        
-        <div class="grid-item">
-            <div class="label">下降斜衡线（阻力）</div>
-            <div class="value">
-                76.80（2026-07-24）
-                → 72.56（2026-08-18）
-                <br><span style="font-size:11px; color:#94a3b8;">当前在下方</span>
-            </div>
-        </div>
-        
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">峰顶线/谷底线（博弈过的）</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        
-    <div class="grid-item">
-        <div class="label">20日峰顶线</div>
-        <div class="value">65.90（2026-08-28）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">20日谷底线</div>
-        <div class="value">56.38（2026-09-04）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">60日峰顶线</div>
-        <div class="value">72.56（2026-08-18）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">60日谷底线</div>
-        <div class="value">57.00（2026-07-21）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">120日峰顶线</div>
-        <div class="value">72.56（2026-08-18）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">120日谷底线</div>
-        <div class="value value-none value-weak">无（寻底中·偏弱）</div>
-    </div>
-    
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">高量柱安全线/风险线</div>
+                <div class="step-title">② 从上往下看：比较量价的真假大小</div>
                 <div class="step-content">
                     <div class="grid-2">
                         <div class="grid-item">
-                            <div class="label">20日安全线</div>
-                            <div class="value">62.23（2026-09-18）</div>
+                            <div class="label">大阴实顶的量</div>
+                            <div class="value">平量</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">20日风险线</div>
-                            <div class="value">58.93（2026-09-18）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">60日安全线</div>
-                            <div class="value">84.10（2026-07-15）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">60日风险线</div>
-                            <div class="value">78.71（2026-07-15）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">120日安全线</div>
-                            <div class="value">76.68（2026-05-26）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">120日风险线</div>
-                            <div class="value">69.85（2026-05-26）</div>
+                            <div class="label">量价真假判断</div>
+                            <div class="value">量平（正常调整）</div>
                         </div>
                     </div>
                 </div>
             </div>
             
+            <!-- ③ 从左往右看：比较量柱的远近多少 -->
             <div class="step-section">
-                <div class="step-title">② 从上往下看：看量柱</div>
+                <div class="step-title">③ 从左往右看：比较量柱的远近多少</div>
                 <div class="step-content">
                     <div class="grid-2">
                         <div class="grid-item">
-                            <div class="label">20日天量</div>
-                            <div class="value">1191684</div>
+                            <div class="label">时间距离</div>
+                            <div class="value">10天前</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">20日地量</div>
-                            <div class="value">373743</div>
+                            <div class="label">时间影响力</div>
+                            <div class="value">很近（影响力强）</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">量比(vs昨日)</div>
-                            <div class="value">2.26</div>
+                            <div class="label">今天量vs大阴实顶量</div>
+                            <div class="value">145.0%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量的多少对比</div>
+                            <div class="value">今天量更大</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ④ 从下往上看：比较量价的长短伸缩 -->
+            <div class="step-section">
+                <div class="step-title">④ 从下往上看：比较量价的长短伸缩</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">量柱长短</div>
+                            <div class="value">长量柱（天量）</div>
                         </div>
                         <div class="grid-item">
                             <div class="label">量能位置(20日)</div>
                             <div class="value">100.0%</div>
                         </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">③ 从左往右看：比量能</div>
-                <div class="step-content">
-                    <div class="grid-2">
                         <div class="grid-item">
-                            <div class="label">vs 20日天量</div>
-                            <div class="value">100.0%</div>
+                            <div class="label">价柱伸缩</div>
+                            <div class="value">中等价柱</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">vs 20日地量</div>
-                            <div class="value">318.9%</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">量比(vs5日)</div>
-                            <div class="value">2.34</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">量能趋势</div>
-                            <div class="value">无连续趋势</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">④ 从下往上看：看量价</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        <div class="grid-item">
-                            <div class="label">量价组合</div>
-                            <div class="value">放量涨</div>
+                            <div class="label">实体长短</div>
+                            <div class="value">中等实体</div>
                         </div>
                         <div class="grid-item">
                             <div class="label">实体占比</div>
@@ -723,6 +491,7 @@
                 </div>
             </div>
             
+            <!-- ⑤ 和历史对比 -->
             <div class="step-section">
                 <div class="step-title">⑤ 和历史对比</div>
                 <div class="step-content">
@@ -741,14 +510,29 @@
                 </div>
             </div>
             
+            <!-- 个股解读 -->
+            <div class="step-section">
+                <div class="step-title">📖 个股解读（四维看盘法）</div>
+                <div class="step-content" style="background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);">
+                    <p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>当前价格在大阴实顶（59.97元，2026-09-04）上方，高出2.35%。说明大阴实顶那天卖出的人，卖出后价格又涨回来了。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>从大阴实顶到今天，阳线6根，阴线5根，阴阳比1.20，多空双方力量相当。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>大阴实顶发生在10天前，时间很近，这个位置的记忆还很新鲜。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>今天的成交量是大阴实顶那天的145.0%，说明今天的博弈比那天还激烈。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>今天的量柱：长量柱（天量）；今天的价柱：中等价柱。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>当前价格在近120日中位，近3日涨跌+7.10%，近5日涨跌+5.83%。</p>
+
+                </div>
+            </div>
+            
+            <!-- ⑥ 全景总结 -->
             <div class="step-section">
                 <div class="step-title">⑥ 全景总结</div>
                 <div class="summary-box">
                     <p>
-                        今日+5.26%，天量，中位。<br>
-                        量价组合：放量涨，买方占优。<br>
+                        今日+5.26%，中位，买方占优。<br>
+                        量柱：长量柱（天量），价柱：中等价柱。<br>
+                        大阴实顶：59.97（2026-09-04）<br>
                         近3日涨跌：+7.10%，近5日涨跌：+5.83%。<br>
-                        无连续趋势。
                     </p>
                 </div>
             </div>
@@ -763,10 +547,40 @@
                 <div class="stock-price price-up">47.36元 (+3.11%)</div>
             </div>
             
+            <!-- 【起点】大阴实顶 -->
             <div class="step-section">
-                <div class="step-title">① 从右向左看：找位置</div>
+                <div class="step-title">起点：大阴实顶</div>
                 <div class="step-content">
                     <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">大阴实顶（近60日）</div>
+                            <div class="value">46.84（2026-09-04）</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">当前位置</div>
+                            <div class="value" style="color:#94a3b8">未知</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ① 从右向左看：比较价柱的高低阴阳 -->
+            <div class="step-section">
+                <div class="step-title">① 从右向左看：比较价柱的高低阴阳</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">价格vs大阴实顶</div>
+                            <div class="value">+1.11%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">阳线/阴线数量</div>
+                            <div class="value">6阳 / 5阴</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">阴阳比</div>
+                            <div class="value">1.20</div>
+                        </div>
                         <div class="grid-item">
                             <div class="label">20日高点</div>
                             <div class="value">49.94</div>
@@ -775,208 +589,72 @@
                             <div class="label">20日低点</div>
                             <div class="value">42.04</div>
                         </div>
-                        <div class="grid-item">
-                            <div class="label">60日高点</div>
-                            <div class="value">88.88</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">60日低点</div>
-                            <div class="value">36.44</div>
-                        </div>
                     </div>
                 </div>
             </div>
             
+            <!-- ② 从上往下看：比较量价的真假大小 -->
             <div class="step-section">
-                <div class="step-title">平衡线（大阴实顶）</div>
-                <div class="step-content">
-                    <div class="grid-1">
-                        <div class="grid-item">
-                            <div class="label">最近平衡线（近30日）</div>
-                            <div class="value">46.84（2026-09-04）</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">精准线（多价格重合）</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        
-                <div class="grid-item">
-                    <div class="label">精准线1（11点）</div>
-                    <div class="value">46.83（2026-05-14~2026-09-18）</div>
-                </div>
-                
-                <div class="grid-item">
-                    <div class="label">精准线2（10点）</div>
-                    <div class="value">44.05（2026-05-11~2026-09-14）</div>
-                </div>
-                
-                <div class="grid-item">
-                    <div class="label">精准线3（7点）</div>
-                    <div class="value">45.18（2026-05-13~2026-09-15）</div>
-                </div>
-                
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">斜衡线（趋势线）</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        
-        <div class="grid-item">
-            <div class="label">上升斜衡线（支撑）</div>
-            <div class="value value-none">无</div>
-        </div>
-        
-        <div class="grid-item">
-            <div class="label">下降斜衡线（阻力）</div>
-            <div class="value">
-                74.30（2026-07-10）
-                → 52.87（2026-08-18）
-                <br><span style="font-size:11px; color:#94a3b8;">当前在下方</span>
-            </div>
-        </div>
-        
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">峰顶线/谷底线（博弈过的）</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        
-    <div class="grid-item">
-        <div class="label">20日峰顶线</div>
-        <div class="value value-none value-strong">无（寻顶中·偏强）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">20日谷底线</div>
-        <div class="value">43.18（2026-09-04）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">60日峰顶线</div>
-        <div class="value">52.87（2026-08-18）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">60日谷底线</div>
-        <div class="value">38.00（2026-07-21）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">120日峰顶线</div>
-        <div class="value">52.87（2026-08-18）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">120日谷底线</div>
-        <div class="value value-none value-weak">无（寻底中·偏弱）</div>
-    </div>
-    
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">高量柱安全线/风险线</div>
+                <div class="step-title">② 从上往下看：比较量价的真假大小</div>
                 <div class="step-content">
                     <div class="grid-2">
                         <div class="grid-item">
-                            <div class="label">20日安全线</div>
-                            <div class="value">48.48（2026-08-27）</div>
+                            <div class="label">大阴实顶的量</div>
+                            <div class="value">平量</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">20日风险线</div>
-                            <div class="value">46.22（2026-08-27）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">60日安全线</div>
-                            <div class="value">88.88（2026-07-01）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">60日风险线</div>
-                            <div class="value">79.56（2026-07-01）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">120日安全线</div>
-                            <div class="value">88.88（2026-07-01）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">120日风险线</div>
-                            <div class="value">79.56（2026-07-01）</div>
+                            <div class="label">量价真假判断</div>
+                            <div class="value">量平（正常调整）</div>
                         </div>
                     </div>
                 </div>
             </div>
             
+            <!-- ③ 从左往右看：比较量柱的远近多少 -->
             <div class="step-section">
-                <div class="step-title">② 从上往下看：看量柱</div>
+                <div class="step-title">③ 从左往右看：比较量柱的远近多少</div>
                 <div class="step-content">
                     <div class="grid-2">
                         <div class="grid-item">
-                            <div class="label">20日天量</div>
-                            <div class="value">276300</div>
+                            <div class="label">时间距离</div>
+                            <div class="value">10天前</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">20日地量</div>
-                            <div class="value">86068</div>
+                            <div class="label">时间影响力</div>
+                            <div class="value">很近（影响力强）</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">量比(vs昨日)</div>
-                            <div class="value">1.57</div>
+                            <div class="label">今天量vs大阴实顶量</div>
+                            <div class="value">66.8%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量的多少对比</div>
+                            <div class="value">差不多</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ④ 从下往上看：比较量价的长短伸缩 -->
+            <div class="step-section">
+                <div class="step-title">④ 从下往上看：比较量价的长短伸缩</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">量柱长短</div>
+                            <div class="value">中等量柱</div>
                         </div>
                         <div class="grid-item">
                             <div class="label">量能位置(20日)</div>
                             <div class="value">32.1%</div>
                         </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">③ 从左往右看：比量能</div>
-                <div class="step-content">
-                    <div class="grid-2">
                         <div class="grid-item">
-                            <div class="label">vs 20日天量</div>
-                            <div class="value">53.2%</div>
+                            <div class="label">价柱伸缩</div>
+                            <div class="value">中等价柱</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">vs 20日地量</div>
-                            <div class="value">170.9%</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">量比(vs5日)</div>
-                            <div class="value">1.35</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">量能趋势</div>
-                            <div class="value">无连续趋势</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">④ 从下往上看：看量价</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        <div class="grid-item">
-                            <div class="label">量价组合</div>
-                            <div class="value">放量涨</div>
+                            <div class="label">实体长短</div>
+                            <div class="value">短实体（十字星）</div>
                         </div>
                         <div class="grid-item">
                             <div class="label">实体占比</div>
@@ -986,6 +664,7 @@
                 </div>
             </div>
             
+            <!-- ⑤ 和历史对比 -->
             <div class="step-section">
                 <div class="step-title">⑤ 和历史对比</div>
                 <div class="step-content">
@@ -1004,14 +683,30 @@
                 </div>
             </div>
             
+            <!-- 个股解读 -->
+            <div class="step-section">
+                <div class="step-title">📖 个股解读（四维看盘法）</div>
+                <div class="step-content" style="background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);">
+                    <p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>当前价格在大阴实顶（46.84元，2026-09-04）上方，高出1.11%。说明大阴实顶那天卖出的人，卖出后价格又涨回来了。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>从大阴实顶到今天，阳线6根，阴线5根，阴阳比1.20，多空双方力量相当。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>大阴实顶发生在10天前，时间很近，这个位置的记忆还很新鲜。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>今天的成交量是大阴实顶那天的66.8%，和那天差不多。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>今天的量柱：中等量柱；今天的价柱：中等价柱。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>今天K线实体占比29.8%，实体很短，说明今天多空打了个平手。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>当前价格在近120日低位，近3日涨跌+5.13%，近5日涨跌+8.00%。</p>
+
+                </div>
+            </div>
+            
+            <!-- ⑥ 全景总结 -->
             <div class="step-section">
                 <div class="step-title">⑥ 全景总结</div>
                 <div class="summary-box">
                     <p>
-                        今日+3.11%，正常，低位。<br>
-                        量价组合：放量涨，买方占优。<br>
+                        今日+3.11%，低位，买方占优。<br>
+                        量柱：中等量柱，价柱：中等价柱。<br>
+                        大阴实顶：46.84（2026-09-04）<br>
                         近3日涨跌：+5.13%，近5日涨跌：+8.00%。<br>
-                        无连续趋势。
                     </p>
                 </div>
             </div>
@@ -1026,10 +721,40 @@
                 <div class="stock-price price-up">284.66元 (+2.52%)</div>
             </div>
             
+            <!-- 【起点】大阴实顶 -->
             <div class="step-section">
-                <div class="step-title">① 从右向左看：找位置</div>
+                <div class="step-title">起点：大阴实顶</div>
                 <div class="step-content">
                     <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">大阴实顶（近60日）</div>
+                            <div class="value">269.50（2026-09-09）</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">当前位置</div>
+                            <div class="value" style="color:#94a3b8">未知</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ① 从右向左看：比较价柱的高低阴阳 -->
+            <div class="step-section">
+                <div class="step-title">① 从右向左看：比较价柱的高低阴阳</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">价格vs大阴实顶</div>
+                            <div class="value">+5.63%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">阳线/阴线数量</div>
+                            <div class="value">6阳 / 2阴</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">阴阳比</div>
+                            <div class="value">3.00</div>
+                        </div>
                         <div class="grid-item">
                             <div class="label">20日高点</div>
                             <div class="value">292.07</div>
@@ -1038,208 +763,72 @@
                             <div class="label">20日低点</div>
                             <div class="value">237.30</div>
                         </div>
-                        <div class="grid-item">
-                            <div class="label">60日高点</div>
-                            <div class="value">313.49</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">60日低点</div>
-                            <div class="value">155.05</div>
-                        </div>
                     </div>
                 </div>
             </div>
             
+            <!-- ② 从上往下看：比较量价的真假大小 -->
             <div class="step-section">
-                <div class="step-title">平衡线（大阴实顶）</div>
-                <div class="step-content">
-                    <div class="grid-1">
-                        <div class="grid-item">
-                            <div class="label">最近平衡线（近30日）</div>
-                            <div class="value">269.50（2026-09-09）</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">精准线（多价格重合）</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        
-                <div class="grid-item">
-                    <div class="label">精准线1（9点）</div>
-                    <div class="value">255.66（2026-04-10~2026-09-15）</div>
-                </div>
-                
-                <div class="grid-item">
-                    <div class="label">精准线2（7点）</div>
-                    <div class="value">247.51（2026-04-09~2026-09-04）</div>
-                </div>
-                
-                <div class="grid-item">
-                    <div class="label">精准线3（7点）</div>
-                    <div class="value">270.03（2026-04-17~2026-09-16）</div>
-                </div>
-                
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">斜衡线（趋势线）</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        
-        <div class="grid-item">
-            <div class="label">上升斜衡线（支撑）</div>
-            <div class="value">
-                155.05（2026-07-30）
-                → 240.50（2026-08-24）
-                <br><span style="font-size:11px; color:#94a3b8;">当前在上方</span>
-            </div>
-        </div>
-        
-        <div class="grid-item">
-            <div class="label">下降斜衡线（阻力）</div>
-            <div class="value value-none">无</div>
-        </div>
-        
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">峰顶线/谷底线（博弈过的）</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        
-    <div class="grid-item">
-        <div class="label">20日峰顶线</div>
-        <div class="value">276.49（2026-09-10）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">20日谷底线</div>
-        <div class="value value-none value-weak">无（寻底中·偏弱）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">60日峰顶线</div>
-        <div class="value">294.50（2026-08-18）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">60日谷底线</div>
-        <div class="value">240.50（2026-08-24）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">120日峰顶线</div>
-        <div class="value">294.50（2026-08-18）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">120日谷底线</div>
-        <div class="value">240.50（2026-08-24）</div>
-    </div>
-    
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">高量柱安全线/风险线</div>
+                <div class="step-title">② 从上往下看：比较量价的真假大小</div>
                 <div class="step-content">
                     <div class="grid-2">
                         <div class="grid-item">
-                            <div class="label">20日安全线</div>
-                            <div class="value">268.38（2026-08-24）</div>
+                            <div class="label">大阴实顶的量</div>
+                            <div class="value">平量</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">20日风险线</div>
-                            <div class="value">249.00（2026-08-24）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">60日安全线</div>
-                            <div class="value">216.35（2026-08-05）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">60日风险线</div>
-                            <div class="value">197.50（2026-08-05）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">120日安全线</div>
-                            <div class="value">216.35（2026-08-05）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">120日风险线</div>
-                            <div class="value">197.50（2026-08-05）</div>
+                            <div class="label">量价真假判断</div>
+                            <div class="value">量平（正常调整）</div>
                         </div>
                     </div>
                 </div>
             </div>
             
+            <!-- ③ 从左往右看：比较量柱的远近多少 -->
             <div class="step-section">
-                <div class="step-title">② 从上往下看：看量柱</div>
+                <div class="step-title">③ 从左往右看：比较量柱的远近多少</div>
                 <div class="step-content">
                     <div class="grid-2">
                         <div class="grid-item">
-                            <div class="label">20日天量</div>
-                            <div class="value">644778</div>
+                            <div class="label">时间距离</div>
+                            <div class="value">7天前</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">20日地量</div>
-                            <div class="value">254888</div>
+                            <div class="label">时间影响力</div>
+                            <div class="value">很近（影响力强）</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">量比(vs昨日)</div>
-                            <div class="value">1.00</div>
+                            <div class="label">今天量vs大阴实顶量</div>
+                            <div class="value">151.7%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量的多少对比</div>
+                            <div class="value">今天量更大</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ④ 从下往上看：比较量价的长短伸缩 -->
+            <div class="step-section">
+                <div class="step-title">④ 从下往上看：比较量价的长短伸缩</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">量柱长短</div>
+                            <div class="value">中等量柱</div>
                         </div>
                         <div class="grid-item">
                             <div class="label">量能位置(20日)</div>
                             <div class="value">51.6%</div>
                         </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">③ 从左往右看：比量能</div>
-                <div class="step-content">
-                    <div class="grid-2">
                         <div class="grid-item">
-                            <div class="label">vs 20日天量</div>
-                            <div class="value">70.7%</div>
+                            <div class="label">价柱伸缩</div>
+                            <div class="value">中等价柱</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">vs 20日地量</div>
-                            <div class="value">178.9%</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">量比(vs5日)</div>
-                            <div class="value">1.15</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">量能趋势</div>
-                            <div class="value">无连续趋势</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">④ 从下往上看：看量价</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        <div class="grid-item">
-                            <div class="label">量价组合</div>
-                            <div class="value">平量整理</div>
+                            <div class="label">实体长短</div>
+                            <div class="value">短实体（十字星）</div>
                         </div>
                         <div class="grid-item">
                             <div class="label">实体占比</div>
@@ -1249,6 +838,7 @@
                 </div>
             </div>
             
+            <!-- ⑤ 和历史对比 -->
             <div class="step-section">
                 <div class="step-title">⑤ 和历史对比</div>
                 <div class="step-content">
@@ -1267,14 +857,30 @@
                 </div>
             </div>
             
+            <!-- 个股解读 -->
+            <div class="step-section">
+                <div class="step-title">📖 个股解读（四维看盘法）</div>
+                <div class="step-content" style="background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);">
+                    <p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>当前价格在大阴实顶（269.50元，2026-09-09）上方，高出5.63%。说明大阴实顶那天卖出的人，卖出后价格又涨回来了。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>从大阴实顶到今天，阳线6根，阴线2根，阴阳比3.00，阳线明显多于阴线。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>大阴实顶发生在7天前，时间很近，这个位置的记忆还很新鲜。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>今天的成交量是大阴实顶那天的151.7%，说明今天的博弈比那天还激烈。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>今天的量柱：中等量柱；今天的价柱：中等价柱。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>今天K线实体占比7.4%，实体很短，说明今天多空打了个平手。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>当前价格在近120日中位，近3日涨跌+10.81%，近5日涨跌+8.87%。</p>
+
+                </div>
+            </div>
+            
+            <!-- ⑥ 全景总结 -->
             <div class="step-section">
                 <div class="step-title">⑥ 全景总结</div>
                 <div class="summary-box">
                     <p>
-                        今日+2.52%，正常，中位。<br>
-                        量价组合：平量整理，买方占优。<br>
+                        今日+2.52%，中位，买方占优。<br>
+                        量柱：中等量柱，价柱：中等价柱。<br>
+                        大阴实顶：269.50（2026-09-09）<br>
                         近3日涨跌：+10.81%，近5日涨跌：+8.87%。<br>
-                        无连续趋势。
                     </p>
                 </div>
             </div>
@@ -1289,10 +895,40 @@
                 <div class="stock-price price-up">62.71元 (+2.35%)</div>
             </div>
             
+            <!-- 【起点】大阴实顶 -->
             <div class="step-section">
-                <div class="step-title">① 从右向左看：找位置</div>
+                <div class="step-title">起点：大阴实顶</div>
                 <div class="step-content">
                     <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">大阴实顶（近60日）</div>
+                            <div class="value">62.70（2026-08-24）</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">当前位置</div>
+                            <div class="value" style="color:#94a3b8">未知</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ① 从右向左看：比较价柱的高低阴阳 -->
+            <div class="step-section">
+                <div class="step-title">① 从右向左看：比较价柱的高低阴阳</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">价格vs大阴实顶</div>
+                            <div class="value">+0.02%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">阳线/阴线数量</div>
+                            <div class="value">10阳 / 9阴</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">阴阳比</div>
+                            <div class="value">1.11</div>
+                        </div>
                         <div class="grid-item">
                             <div class="label">20日高点</div>
                             <div class="value">66.88</div>
@@ -1301,208 +937,72 @@
                             <div class="label">20日低点</div>
                             <div class="value">58.75</div>
                         </div>
-                        <div class="grid-item">
-                            <div class="label">60日高点</div>
-                            <div class="value">73.23</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">60日低点</div>
-                            <div class="value">52.57</div>
-                        </div>
                     </div>
                 </div>
             </div>
             
+            <!-- ② 从上往下看：比较量价的真假大小 -->
             <div class="step-section">
-                <div class="step-title">平衡线（大阴实顶）</div>
-                <div class="step-content">
-                    <div class="grid-1">
-                        <div class="grid-item">
-                            <div class="label">最近平衡线（近30日）</div>
-                            <div class="value">62.70（2026-08-24）</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">精准线（多价格重合）</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        
-                <div class="grid-item">
-                    <div class="label">精准线1（12点）</div>
-                    <div class="value">62.33（2026-04-30~2026-09-18）</div>
-                </div>
-                
-                <div class="grid-item">
-                    <div class="label">精准线2（11点）</div>
-                    <div class="value">60.46（2026-04-17~2026-09-15）</div>
-                </div>
-                
-                <div class="grid-item">
-                    <div class="label">精准线3（11点）</div>
-                    <div class="value">66.10（2026-04-22~2026-09-07）</div>
-                </div>
-                
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">斜衡线（趋势线）</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        
-        <div class="grid-item">
-            <div class="label">上升斜衡线（支撑）</div>
-            <div class="value value-none">无</div>
-        </div>
-        
-        <div class="grid-item">
-            <div class="label">下降斜衡线（阻力）</div>
-            <div class="value">
-                84.30（2026-06-03）
-                → 79.25（2026-06-18）
-                <br><span style="font-size:11px; color:#94a3b8;">当前在下方</span>
-            </div>
-        </div>
-        
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">峰顶线/谷底线（博弈过的）</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        
-    <div class="grid-item">
-        <div class="label">20日峰顶线</div>
-        <div class="value">66.88（2026-09-07）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">20日谷底线</div>
-        <div class="value value-none value-weak">无（寻底中·偏弱）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">60日峰顶线</div>
-        <div class="value">66.88（2026-09-07）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">60日谷底线</div>
-        <div class="value value-none value-weak">无（寻底中·偏弱）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">120日峰顶线</div>
-        <div class="value">79.25（2026-06-18）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">120日谷底线</div>
-        <div class="value">61.09（2026-05-06）</div>
-    </div>
-    
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">高量柱安全线/风险线</div>
+                <div class="step-title">② 从上往下看：比较量价的真假大小</div>
                 <div class="step-content">
                     <div class="grid-2">
                         <div class="grid-item">
-                            <div class="label">20日安全线</div>
-                            <div class="value">66.57（2026-09-07）</div>
+                            <div class="label">大阴实顶的量</div>
+                            <div class="value">平量</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">20日风险线</div>
-                            <div class="value">64.60（2026-09-07）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">60日安全线</div>
-                            <div class="value">65.92（2026-08-05）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">60日风险线</div>
-                            <div class="value">59.00（2026-08-05）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">120日安全线</div>
-                            <div class="value">77.43（2026-06-18）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">120日风险线</div>
-                            <div class="value">71.35（2026-06-18）</div>
+                            <div class="label">量价真假判断</div>
+                            <div class="value">量平（正常调整）</div>
                         </div>
                     </div>
                 </div>
             </div>
             
+            <!-- ③ 从左往右看：比较量柱的远近多少 -->
             <div class="step-section">
-                <div class="step-title">② 从上往下看：看量柱</div>
+                <div class="step-title">③ 从左往右看：比较量柱的远近多少</div>
                 <div class="step-content">
                     <div class="grid-2">
                         <div class="grid-item">
-                            <div class="label">20日天量</div>
-                            <div class="value">1743476</div>
+                            <div class="label">时间距离</div>
+                            <div class="value">19天前</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">20日地量</div>
-                            <div class="value">567595</div>
+                            <div class="label">时间影响力</div>
+                            <div class="value">中等（影响力一般）</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">量比(vs昨日)</div>
-                            <div class="value">1.91</div>
+                            <div class="label">今天量vs大阴实顶量</div>
+                            <div class="value">113.5%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量的多少对比</div>
+                            <div class="value">今天量更大</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ④ 从下往上看：比较量价的长短伸缩 -->
+            <div class="step-section">
+                <div class="step-title">④ 从下往上看：比较量价的长短伸缩</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">量柱长短</div>
+                            <div class="value">中等量柱</div>
                         </div>
                         <div class="grid-item">
                             <div class="label">量能位置(20日)</div>
                             <div class="value">46.3%</div>
                         </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">③ 从左往右看：比量能</div>
-                <div class="step-content">
-                    <div class="grid-2">
                         <div class="grid-item">
-                            <div class="label">vs 20日天量</div>
-                            <div class="value">63.8%</div>
+                            <div class="label">价柱伸缩</div>
+                            <div class="value">中等价柱</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">vs 20日地量</div>
-                            <div class="value">195.9%</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">量比(vs5日)</div>
-                            <div class="value">1.61</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">量能趋势</div>
-                            <div class="value">无连续趋势</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">④ 从下往上看：看量价</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        <div class="grid-item">
-                            <div class="label">量价组合</div>
-                            <div class="value">放量跌</div>
+                            <div class="label">实体长短</div>
+                            <div class="value">短实体（十字星）</div>
                         </div>
                         <div class="grid-item">
                             <div class="label">实体占比</div>
@@ -1512,6 +1012,7 @@
                 </div>
             </div>
             
+            <!-- ⑤ 和历史对比 -->
             <div class="step-section">
                 <div class="step-title">⑤ 和历史对比</div>
                 <div class="step-content">
@@ -1530,14 +1031,30 @@
                 </div>
             </div>
             
+            <!-- 个股解读 -->
+            <div class="step-section">
+                <div class="step-title">📖 个股解读（四维看盘法）</div>
+                <div class="step-content" style="background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);">
+                    <p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>当前价格在大阴实顶（62.70元，2026-08-24）上方，高出0.02%。说明大阴实顶那天卖出的人，卖出后价格又涨回来了。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>从大阴实顶到今天，阳线10根，阴线9根，阴阳比1.11，多空双方力量相当。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>大阴实顶发生在19天前，时间中等，这个位置还有一定的影响力。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>今天的成交量是大阴实顶那天的113.5%，说明今天的博弈比那天还激烈。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>今天的量柱：中等量柱；今天的价柱：中等价柱。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>今天K线实体占比13.8%，实体很短，说明今天多空打了个平手。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>当前价格在近120日中位，近3日涨跌+3.14%，近5日涨跌-2.12%。</p>
+
+                </div>
+            </div>
+            
+            <!-- ⑥ 全景总结 -->
             <div class="step-section">
                 <div class="step-title">⑥ 全景总结</div>
                 <div class="summary-box">
                     <p>
-                        今日+2.35%，正常，中位。<br>
-                        量价组合：放量跌，卖方占优。<br>
+                        今日+2.35%，中位，卖方占优。<br>
+                        量柱：中等量柱，价柱：中等价柱。<br>
+                        大阴实顶：62.70（2026-08-24）<br>
                         近3日涨跌：+3.14%，近5日涨跌：-2.12%。<br>
-                        无连续趋势。
                     </p>
                 </div>
             </div>
@@ -1552,10 +1069,40 @@
                 <div class="stock-price price-up">26.99元 (+2.16%)</div>
             </div>
             
+            <!-- 【起点】大阴实顶 -->
             <div class="step-section">
-                <div class="step-title">① 从右向左看：找位置</div>
+                <div class="step-title">起点：大阴实顶</div>
                 <div class="step-content">
                     <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">大阴实顶（近60日）</div>
+                            <div class="value">25.76（2026-09-15）</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">当前位置</div>
+                            <div class="value" style="color:#94a3b8">未知</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ① 从右向左看：比较价柱的高低阴阳 -->
+            <div class="step-section">
+                <div class="step-title">① 从右向左看：比较价柱的高低阴阳</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">价格vs大阴实顶</div>
+                            <div class="value">+4.77%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">阳线/阴线数量</div>
+                            <div class="value">3阳 / 1阴</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">阴阳比</div>
+                            <div class="value">3.00</div>
+                        </div>
                         <div class="grid-item">
                             <div class="label">20日高点</div>
                             <div class="value">28.49</div>
@@ -1564,208 +1111,72 @@
                             <div class="label">20日低点</div>
                             <div class="value">24.48</div>
                         </div>
-                        <div class="grid-item">
-                            <div class="label">60日高点</div>
-                            <div class="value">33.27</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">60日低点</div>
-                            <div class="value">21.40</div>
-                        </div>
                     </div>
                 </div>
             </div>
             
+            <!-- ② 从上往下看：比较量价的真假大小 -->
             <div class="step-section">
-                <div class="step-title">平衡线（大阴实顶）</div>
-                <div class="step-content">
-                    <div class="grid-1">
-                        <div class="grid-item">
-                            <div class="label">最近平衡线（近30日）</div>
-                            <div class="value">25.76（2026-09-15）</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">精准线（多价格重合）</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        
-                <div class="grid-item">
-                    <div class="label">精准线1（7点）</div>
-                    <div class="value">27.26（2026-07-15~2026-08-31）</div>
-                </div>
-                
-                <div class="grid-item">
-                    <div class="label">精准线2（6点）</div>
-                    <div class="value">36.29（2026-04-09~2026-06-25）</div>
-                </div>
-                
-                <div class="grid-item">
-                    <div class="label">精准线3（6点）</div>
-                    <div class="value">41.93（2026-04-20~2026-06-05）</div>
-                </div>
-                
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">斜衡线（趋势线）</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        
-        <div class="grid-item">
-            <div class="label">上升斜衡线（支撑）</div>
-            <div class="value value-none">无</div>
-        </div>
-        
-        <div class="grid-item">
-            <div class="label">下降斜衡线（阻力）</div>
-            <div class="value">
-                47.46（2026-06-04）
-                → 38.71（2026-06-22）
-                <br><span style="font-size:11px; color:#94a3b8;">当前在下方</span>
-            </div>
-        </div>
-        
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">峰顶线/谷底线（博弈过的）</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        
-    <div class="grid-item">
-        <div class="label">20日峰顶线</div>
-        <div class="value">28.10（2026-09-11）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">20日谷底线</div>
-        <div class="value">24.80（2026-09-10）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">60日峰顶线</div>
-        <div class="value">28.10（2026-09-11）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">60日谷底线</div>
-        <div class="value">24.80（2026-09-10）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">120日峰顶线</div>
-        <div class="value">38.71（2026-06-22）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">120日谷底线</div>
-        <div class="value">37.37（2026-04-30）</div>
-    </div>
-    
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">高量柱安全线/风险线</div>
+                <div class="step-title">② 从上往下看：比较量价的真假大小</div>
                 <div class="step-content">
                     <div class="grid-2">
                         <div class="grid-item">
-                            <div class="label">20日安全线</div>
-                            <div class="value">28.10（2026-09-11）</div>
+                            <div class="label">大阴实顶的量</div>
+                            <div class="value">平量</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">20日风险线</div>
-                            <div class="value">26.43（2026-09-11）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">60日安全线</div>
-                            <div class="value">27.52（2026-08-06）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">60日风险线</div>
-                            <div class="value">25.96（2026-08-06）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">120日安全线</div>
-                            <div class="value">47.46（2026-06-04）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">120日风险线</div>
-                            <div class="value">43.19（2026-06-04）</div>
+                            <div class="label">量价真假判断</div>
+                            <div class="value">量平（正常调整）</div>
                         </div>
                     </div>
                 </div>
             </div>
             
+            <!-- ③ 从左往右看：比较量柱的远近多少 -->
             <div class="step-section">
-                <div class="step-title">② 从上往下看：看量柱</div>
+                <div class="step-title">③ 从左往右看：比较量柱的远近多少</div>
                 <div class="step-content">
                     <div class="grid-2">
                         <div class="grid-item">
-                            <div class="label">20日天量</div>
-                            <div class="value">611843</div>
+                            <div class="label">时间距离</div>
+                            <div class="value">3天前</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">20日地量</div>
-                            <div class="value">168088</div>
+                            <div class="label">时间影响力</div>
+                            <div class="value">很近（影响力强）</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">量比(vs昨日)</div>
-                            <div class="value">0.96</div>
+                            <div class="label">今天量vs大阴实顶量</div>
+                            <div class="value">105.5%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量的多少对比</div>
+                            <div class="value">今天量更大</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ④ 从下往上看：比较量价的长短伸缩 -->
+            <div class="step-section">
+                <div class="step-title">④ 从下往上看：比较量价的长短伸缩</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">量柱长短</div>
+                            <div class="value">中等量柱</div>
                         </div>
                         <div class="grid-item">
                             <div class="label">量能位置(20日)</div>
                             <div class="value">48.1%</div>
                         </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">③ 从左往右看：比量能</div>
-                <div class="step-content">
-                    <div class="grid-2">
                         <div class="grid-item">
-                            <div class="label">vs 20日天量</div>
-                            <div class="value">62.4%</div>
+                            <div class="label">价柱伸缩</div>
+                            <div class="value">中等价柱</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">vs 20日地量</div>
-                            <div class="value">227.0%</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">量比(vs5日)</div>
-                            <div class="value">0.82</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">量能趋势</div>
-                            <div class="value">连续缩量</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">④ 从下往上看：看量价</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        <div class="grid-item">
-                            <div class="label">量价组合</div>
-                            <div class="value">平量整理</div>
+                            <div class="label">实体长短</div>
+                            <div class="value">短实体（十字星）</div>
                         </div>
                         <div class="grid-item">
                             <div class="label">实体占比</div>
@@ -1775,6 +1186,7 @@
                 </div>
             </div>
             
+            <!-- ⑤ 和历史对比 -->
             <div class="step-section">
                 <div class="step-title">⑤ 和历史对比</div>
                 <div class="step-content">
@@ -1793,14 +1205,30 @@
                 </div>
             </div>
             
+            <!-- 个股解读 -->
+            <div class="step-section">
+                <div class="step-title">📖 个股解读（四维看盘法）</div>
+                <div class="step-content" style="background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);">
+                    <p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>当前价格在大阴实顶（25.76元，2026-09-15）上方，高出4.77%。说明大阴实顶那天卖出的人，卖出后价格又涨回来了。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>从大阴实顶到今天，阳线3根，阴线1根，阴阳比3.00，阳线明显多于阴线。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>大阴实顶发生在3天前，时间很近，这个位置的记忆还很新鲜。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>今天的成交量是大阴实顶那天的105.5%，说明今天的博弈比那天还激烈。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>今天的量柱：中等量柱；今天的价柱：中等价柱。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>今天K线实体占比11.1%，实体很短，说明今天多空打了个平手。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>当前价格在近120日低位，近3日涨跌+8.13%，近5日涨跌+0.19%。</p>
+
+                </div>
+            </div>
+            
+            <!-- ⑥ 全景总结 -->
             <div class="step-section">
                 <div class="step-title">⑥ 全景总结</div>
                 <div class="summary-box">
                     <p>
-                        今日+2.16%，正常，低位。<br>
-                        量价组合：平量整理，买方占优。<br>
+                        今日+2.16%，低位，买方占优。<br>
+                        量柱：中等量柱，价柱：中等价柱。<br>
+                        大阴实顶：25.76（2026-09-15）<br>
                         近3日涨跌：+8.13%，近5日涨跌：+0.19%。<br>
-                        连续缩量。
                     </p>
                 </div>
             </div>
@@ -1815,10 +1243,40 @@
                 <div class="stock-price price-up">227.05元 (+1.86%)</div>
             </div>
             
+            <!-- 【起点】大阴实顶 -->
             <div class="step-section">
-                <div class="step-title">① 从右向左看：找位置</div>
+                <div class="step-title">起点：大阴实顶</div>
                 <div class="step-content">
                     <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">大阴实顶（近60日）</div>
+                            <div class="value">241.01（2026-09-01）</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">当前位置</div>
+                            <div class="value" style="color:#94a3b8">未知</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ① 从右向左看：比较价柱的高低阴阳 -->
+            <div class="step-section">
+                <div class="step-title">① 从右向左看：比较价柱的高低阴阳</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">价格vs大阴实顶</div>
+                            <div class="value">-5.79%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">阳线/阴线数量</div>
+                            <div class="value">6阳 / 8阴</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">阴阳比</div>
+                            <div class="value">0.75</div>
+                        </div>
                         <div class="grid-item">
                             <div class="label">20日高点</div>
                             <div class="value">264.94</div>
@@ -1827,208 +1285,72 @@
                             <div class="label">20日低点</div>
                             <div class="value">217.44</div>
                         </div>
-                        <div class="grid-item">
-                            <div class="label">60日高点</div>
-                            <div class="value">353.97</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">60日低点</div>
-                            <div class="value">177.88</div>
-                        </div>
                     </div>
                 </div>
             </div>
             
+            <!-- ② 从上往下看：比较量价的真假大小 -->
             <div class="step-section">
-                <div class="step-title">平衡线（大阴实顶）</div>
-                <div class="step-content">
-                    <div class="grid-1">
-                        <div class="grid-item">
-                            <div class="label">最近平衡线（近30日）</div>
-                            <div class="value">241.01（2026-09-01）</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">精准线（多价格重合）</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        
-                <div class="grid-item">
-                    <div class="label">精准线1（8点）</div>
-                    <div class="value">343.13（2026-04-20~2026-06-24）</div>
-                </div>
-                
-                <div class="grid-item">
-                    <div class="label">精准线2（6点）</div>
-                    <div class="value">326.73（2026-04-17~2026-07-01）</div>
-                </div>
-                
-                <div class="grid-item">
-                    <div class="label">精准线3（6点）</div>
-                    <div class="value">332.10（2026-04-21~2026-06-10）</div>
-                </div>
-                
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">斜衡线（趋势线）</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        
-        <div class="grid-item">
-            <div class="label">上升斜衡线（支撑）</div>
-            <div class="value">
-                304.00（2026-04-29）
-                → 306.56（2026-06-08）
-                <br><span style="font-size:11px; color:#94a3b8;">当前在下方</span>
-            </div>
-        </div>
-        
-        <div class="grid-item">
-            <div class="label">下降斜衡线（阻力）</div>
-            <div class="value value-none">无</div>
-        </div>
-        
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">峰顶线/谷底线（博弈过的）</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        
-    <div class="grid-item">
-        <div class="label">20日峰顶线</div>
-        <div class="value">264.94（2026-08-27）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">20日谷底线</div>
-        <div class="value value-none value-weak">无（寻底中·偏弱）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">60日峰顶线</div>
-        <div class="value">287.68（2026-08-13）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">60日谷底线</div>
-        <div class="value">177.88（2026-07-30）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">120日峰顶线</div>
-        <div class="value">287.68（2026-08-13）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">120日谷底线</div>
-        <div class="value">306.56（2026-06-08）</div>
-    </div>
-    
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">高量柱安全线/风险线</div>
+                <div class="step-title">② 从上往下看：比较量价的真假大小</div>
                 <div class="step-content">
                     <div class="grid-2">
                         <div class="grid-item">
-                            <div class="label">20日安全线</div>
-                            <div class="value">255.68（2026-08-28）</div>
+                            <div class="label">大阴实顶的量</div>
+                            <div class="value">平量</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">20日风险线</div>
-                            <div class="value">241.60（2026-08-28）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">60日安全线</div>
-                            <div class="value">236.35（2026-08-05）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">60日风险线</div>
-                            <div class="value">191.10（2026-08-05）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">120日安全线</div>
-                            <div class="value">375.50（2026-05-22）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">120日风险线</div>
-                            <div class="value">346.04（2026-05-22）</div>
+                            <div class="label">量价真假判断</div>
+                            <div class="value">量平（正常调整）</div>
                         </div>
                     </div>
                 </div>
             </div>
             
+            <!-- ③ 从左往右看：比较量柱的远近多少 -->
             <div class="step-section">
-                <div class="step-title">② 从上往下看：看量柱</div>
+                <div class="step-title">③ 从左往右看：比较量柱的远近多少</div>
                 <div class="step-content">
                     <div class="grid-2">
                         <div class="grid-item">
-                            <div class="label">20日天量</div>
-                            <div class="value">572833</div>
+                            <div class="label">时间距离</div>
+                            <div class="value">13天前</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">20日地量</div>
-                            <div class="value">157302</div>
+                            <div class="label">时间影响力</div>
+                            <div class="value">中等（影响力一般）</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">量比(vs昨日)</div>
-                            <div class="value">1.07</div>
+                            <div class="label">今天量vs大阴实顶量</div>
+                            <div class="value">130.2%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量的多少对比</div>
+                            <div class="value">今天量更大</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ④ 从下往上看：比较量价的长短伸缩 -->
+            <div class="step-section">
+                <div class="step-title">④ 从下往上看：比较量价的长短伸缩</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">量柱长短</div>
+                            <div class="value">中等量柱</div>
                         </div>
                         <div class="grid-item">
                             <div class="label">量能位置(20日)</div>
                             <div class="value">36.2%</div>
                         </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">③ 从左往右看：比量能</div>
-                <div class="step-content">
-                    <div class="grid-2">
                         <div class="grid-item">
-                            <div class="label">vs 20日天量</div>
-                            <div class="value">53.7%</div>
+                            <div class="label">价柱伸缩</div>
+                            <div class="value">中等价柱</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">vs 20日地量</div>
-                            <div class="value">195.6%</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">量比(vs5日)</div>
-                            <div class="value">1.32</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">量能趋势</div>
-                            <div class="value">连续放量</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">④ 从下往上看：看量价</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        <div class="grid-item">
-                            <div class="label">量价组合</div>
-                            <div class="value">平量整理</div>
+                            <div class="label">实体长短</div>
+                            <div class="value">短实体（十字星）</div>
                         </div>
                         <div class="grid-item">
                             <div class="label">实体占比</div>
@@ -2038,6 +1360,7 @@
                 </div>
             </div>
             
+            <!-- ⑤ 和历史对比 -->
             <div class="step-section">
                 <div class="step-title">⑤ 和历史对比</div>
                 <div class="step-content">
@@ -2056,14 +1379,30 @@
                 </div>
             </div>
             
+            <!-- 个股解读 -->
+            <div class="step-section">
+                <div class="step-title">📖 个股解读（四维看盘法）</div>
+                <div class="step-content" style="background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);">
+                    <p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>当前价格在大阴实顶（241.01元，2026-09-01）下方，低于5.79%。说明大阴实顶那天卖出的人，卖出后价格继续下跌。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>从大阴实顶到今天，阳线6根，阴线8根，阴阳比0.75，多空双方力量相当。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>大阴实顶发生在13天前，时间中等，这个位置还有一定的影响力。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>今天的成交量是大阴实顶那天的130.2%，说明今天的博弈比那天还激烈。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>今天的量柱：中等量柱；今天的价柱：中等价柱。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>今天K线实体占比19.6%，实体很短，说明今天多空打了个平手。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>当前价格在近120日低位，近3日涨跌+0.44%，近5日涨跌-0.85%。</p>
+
+                </div>
+            </div>
+            
+            <!-- ⑥ 全景总结 -->
             <div class="step-section">
                 <div class="step-title">⑥ 全景总结</div>
                 <div class="summary-box">
                     <p>
-                        今日+1.86%，正常，低位。<br>
-                        量价组合：平量整理，卖方占优。<br>
+                        今日+1.86%，低位，卖方占优。<br>
+                        量柱：中等量柱，价柱：中等价柱。<br>
+                        大阴实顶：241.01（2026-09-01）<br>
                         近3日涨跌：+0.44%，近5日涨跌：-0.85%。<br>
-                        连续放量。
                     </p>
                 </div>
             </div>
@@ -2078,10 +1417,40 @@
                 <div class="stock-price price-up">86.88元 (+1.52%)</div>
             </div>
             
+            <!-- 【起点】大阴实顶 -->
             <div class="step-section">
-                <div class="step-title">① 从右向左看：找位置</div>
+                <div class="step-title">起点：大阴实顶</div>
                 <div class="step-content">
                     <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">大阴实顶（近60日）</div>
+                            <div class="value">93.50（2026-09-08）</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">当前位置</div>
+                            <div class="value" style="color:#94a3b8">未知</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ① 从右向左看：比较价柱的高低阴阳 -->
+            <div class="step-section">
+                <div class="step-title">① 从右向左看：比较价柱的高低阴阳</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">价格vs大阴实顶</div>
+                            <div class="value">-7.08%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">阳线/阴线数量</div>
+                            <div class="value">3阳 / 6阴</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">阴阳比</div>
+                            <div class="value">0.50</div>
+                        </div>
                         <div class="grid-item">
                             <div class="label">20日高点</div>
                             <div class="value">102.09</div>
@@ -2090,208 +1459,72 @@
                             <div class="label">20日低点</div>
                             <div class="value">81.43</div>
                         </div>
-                        <div class="grid-item">
-                            <div class="label">60日高点</div>
-                            <div class="value">142.03</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">60日低点</div>
-                            <div class="value">80.00</div>
-                        </div>
                     </div>
                 </div>
             </div>
             
+            <!-- ② 从上往下看：比较量价的真假大小 -->
             <div class="step-section">
-                <div class="step-title">平衡线（大阴实顶）</div>
-                <div class="step-content">
-                    <div class="grid-1">
-                        <div class="grid-item">
-                            <div class="label">最近平衡线（近30日）</div>
-                            <div class="value">93.50（2026-09-08）</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">精准线（多价格重合）</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        
-                <div class="grid-item">
-                    <div class="label">精准线1（10点）</div>
-                    <div class="value">98.85（2026-07-13~2026-08-25）</div>
-                </div>
-                
-                <div class="grid-item">
-                    <div class="label">精准线2（8点）</div>
-                    <div class="value">93.52（2026-07-28~2026-09-07）</div>
-                </div>
-                
-                <div class="grid-item">
-                    <div class="label">精准线3（6点）</div>
-                    <div class="value">148.17（2026-04-09~2026-04-22）</div>
-                </div>
-                
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">斜衡线（趋势线）</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        
-        <div class="grid-item">
-            <div class="label">上升斜衡线（支撑）</div>
-            <div class="value value-none">无</div>
-        </div>
-        
-        <div class="grid-item">
-            <div class="label">下降斜衡线（阻力）</div>
-            <div class="value">
-                117.36（2026-07-15）
-                → 109.69（2026-08-18）
-                <br><span style="font-size:11px; color:#94a3b8;">当前在下方</span>
-            </div>
-        </div>
-        
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">峰顶线/谷底线（博弈过的）</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        
-    <div class="grid-item">
-        <div class="label">20日峰顶线</div>
-        <div class="value">96.66（2026-09-04）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">20日谷底线</div>
-        <div class="value">89.24（2026-08-26）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">60日峰顶线</div>
-        <div class="value">109.69（2026-08-18）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">60日谷底线</div>
-        <div class="value">89.24（2026-08-26）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">120日峰顶线</div>
-        <div class="value">109.69（2026-08-18）</div>
-    </div>
-    
-                        
-    <div class="grid-item">
-        <div class="label">120日谷底线</div>
-        <div class="value">80.00（2026-07-20）</div>
-    </div>
-    
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">高量柱安全线/风险线</div>
+                <div class="step-title">② 从上往下看：比较量价的真假大小</div>
                 <div class="step-content">
                     <div class="grid-2">
                         <div class="grid-item">
-                            <div class="label">20日安全线</div>
-                            <div class="value">98.74（2026-08-26）</div>
+                            <div class="label">大阴实顶的量</div>
+                            <div class="value">平量</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">20日风险线</div>
-                            <div class="value">89.88（2026-08-26）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">60日安全线</div>
-                            <div class="value">98.74（2026-08-26）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">60日风险线</div>
-                            <div class="value">89.88（2026-08-26）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">120日安全线</div>
-                            <div class="value">138.93（2026-06-05）</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">120日风险线</div>
-                            <div class="value">129.90（2026-06-05）</div>
+                            <div class="label">量价真假判断</div>
+                            <div class="value">量平（正常调整）</div>
                         </div>
                     </div>
                 </div>
             </div>
             
+            <!-- ③ 从左往右看：比较量柱的远近多少 -->
             <div class="step-section">
-                <div class="step-title">② 从上往下看：看量柱</div>
+                <div class="step-title">③ 从左往右看：比较量柱的远近多少</div>
                 <div class="step-content">
                     <div class="grid-2">
                         <div class="grid-item">
-                            <div class="label">20日天量</div>
-                            <div class="value">118585</div>
+                            <div class="label">时间距离</div>
+                            <div class="value">8天前</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">20日地量</div>
-                            <div class="value">28515</div>
+                            <div class="label">时间影响力</div>
+                            <div class="value">很近（影响力强）</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">量比(vs昨日)</div>
-                            <div class="value">1.14</div>
+                            <div class="label">今天量vs大阴实顶量</div>
+                            <div class="value">56.5%</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">量的多少对比</div>
+                            <div class="value">差不多</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ④ 从下往上看：比较量价的长短伸缩 -->
+            <div class="step-section">
+                <div class="step-title">④ 从下往上看：比较量价的长短伸缩</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">量柱长短</div>
+                            <div class="value">短量柱（地量）</div>
                         </div>
                         <div class="grid-item">
                             <div class="label">量能位置(20日)</div>
                             <div class="value">7.4%</div>
                         </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">③ 从左往右看：比量能</div>
-                <div class="step-content">
-                    <div class="grid-2">
                         <div class="grid-item">
-                            <div class="label">vs 20日天量</div>
-                            <div class="value">29.7%</div>
+                            <div class="label">价柱伸缩</div>
+                            <div class="value">短价柱（振幅小）</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">vs 20日地量</div>
-                            <div class="value">123.4%</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">量比(vs5日)</div>
-                            <div class="value">0.92</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">量能趋势</div>
-                            <div class="value">连续放量</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="step-section">
-                <div class="step-title">④ 从下往上看：看量价</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        <div class="grid-item">
-                            <div class="label">量价组合</div>
-                            <div class="value">平量整理</div>
+                            <div class="label">实体长短</div>
+                            <div class="value">中等实体</div>
                         </div>
                         <div class="grid-item">
                             <div class="label">实体占比</div>
@@ -2301,6 +1534,7 @@
                 </div>
             </div>
             
+            <!-- ⑤ 和历史对比 -->
             <div class="step-section">
                 <div class="step-title">⑤ 和历史对比</div>
                 <div class="step-content">
@@ -2319,14 +1553,29 @@
                 </div>
             </div>
             
+            <!-- 个股解读 -->
+            <div class="step-section">
+                <div class="step-title">📖 个股解读（四维看盘法）</div>
+                <div class="step-content" style="background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);">
+                    <p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>当前价格在大阴实顶（93.50元，2026-09-08）下方，低于7.08%。说明大阴实顶那天卖出的人，卖出后价格继续下跌。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>从大阴实顶到今天，阳线3根，阴线6根，阴阳比0.50，阴线明显多于阳线。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>大阴实顶发生在8天前，时间很近，这个位置的记忆还很新鲜。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>今天的成交量是大阴实顶那天的56.5%，和那天差不多。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>今天的量柱：短量柱（地量）；今天的价柱：短价柱（振幅小）。</p>
+<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>当前价格在近120日低位，近3日涨跌+2.33%，近5日涨跌+3.99%。</p>
+
+                </div>
+            </div>
+            
+            <!-- ⑥ 全景总结 -->
             <div class="step-section">
                 <div class="step-title">⑥ 全景总结</div>
                 <div class="summary-box">
                     <p>
-                        今日+1.52%，地量，低位。<br>
-                        量价组合：平量整理，买方占优。<br>
+                        今日+1.52%，低位，买方占优。<br>
+                        量柱：短量柱（地量），价柱：短价柱（振幅小）。<br>
+                        大阴实顶：93.50（2026-09-08）<br>
                         近3日涨跌：+2.33%，近5日涨跌：+3.99%。<br>
-                        连续放量。
                     </p>
                 </div>
             </div>
