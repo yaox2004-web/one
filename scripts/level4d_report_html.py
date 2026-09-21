@@ -1642,9 +1642,9 @@ def generate_html(stocks_data, today_str):
         yin_thresh_text = f"{stock['yin_body_threshold']:.2f}%" if stock.get('yin_body_threshold') else "未知"
         
         # 新增：位置+趋势的颜色和文字
-        if stock.get('position') == "低位" and stock.get('stock_trend') == "上升趋势":
+        if stock.get('stock_trend') == "上升趋势" and stock.get('position') in ["中位", "低位"]:
             pos_trend_color = "#22c55e"
-            pos_trend_text = "✅ 黄金组合！适合做多"
+            pos_trend_text = "✅ 黄金组合！信号胜率高"
         elif stock.get('stock_trend') == "下降趋势":
             pos_trend_color = "#ef4444"
             pos_trend_text = "❌ 下降趋势，谨慎操作"
