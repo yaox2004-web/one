@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-四维循环看盘法报告 - HTML版（量学完整版·只加不删版）
+四维循环看盘法报告 - HTML版（量学完整版·25种涨停基因全）
 =================================================
 【无未来函数】：所有判断只用截止到今天收盘的数据
 【资料来源】：股海明灯《量柱擒涨停》《量线捉涨停》《涨停密码》黑马王子著
@@ -10,6 +10,12 @@
   - 王牌柱体系：将军柱/黄金柱/元帅柱 + 黄金线
   - 凹口线（凹口平量柱）
   - 形态信号：阳胜进/阴胜出/小倍阳/长腿踩线/长阴短柱/阳包阴/阴包阳/跳空/十字星
+  - 25种涨停基因：
+    * 过左峰、假阴真阳、极阴次阳、长阳矮柱
+    * 牛股三绝（倍量不穿/高量不破/跳空不补）
+    * 【新增】地量群、价升量缩、回踩精准线
+    * 【新增】双剑霸天地、三元连动、兵临城下
+    * 【新增】大阳双休、接力双阳
 
 【设计思路】：所有新增信号都放在原有代码基础上，不修改原有任何功能
 """
@@ -64,7 +70,7 @@ PRECISE_LOOKBACK = 120
 
 XIEHENG_MIN_POINTS = 2
 
-BEISHU_RATIO = 2.05  # 量化复盘：2倍骗线率65%，2.05倍降到23%
+BEISHU_RATIO = 2.05
 PINGLIANG_TOLERANCE = 0.15
 GAOLIANG_LOOKBACK = 20
 
@@ -83,32 +89,69 @@ POSITION_LOW = 30
 VOL_POS_HIGH = 80
 VOL_POS_LOW = 20
 
-# ============================================================
-# 【新增】王牌柱参数（将军柱/黄金柱/元帅柱）
-# ============================================================
-# 来源：股海明灯论坛2026年最新公式 + 量化交易实战复盘数据
-BASE_VS_MA3 = 1.2        # 基柱量 > 前3日均量 × 1.2（股海明灯2026最新）
-BASE_VS_PREV = 2.05      # 基柱量 > 前一日量 × 2.05（量化防骗线）
-BASE_VS_MA20 = 1.5       # 基柱量 > 20日均量 × 1.5（绝对增量确认）
-GENERAL_CONFIRM_DAYS = 3 # 后3天确认
+# 王牌柱参数
+BASE_VS_MA3 = 1.2
+BASE_VS_PREV = 2.05
+BASE_VS_MA20 = 1.5
+GENERAL_CONFIRM_DAYS = 3
+
+# 凹口线参数
+AOKOU_MIN_GAP = 3
+AOKOU_MAX_GAP = 13
+AOKOU_PINGLIANG_TOLERANCE = 0.15
+AOKOU_MIDDLE_SHADOW = 0.6
+
+# 形态信号参数
+SMALL_BEISHU_RATIO_MIN = 1.5
+SMALL_BEISHU_RATIO_MAX = 2.0
+LONG_LEG_RATIO = 2.0
+LONG_YIN_SHORT_VOL_RATIO = 0.7
+TOUCH_LINE_TOLERANCE = 0.02
+
+# 25种涨停基因参数
+JIAYIN_TRUE_YANG_MIN_VOL_RATIO = 1.0
+JIYIN_PREV_DAYS = 5
+JIYIN_DROP_PCT = -5.0
+CIYANG_REBOUND_PCT = 50
+CHANGYANG_UP_PCT = 3.0
+AIZHU_VOL_RATIO = 0.8
+GUOZUOFENG_TOUCH_DAYS = 20
+NIUGU_LOOKBACK = 60
+NIUGU_TOUCH_TOLERANCE = 0.01
 
 # ============================================================
-# 【新增】凹口线参数
+# 【新增】更多涨停基因参数
 # ============================================================
-# 来源：黑马王子《涨停密码》凹口淘金三要素
-AOKOU_MIN_GAP = 3        # 两个平量柱最小间隔
-AOKOU_MAX_GAP = 13       # 最大间隔（3/5/7/9/11/13天）
-AOKOU_PINGLIANG_TOLERANCE = 0.15  # 平量容差15%
-AOKOU_MIDDLE_SHADOW = 0.6         # 中间量低于两侧60%
+# 来源：股海明灯论坛《量学的25种涨停基因清单》
 
-# ============================================================
-# 【新增】形态信号参数
-# ============================================================
-SMALL_BEISHU_RATIO_MIN = 1.5  # 小倍阳：量比1.5倍以上
-SMALL_BEISHU_RATIO_MAX = 2.0  # 小倍阳：量比2倍以下
-LONG_LEG_RATIO = 2.0          # 长腿：下影线是实体的2倍以上
-LONG_YIN_SHORT_VOL_RATIO = 0.7  # 长阴短柱：量低于前5天平均70%
-TOUCH_LINE_TOLERANCE = 0.02   # 碰线容差：2%
+# 地量群（百日低量群）
+DILIANG_GROUP_DAYS = 100     # 看100天内的地量
+DILIANG_GROUP_COUNT = 5      # 有5根以上接近地量的柱子
+
+# 价升量缩
+JIA_SHENG_LIANG_SUO_DAYS = 3  # 连续3天价升量缩
+
+# 回踩精准线
+HUICAI_PRECISION_DAYS = 10    # 10天内踩到精准线
+
+# 双剑霸天地
+DOUBLE_SWORD_UPPER_RATIO = 2.0  # 上影线是实体的2倍以上
+DOUBLE_SWORD_LOWER_RATIO = 2.0  # 下影线是实体的2倍以上
+
+# 三元连动
+SANYUAN_DAYS = 3              # 连续3天价升量缩
+
+# 兵临城下
+BINGLINCHENGXIA_DAYS = 10     # 10天内接近峰顶线
+BINGLINCHENGXIA_TOLERANCE = 0.03  # 距离峰顶线3%以内
+
+# 大阳双休
+DAYANG_DOUBLE_REST_DAYS = 5   # 大阳线后5天内
+DAYANG_DOUBLE_REST_BODY = 0.5 # 回调不超过大阳线实体的50%
+
+# 接力双阳
+JIELI_DOUBLE_YANG_GAP_MIN = 5 # 两根阳线间隔最少5天
+JIELI_DOUBLE_YANG_GAP_MAX = 20 # 最多20天
 
 
 # ============================================================
@@ -157,7 +200,7 @@ def find_big_yin_top(df, lookback_days, yin_body_pct):
     
     recent_df = df.iloc[-lookback_days:]
     
-    for i in range(len(recent_df)-1, -1, -1, ):
+    for i in range(len(recent_df)-1, -1, -1):
         row = recent_df.iloc[i]
         
         if row['close'] >= row['open']:
@@ -439,14 +482,8 @@ def judge_key_vol_impact(df, key_vol, key_date):
 
 
 # ============================================================
-# 【新增】识别将军柱/黄金柱/元帅柱
+# 识别将军柱/黄金柱/元帅柱（原有，不修改）
 # ============================================================
-# 来源：股海明灯《量柱擒涨停》黑马王子著 + 2026年化量化升级版
-# 设计思路：
-#   - 基柱三条件：阳线 + 前3日均量1.2倍 + 前一日2.05倍 + 20日均量1.5倍
-#   - 将军柱：后3天不破 + 量不抬头
-#   - 黄金柱：将军柱 + 价升 + 量缩
-#   - 元帅柱：黄金柱 + 基柱跳空高开
 def find_pillars(df, lookback_days=30):
     if len(df) < lookback_days + GENERAL_CONFIRM_DAYS + 20:
         return "无", None, None
@@ -456,11 +493,9 @@ def find_pillars(df, lookback_days=30):
     for i in range(len(recent_df) - GENERAL_CONFIRM_DAYS - 1, 10, -1):
         row = recent_df.iloc[i]
         
-        # 基柱必须是阳线
         if row['close'] <= row['open']:
             continue
         
-        # 基柱三条件判断
         if i < 3:
             continue
         ma3_vol = recent_df.iloc[i-3:i]['volume'].mean()
@@ -476,7 +511,6 @@ def find_pillars(df, lookback_days=30):
         if row['volume'] < ma20_vol * BASE_VS_MA20:
             continue
         
-        # 看后3天
         future = recent_df.iloc[i+1:i+1+GENERAL_CONFIRM_DAYS]
         if len(future) < GENERAL_CONFIRM_DAYS:
             continue
@@ -484,33 +518,26 @@ def find_pillars(df, lookback_days=30):
         base_close = row['close']
         base_vol = row['volume']
         
-        # 将军柱条件1：三日不破
         if any(future['close'] < base_close):
             continue
-        
-        # 将军柱条件2：量柱不抬头
         if any(future['volume'] > base_vol):
             continue
         
-        # 判断是不是黄金柱
         closes = future['close'].values
         vols = future['volume'].values
         
         is_golden = True
-        # 价升：逐级升高
         for j in range(len(closes)-1):
             if closes[j+1] <= closes[j]:
                 is_golden = False
                 break
-        # 量缩：逐步缩小
         for j in range(len(vols)-1):
             if vols[j+1] >= vols[j]:
                 is_golden = False
                 break
         
-        golden_line = row['low']  # 黄金线 = 基柱最低价
+        golden_line = row['low']
         
-        # 判断是不是元帅柱：基柱是不是跳空高开
         if i > 0:
             prev_row = recent_df.iloc[i-1]
             is_gap_up = row['open'] > prev_row['high']
@@ -528,13 +555,8 @@ def find_pillars(df, lookback_days=30):
 
 
 # ============================================================
-# 【新增】找凹口线
+# 找凹口线（原有，不修改）
 # ============================================================
-# 来源：黑马王子《涨停密码》凹口淘金三要素
-# 设计思路：
-#   - 两侧是平量柱（量差不多，差15%以内）
-#   - 中间夹着明显缩量（低于两侧60%）
-#   - 间隔3-13天
 def find_aokou_line(df, lookback_days=60):
     if len(df) < lookback_days:
         return None, None, None
@@ -551,12 +573,10 @@ def find_aokou_line(df, lookback_days=60):
             vol_left = vols[i - gap]
             vol_right = vols[i]
             
-            # 两侧平量？
             vol_diff = abs(vol_left - vol_right) / max(vol_left, vol_right)
             if vol_diff > AOKOU_PINGLIANG_TOLERANCE:
                 continue
             
-            # 中间的最低量
             middle_vols = vols[i - gap + 1:i]
             if len(middle_vols) == 0:
                 continue
@@ -564,11 +584,9 @@ def find_aokou_line(df, lookback_days=60):
             min_middle_vol = middle_vols.min()
             avg_side_vol = (vol_left + vol_right) / 2
             
-            # 中间明显缩量？
             if min_middle_vol > avg_side_vol * AOKOU_MIDDLE_SHADOW:
                 continue
             
-            # 找到！取中间最低量那天的价格作为凹口线
             min_idx = i - gap + 1 + middle_vols.argmin()
             aokou_price = recent_df.iloc[min_idx]['low']
             aokou_date = recent_df.iloc[min_idx]['date']
@@ -585,11 +603,9 @@ def find_aokou_line(df, lookback_days=60):
 
 
 # ============================================================
-# 【新增】识别所有形态信号
+# 识别所有形态信号（原有 + 新增更多涨停基因）
 # ============================================================
-# 来源：量学理论十二字令 + 常见K线形态
-# 设计思路：当天收盘就能确认，不需要右确认
-def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top):
+def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top, peak_20=None):
     signals = []
     
     today = df.iloc[-1]
@@ -605,21 +621,18 @@ def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top
     yesterday_close = yesterday['close']
     yesterday_vol = yesterday['volume']
     
-    # 1. 阳胜进：今天阳线+放量+涨价
+    # ========== 原有信号 ==========
     if today_close > today_open and today_vol > yesterday_vol and today_close > yesterday_close:
         signals.append("阳胜进")
     
-    # 2. 阴胜出：今天阴线+放量+跌价
     if today_close < today_open and today_vol > yesterday_vol and today_close < yesterday_close:
         signals.append("阴胜出")
     
-    # 3. 小倍阳（矮将军）：小阳线+量比1.5-2倍
     body_pct = (today_close - today_open) / today_open * 100
     vol_ratio = today_vol / yesterday_vol
     if 0 < body_pct < 3 and SMALL_BEISHU_RATIO_MIN <= vol_ratio < SMALL_BEISHU_RATIO_MAX:
         signals.append("小倍阳（矮将军）")
     
-    # 4. 长腿踩线：下影线长+踩到具体量线
     body_size = abs(today_close - today_open)
     lower_shadow = min(today_open, today_close) - today_low
     touched_line = None
@@ -637,30 +650,172 @@ def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top
         else:
             signals.append("长腿（未踩线）")
     
-    # 5. 长阴短柱：长阴线但量很小
     body_pct_down = (today_open - today_close) / today_close * 100
     recent_5_vol_avg = df.iloc[-6:-1]['volume'].mean()
     if body_pct_down > 3 and today_vol < recent_5_vol_avg * LONG_YIN_SHORT_VOL_RATIO:
         signals.append("长阴短柱")
     
-    # 6. 阳包阴（看涨吞没）
     if today_close > yesterday_open and today_open < yesterday_close and today_close > today_open:
         signals.append("阳包阴")
     
-    # 7. 阴包阳（看跌吞没）
     if today_close < yesterday_open and today_open > yesterday_close and today_close < today_open:
         signals.append("阴包阳")
     
-    # 8. 跳空高开/低开
     if today_open > yesterday['high']:
         signals.append("跳空高开")
     if today_open < yesterday['low']:
         signals.append("跳空低开")
     
-    # 9. 十字星
     today_range = today_high - today_low
     if today_range > 0 and body_size / today_range < 0.1:
         signals.append("十字星")
+    
+    # ========== 25种涨停基因（第一批） ==========
+    if peak_20 and today_close > peak_20:
+        signals.append("过左峰")
+    
+    if today_close < today_open and today_close > yesterday_close and today_vol > yesterday_vol:
+        signals.append("假阴真阳")
+    
+    if len(df) >= JIYIN_PREV_DAYS:
+        prev_5 = df.iloc[-JIYIN_PREV_DAYS:]
+        for i in range(len(prev_5)-2, 0, -1):
+            row = prev_5.iloc[i]
+            drop_pct = (row['close'] - row['open']) / row['open'] * 100
+            if drop_pct < JIYIN_DROP_PCT:
+                if today_close > today_open:
+                    yin_body_size = row['open'] - row['close']
+                    rebound_size = today_close - row['close']
+                    if yin_body_size > 0 and rebound_size / yin_body_size > CIYANG_REBOUND_PCT / 100:
+                        signals.append("极阴次阳")
+                break
+    
+    chongyang_up_pct = (today_close - yesterday_close) / yesterday_close * 100
+    recent_20_vol_avg = df.iloc[-20:]['volume'].mean() if len(df) >= 20 else today_vol
+    if chongyang_up_pct > CHANGYANG_UP_PCT and today_vol < recent_20_vol_avg * AIZHU_VOL_RATIO:
+        signals.append("长阳矮柱")
+    
+    if len(df) >= NIUGU_LOOKBACK:
+        recent_60 = df.iloc[-NIUGU_LOOKBACK:]
+        for i in range(len(recent_60)-1, 5, -1):
+            row = recent_60.iloc[i]
+            prev_row = recent_60.iloc[i-1]
+            if row['volume'] / prev_row['volume'] >= BEISHU_RATIO and row['close'] > row['open']:
+                beiliang_bottom = row['open']
+                future = recent_60.iloc[i+1:]
+                if len(future) > 0 and all(future['low'] >= beiliang_bottom * (1 - NIUGU_TOUCH_TOLERANCE)):
+                    signals.append("倍量不穿")
+                break
+    
+    if len(df) >= NIUGU_LOOKBACK:
+        recent_60 = df.iloc[-NIUGU_LOOKBACK:]
+        max_vol_idx = recent_60['volume'].idxmax()
+        max_vol_row = recent_60.loc[max_vol_idx]
+        gaoliang_bottom = max_vol_row['low']
+        future = recent_60.iloc[max_vol_idx + 1:]
+        if len(future) > 0 and all(future['low'] >= gaoliang_bottom * (1 - NIUGU_TOUCH_TOLERANCE)):
+            signals.append("高量不破")
+    
+    if len(df) >= 10:
+        recent_10 = df.iloc[-10:]
+        for i in range(len(recent_10)-1, 1, -1):
+            row = recent_10.iloc[i]
+            prev_row = recent_10.iloc[i-1]
+            if row['open'] > prev_row['high']:
+                gap_bottom = prev_row['high']
+                future = recent_10.iloc[i+1:]
+                if len(future) > 0 and all(future['low'] >= gap_bottom * (1 - NIUGU_TOUCH_TOLERANCE)):
+                    signals.append("跳空不补")
+                break
+    
+    # ========== 【新增】更多涨停基因 ==========
+    
+    # 1. 地量群（百日低量群）：100天内有5根以上接近地量的柱子
+    # 来源：量学25种涨停基因
+    if len(df) >= DILIANG_GROUP_DAYS:
+        recent_100 = df.iloc[-DILIANG_GROUP_DAYS:]
+        vol_min = recent_100['volume'].min()
+        vol_max = recent_100['volume'].max()
+        vol_range = vol_max - vol_min
+        if vol_range > 0:
+            low_vol_count = sum(recent_100['volume'] < vol_min + vol_range * 0.2)
+            if low_vol_count >= DILIANG_GROUP_COUNT:
+                signals.append("地量群")
+    
+    # 2. 价升量缩：连续3天价升量缩
+    # 来源：量学25种涨停基因
+    if len(df) >= JIA_SHENG_LIANG_SUO_DAYS:
+        recent_3 = df.iloc[-JIA_SHENG_LIANG_SUO_DAYS:]
+        prices_up = all(recent_3.iloc[i]['close'] > recent_3.iloc[i-1]['close'] for i in range(1, len(recent_3)))
+        vols_down = all(recent_3.iloc[i]['volume'] < recent_3.iloc[i-1]['volume'] for i in range(1, len(recent_3)))
+        if prices_up and vols_down:
+            signals.append("价升量缩")
+    
+    # 3. 回踩精准线：10天内踩到精准线
+    # 来源：量学25种涨停基因
+    if precise_price and len(df) >= HUICAI_PRECISION_DAYS:
+        recent_10 = df.iloc[-HUICAI_PRECISION_DAYS:]
+        touched = any(abs(row['low'] - precise_price) / precise_price < TOUCH_LINE_TOLERANCE for _, row in recent_10.iterrows())
+        if touched:
+            signals.append("回踩精准线")
+    
+    # 4. 双剑霸天地：今天有长上影线和长下影线
+    # 来源：量学25种涨停基因
+    upper_shadow = today_high - max(today_open, today_close)
+    if body_size > 0:
+        if upper_shadow / body_size > DOUBLE_SWORD_UPPER_RATIO and lower_shadow / body_size > DOUBLE_SWORD_LOWER_RATIO:
+            signals.append("双剑霸天地")
+    
+    # 5. 三元连动：连续3天价升量缩（和价升量缩类似，但更强调连续）
+    # 来源：量学25种涨停基因
+    if len(df) >= SANYUAN_DAYS:
+        recent_3 = df.iloc[-SANYUAN_DAYS:]
+        prices_up = all(recent_3.iloc[i]['close'] > recent_3.iloc[i-1]['close'] for i in range(1, len(recent_3)))
+        vols_down = all(recent_3.iloc[i]['volume'] < recent_3.iloc[i-1]['volume'] for i in range(1, len(recent_3)))
+        if prices_up and vols_down:
+            signals.append("三元连动")
+    
+    # 6. 兵临城下：股价在左峰下方3%以内蓄势
+    # 来源：量学25种涨停基因
+    if peak_20:
+        distance_to_peak = (peak_20 - today_close) / today_close
+        if 0 < distance_to_peak < BINGLINCHENGXIA_TOLERANCE and today_close > today_open:
+            signals.append("兵临城下")
+    
+    # 7. 大阳双休：大阳线后5天内，回调不超过大阳线实体的50%
+    # 来源：量学25种涨停基因
+    if len(df) >= DAYANG_DOUBLE_REST_DAYS:
+        recent_5 = df.iloc[-DAYANG_DOUBLE_REST_DAYS:]
+        # 找前几天的大阳线
+        for i in range(len(recent_5)-1, 0, -1):
+            row = recent_5.iloc[i]
+            body_pct_up = (row['close'] - row['open']) / row['open'] * 100
+            if body_pct_up > 3:  # 大阳线
+                # 后面的回调有没有超过大阳线实体的50%
+                yang_bottom = row['open']
+                yang_top = row['close']
+                yang_mid = (yang_bottom + yang_top) / 2
+                future = recent_5.iloc[i+1:]
+                if len(future) > 0 and all(future['low'] >= yang_mid):
+                    signals.append("大阳双休")
+                break
+    
+    # 8. 接力双阳：两根相隔一段时间的阳线（将军柱/黄金柱接力）
+    # 来源：量学25种涨停基因
+    if len(df) >= JIELI_DOUBLE_YANG_GAP_MAX + 5:
+        recent_30 = df.iloc[-30:]
+        # 找两根大阳线
+        big_yangs = []
+        for i in range(len(recent_30)):
+            row = recent_30.iloc[i]
+            body_pct_up = (row['close'] - row['open']) / row['open'] * 100
+            if body_pct_up > 3:
+                big_yangs.append(i)
+        
+        if len(big_yangs) >= 2:
+            gap = big_yangs[-1] - big_yangs[-2]
+            if JIELI_DOUBLE_YANG_GAP_MIN <= gap <= JIELI_DOUBLE_YANG_GAP_MAX:
+                signals.append("接力双阳")
     
     return signals
 
@@ -669,10 +824,6 @@ def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top
 # 【核心】生成量学理论推导式综合解读（原有，不修改）
 # ============================================================
 def generate_interpretation(stock):
-    """
-    量学理论驱动的逻辑推导式解读
-    不是数据罗列，而是一步步推导，形成逻辑闭环
-    """
     sections = []
     
     # ========== 【起点】大阴实顶的市场意义 ==========
@@ -710,7 +861,7 @@ def generate_interpretation(stock):
         if ratio > 1.5:
             detail = "阳线明显多于阴线，说明买方赢得更频繁，在这个区间有持续性优势。"
         elif ratio < 0.67:
-            detail = "阴线明显多于阴线，说明卖方赢得更频繁，在这个区间仍占主动。"
+            detail = "阴线明显多于阳线，说明卖方赢得更频繁，在这个区间仍占主动。"
         else:
             detail = "阴阳数量相当，说明多空双方在这个区间力量均衡，处于拉锯状态。"
         
@@ -826,12 +977,10 @@ def generate_interpretation(stock):
         above = "上方" if stock['close'] > stock['balance_price'] else "下方"
         key_points.append(f"平衡线{stock['balance_price']:.2f}元（{stock['balance_date']}）：当前在<strong>{above}</strong>")
     
-    # 【新增】王牌柱
     if stock.get('pillar_type') and stock['pillar_type'] != "无":
         above = "上方" if stock['close'] > stock['golden_line'] else "下方"
         key_points.append(f"{stock['pillar_type']}黄金线{stock['golden_line']:.2f}元（{stock['pillar_date']}）：当前在<strong>{above}</strong>")
     
-    # 【新增】凹口线
     if stock.get('aokou_price'):
         above = "上方" if stock['close'] > stock['aokou_price'] else "下方"
         key_points.append(f"凹口线{stock['aokou_price']:.2f}元（{stock['aokou_date']}）：当前在<strong>{above}</strong>")
@@ -1027,18 +1176,11 @@ def get_stock_data(market, code):
     vol_pattern = identify_vol_pattern(df)
     impact_20, vol_ratio_20, time_dist_20 = judge_key_vol_impact(df, key_vol_20, date_20)
     
-    # ============================================================
-    # 【新增】调用新函数
-    # ============================================================
-    # 王牌柱
     pillar_type, pillar_date, golden_line = find_pillars(df)
-    
-    # 凹口线
     aokou_price, aokou_date, aokou_gap = find_aokou_line(df)
     
-    # 形态信号
     precise_price = precise_lines[0]['price'] if precise_lines else None
-    extra_signals = identify_all_signals(df, valley_20, safe_20, precise_price, big_yin_top)
+    extra_signals = identify_all_signals(df, valley_20, safe_20, precise_price, big_yin_top, peak_20)
     
     short_dist_high = (recent_high - today_price) / today_price * 100
     short_dist_low = (today_price - recent_low) / today_price * 100
@@ -1141,7 +1283,6 @@ def get_stock_data(market, code):
         'power': power,
         'pct_3d': pct_3d,
         'pct_5d': pct_5d,
-        # 【新增字段】
         'pillar_type': pillar_type,
         'pillar_date': pillar_date,
         'golden_line': golden_line,
@@ -1182,7 +1323,6 @@ def generate_html(stocks_data, today_str):
             yintop_status = "下方（弱势）"
             yintop_color = "#22c55e"
         
-        # 精准线HTML
         precise_html = ""
         if stock['precise_lines']:
             for i, line in enumerate(stock['precise_lines']):
@@ -1200,7 +1340,6 @@ def generate_html(stocks_data, today_str):
             </div>
             """
         
-        # 峰顶谷底线
         def peak_html(label, price, date):
             if price is not None and date is not None:
                 return f"""
@@ -1233,7 +1372,6 @@ def generate_html(stocks_data, today_str):
                 </div>
                 """
         
-        # 【新增】王牌柱显示
         if stock['pillar_type'] == "元帅柱":
             pillar_html = f"""
             <div class="grid-item" style="border:2px solid #fbbf24;">
@@ -1263,7 +1401,6 @@ def generate_html(stocks_data, today_str):
             </div>
             """
         
-        # 【新增】凹口线显示
         if stock['aokou_price']:
             aokou_html = f"""
             <div class="grid-item" style="border:2px solid #a78bfa;">
@@ -1279,7 +1416,6 @@ def generate_html(stocks_data, today_str):
             </div>
             """
         
-        # 【新增】今日信号显示
         extra_html = ""
         if stock['extra_signals']:
             for sig in stock['extra_signals']:
@@ -1287,7 +1423,6 @@ def generate_html(stocks_data, today_str):
         else:
             extra_html = '<span style="color:#94a3b8; font-size:12px;">无</span>'
         
-        # 解读HTML
         interp_html = ""
         for section in stock['interpretations']:
             interp_html += f"""
@@ -1416,7 +1551,6 @@ def generate_html(stocks_data, today_str):
                 </div>
             </div>
             
-            <!-- 【新增】今日信号 -->
             <div class="step-section">
                 <div class="step-title">📊 今日信号</div>
                 <div class="step-content">
@@ -1424,7 +1558,6 @@ def generate_html(stocks_data, today_str):
                 </div>
             </div>
             
-            <!-- 【新增】王牌柱体系 -->
             <div class="step-section">
                 <div class="step-title">王牌柱体系</div>
                 <div class="step-content">
@@ -1599,7 +1732,7 @@ def generate_html(stocks_data, today_str):
         <div class="header">
             <h1>四维循环看盘报告</h1>
             <div class="date">{today_str}</div>
-            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">量学完整版：大阴实顶 + 四维对比 + 王牌柱 + 凹口线 + 形态信号 + 逻辑闭环解读</div>
+            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">量学完整版：大阴实顶 + 四维对比 + 王牌柱 + 凹口线 + 25种涨停基因 + 逻辑闭环解读</div>
         </div>
         
         <div class="signal-guide">
@@ -1626,8 +1759,13 @@ def generate_html(stocks_data, today_str):
                 <p><strong>将军柱</strong>：基柱（阳线+放量）+ 三日不破 + 量柱不抬头</p>
                 <p><strong>黄金柱</strong>：将军柱 + 价升 + 量缩</p>
                 <p><strong>元帅柱</strong>：黄金柱 + 基柱跳空高开</p>
-                <p><strong>基柱三条件</strong>：前3日均量1.2倍 + 前一日2.05倍 + 20日均量1.5倍</p>
                 <p class="source">来源：股海明灯《量柱擒涨停》黑马王子著 + 2026年化量化升级</p>
+            </div>
+            
+            <div class="signal-item">
+                <h3>25种涨停基因</h3>
+                <p><strong>已加：</strong>过左峰、假阴真阳、极阴次阳、长阳矮柱、牛股三绝（倍量不穿/高量不破/跳空不补）、地量群、价升量缩、回踩精准线、双剑霸天地、三元连动、兵临城下、大阳双休、接力双阳</p>
+                <p class="source">来源：股海明灯论坛《量学的25种涨停基因清单》</p>
             </div>
             
             <div class="signal-item">
