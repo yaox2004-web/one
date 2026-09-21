@@ -238,107 +238,18 @@ def get_stock_data(market, code):
 # 生成HTML
 # ============================================================
 def generate_html(stocks_data, today_str):
-    html = f"""<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>四维循环看盘报告 - {today_str}</title>
-    <style>
-        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-        body {{ 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-            background: #0f172a; 
-            color: #e2e8f0; 
-            line-height: 1.6;
-            padding: 20px;
-        }}
-        .container {{ max-width: 900px; margin: 0 auto; }}
-        .header {{ 
-            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); 
-            color: white; 
-            padding: 30px; 
-            border-radius: 12px; 
-            margin-bottom: 20px;
-            border-left: 4px solid #fbbf24;
-        }}
-        .header h1 {{ font-size: 24px; color: #fbbf24; margin-bottom: 8px; }}
-        .header .date {{ opacity: 0.8; font-size: 14px; }}
-        
-        .stock-card {{ 
-            background: #1e293b; 
-            border-radius: 12px; 
-            padding: 20px; 
-            margin-bottom: 15px; 
-            border: 1px solid #334155;
-        }}
-        .stock-header {{ 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            margin-bottom: 15px; 
-            padding-bottom: 15px; 
-            border-bottom: 1px solid #334155;
-        }}
-        .stock-name {{ font-size: 18px; font-weight: bold; color: #e2e8f0; }}
-        .stock-code {{ font-size: 12px; color: #94a3b8; }}
-        .stock-price {{ font-size: 22px; font-weight: bold; }}
-        .price-up {{ color: #ef4444; }}
-        .price-down {{ color: #22c55e; }}
-        
-        .step-section {{ margin-bottom: 15px; }}
-        .step-title {{ 
-            font-size: 14px; 
-            font-weight: bold; 
-            color: #60a5fa; 
-            margin-bottom: 8px; 
-            padding-left: 8px; 
-            border-left: 3px solid #fbbf24; 
-        }}
-        .step-content {{ 
-            background: #0f172a; 
-            padding: 12px; 
-            border-radius: 8px; 
-            font-size: 13px; 
-            color: #cbd5e1; 
-        }}
-        .step-content p {{ margin-bottom: 4px; }}
-        
-        .grid-2 {{ display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }}
-        .grid-item {{ 
-            background: #0f172a; 
-            padding: 8px; 
-            border-radius: 6px; 
-            font-size: 13px; 
-        }}
-        .grid-item .label {{ color: #94a3b8; font-size: 11px; }}
-        .grid-item .value {{ font-weight: bold; color: #e2e8f0; }}
-        
-        .summary-box {{
-            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 10px;
-        }}
-        .summary-box p {{ margin: 0; color: #fbbf24; font-size: 13px; line-height: 1.8; }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>四维循环看盘报告</h1>
-            <div class="date">{today_str}</div>
-            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">从右向左找位置 + 从上往下看量柱 + 从左往右比量能 + 从下往上看量价 + 和历史对比 + 全景总结</div>
-        </div>
-"""
-    
+    # 先处理变量，避免f-string里的条件表达式bug
+    items = []
     for stock in stocks_data:
         if stock is None:
             continue
         
         price_class = "price-up" if stock['pct_chg'] > 0 else "price-down"
         
-        html += f"""
+        mid_high_str = f"{stock['mid_high']:.2f}" if stock['mid_high'] else '-'
+        mid_low_str = f"{stock['mid_low']:.2f}" if stock['mid_low'] else '-'
+        
+        item_html = f"""
         <div class="stock-card">
             <div class="stock-header">
                 <div>
@@ -363,11 +274,11 @@ def generate_html(stocks_data, today_str):
                         </div>
                         <div class="grid-item">
                             <div class="label">60日高点</div>
-                            <div class="value">{stock['mid_high']:.2f if stock['mid_high'] else '-'}</div>
+                            <div class="value">{mid_high_str}</div>
                         </div>
                         <div class="grid-item">
                             <div class="label">60日低点</div>
-                            <div class="value">{stock['mid_low']:.2f if stock['mid_low'] else '-'}</div>
+                            <div class="value">{mid_low_str}</div>
                         </div>
                     </div>
                 </div>
@@ -472,9 +383,103 @@ def generate_html(stocks_data, today_str):
                 </div>
             </div>
         </div>
-"""
+        """
+        items.append(item_html)
     
-    html += """
+    html = f"""<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>四维循环看盘报告 - {today_str}</title>
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{ 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: #0f172a; 
+            color: #e2e8f0; 
+            line-height: 1.6;
+            padding: 20px;
+        }}
+        .container {{ max-width: 900px; margin: 0 auto; }}
+        .header {{ 
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); 
+            color: white; 
+            padding: 30px; 
+            border-radius: 12px; 
+            margin-bottom: 20px;
+            border-left: 4px solid #fbbf24;
+        }}
+        .header h1 {{ font-size: 24px; color: #fbbf24; margin-bottom: 8px; }}
+        .header .date {{ opacity: 0.8; font-size: 14px; }}
+        
+        .stock-card {{ 
+            background: #1e293b; 
+            border-radius: 12px; 
+            padding: 20px; 
+            margin-bottom: 15px; 
+            border: 1px solid #334155;
+        }}
+        .stock-header {{ 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 15px; 
+            padding-bottom: 15px; 
+            border-bottom: 1px solid #334155;
+        }}
+        .stock-name {{ font-size: 18px; font-weight: bold; color: #e2e8f0; }}
+        .stock-code {{ font-size: 12px; color: #94a3b8; }}
+        .stock-price {{ font-size: 22px; font-weight: bold; }}
+        .price-up {{ color: #ef4444; }}
+        .price-down {{ color: #22c55e; }}
+        
+        .step-section {{ margin-bottom: 15px; }}
+        .step-title {{ 
+            font-size: 14px; 
+            font-weight: bold; 
+            color: #60a5fa; 
+            margin-bottom: 8px; 
+            padding-left: 8px; 
+            border-left: 3px solid #fbbf24; 
+        }}
+        .step-content {{ 
+            background: #0f172a; 
+            padding: 12px; 
+            border-radius: 8px; 
+            font-size: 13px; 
+            color: #cbd5e1; 
+        }}
+        .step-content p {{ margin-bottom: 4px; }}
+        
+        .grid-2 {{ display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }}
+        .grid-item {{ 
+            background: #0f172a; 
+            padding: 8px; 
+            border-radius: 6px; 
+            font-size: 13px; 
+        }}
+        .grid-item .label {{ color: #94a3b8; font-size: 11px; }}
+        .grid-item .value {{ font-weight: bold; color: #e2e8f0; }}
+        
+        .summary-box {{
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }}
+        .summary-box p {{ margin: 0; color: #fbbf24; font-size: 13px; line-height: 1.8; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>四维循环看盘报告</h1>
+            <div class="date">{today_str}</div>
+            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">从右向左找位置 + 从上往下看量柱 + 从左往右比量能 + 从下往上看量价 + 和历史对比 + 全景总结</div>
+        </div>
+        
+        {''.join(items)}
     </div>
 </body>
 </html>
