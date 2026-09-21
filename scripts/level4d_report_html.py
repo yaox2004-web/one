@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-四维循环看盘法报告 - HTML版（参数全配置版）
+四维循环看盘法报告 - HTML版（含峰顶谷底缺失说明）
 =================================================
 设计思路（为什么这样写）：
   按照四维循环看盘法步骤生成报告！
   所有参数阈值全部提取到【配置区】，方便根据市场环境调整！
+  峰顶线/谷底线没有的时候，自动说明原因和逻辑！
 
 【重要：无未来函数保证】
   1. 所有判断只用截止到今天收盘的数据
@@ -456,6 +457,31 @@ def get_stock_data(market, code):
 
 
 # ============================================================
+# 生成峰顶线/谷底线的HTML（含缺失说明）
+# ============================================================
+def render_fenggu_item(label, price, date):
+    """
+    生成单个峰顶线/谷底线的HTML
+    如果有，显示价格和日期
+    如果没有，说明原因和逻辑
+    """
+    if price is not None and date is not None:
+        value = f"{price:.2f}（{date}）"
+        value_class = "value"
+    else:
+        # 没有的话，说明原因和逻辑
+        value = "近期无博弈点"
+        value_class = "value value-none"
+    
+    return f"""
+    <div class="grid-item">
+        <div class="label">{label}</div>
+        <div class="{value_class}">{value}</div>
+    </div>
+    """
+
+
+# ============================================================
 # 生成HTML
 # ============================================================
 def generate_html(stocks_data, today_str):
@@ -477,13 +503,13 @@ def generate_html(stocks_data, today_str):
         safe_120_str = f"{stock['safe_120']:.2f}（{stock['date_120']}）" if stock['safe_120'] else '-'
         risk_120_str = f"{stock['risk_120']:.2f}（{stock['date_120']}）" if stock['risk_120'] else '-'
         
-        # 峰顶线/谷底线字符串
-        peak_20_str = f"{stock['peak_20']:.2f}（{stock['peak_date_20']}）" if stock['peak_20'] else '-'
-        valley_20_str = f"{stock['valley_20']:.2f}（{stock['valley_date_20']}）" if stock['valley_20'] else '-'
-        peak_60_str = f"{stock['peak_60']:.2f}（{stock['peak_date_60']}）" if stock['peak_60'] else '-'
-        valley_60_str = f"{stock['valley_60']:.2f}（{stock['valley_date_60']}）" if stock['valley_60'] else '-'
-        peak_120_str = f"{stock['peak_120']:.2f}（{stock['peak_date_120']}）" if stock['peak_120'] else '-'
-        valley_120_str = f"{stock['valley_120']:.2f}（{stock['valley_date_120']}）" if stock['valley_120'] else '-'
+        # 峰顶线/谷底线（含缺失说明）
+        peak_20_html = render_fenggu_item("20日峰顶线", stock['peak_20'], stock['peak_date_20'])
+        valley_20_html = render_fenggu_item("20日谷底线", stock['valley_20'], stock['valley_date_20'])
+        peak_60_html = render_fenggu_item("60日峰顶线", stock['peak_60'], stock['peak_date_60'])
+        valley_60_html = render_fenggu_item("60日谷底线", stock['valley_60'], stock['valley_date_60'])
+        peak_120_html = render_fenggu_item("120日峰顶线", stock['peak_120'], stock['peak_date_120'])
+        valley_120_html = render_fenggu_item("120日谷底线", stock['valley_120'], stock['valley_date_120'])
         
         item_html = f"""
         <div class="stock-card">
@@ -525,30 +551,15 @@ def generate_html(stocks_data, today_str):
                 <div class="step-title">峰顶线/谷底线（博弈过的）</div>
                 <div class="step-content">
                     <div class="grid-2">
-                        <div class="grid-item">
-                            <div class="label">20日峰顶线</div>
-                            <div class="value">{peak_20_str}</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">20日谷底线</div>
-                            <div class="value">{valley_20_str}</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">60日峰顶线</div>
-                            <div class="value">{peak_60_str}</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">60日谷底线</div>
-                            <div class="value">{valley_60_str}</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">120日峰顶线</div>
-                            <div class="value">{peak_120_str}</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">120日谷底线</div>
-                            <div class="value">{valley_120_str}</div>
-                        </div>
+                        {peak_20_html}
+                        {valley_20_html}
+                        {peak_60_html}
+                        {valley_60_html}
+                        {peak_120_html}
+                        {valley_120_html}
+                    </div>
+                    <div class="note-text" style="margin-top:8px; font-size:11px; color:#94a3b8;">
+                        注："近期无博弈点" = 没有经过右确认的多空争夺点，说明近期还在寻顶/寻底过程中
                     </div>
                 </div>
             </div>
@@ -763,6 +774,7 @@ def generate_html(stocks_data, today_str):
         }}
         .grid-item .label {{ color: #94a3b8; font-size: 11px; }}
         .grid-item .value {{ font-weight: bold; color: #e2e8f0; font-size: 12px; }}
+        .grid-item .value-none {{ color: #94a3b8; font-weight: normal; font-size: 11px; }}
         
         .summary-box {{
             background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
@@ -778,7 +790,7 @@ def generate_html(stocks_data, today_str):
         <div class="header">
             <h1>四维循环看盘报告</h1>
             <div class="date">{today_str}</div>
-            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">四维循环看盘 + 峰顶线/谷底线 + 高量柱安全线/风险线（参数全配置版）</div>
+            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">四维循环看盘 + 峰顶线/谷底线 + 高量柱安全线/风险线</div>
         </div>
         
         {''.join(items)}
@@ -795,7 +807,7 @@ def generate_html(stocks_data, today_str):
 # ============================================================
 def main():
     print("=" * 60)
-    print("四维循环看盘报告 - HTML版（参数全配置版）")
+    print("四维循环看盘报告 - HTML版（含峰顶谷底缺失说明）")
     print("=" * 60)
     
     stocks_data = []
