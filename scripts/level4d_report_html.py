@@ -1,13 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-四维循环看盘法报告 - HTML版（含高量柱安全线/风险线日期）
+四维循环看盘法报告 - HTML版（含峰顶线/谷底线识别）
 =================================================
 设计思路（为什么这样写）：
   按照四维循环看盘法步骤生成报告！
-  ①从右向左找位置 ②从上往下看量柱 ③从左往右比量能 ④从下往上看量价
-  ⑤和历史对比 ⑥全景总结
-  加高量柱的安全线和风险线，并显示是哪一天的！
+  加高量柱的安全线和风险线（带日期）
+  加峰顶线/谷底线识别（多空双方博弈过的）
+
+峰顶线/谷底识别逻辑（适配量化时代）：
+  1. 局部极值：前后各5天内最高/最低
+  2. 有量配合：近N天前30%以上
+  3. 右确认：
+     - 短期(20日)：3天确认
+     - 中期(60日)：5天确认
+     - 长期(120日)：10天确认
 
 量学理论来源：
   - 股海明灯（量学官网论坛）
@@ -85,52 +92,109 @@ def load_klines(market, code):
 def find_gaoliang_lines(recent_df):
     """
     找最近N日的高量柱，计算安全线和风险线
-    
-    量学理论定义：
-    - 高量柱 = 某一阶段成交量最大的量柱
-    - 安全线 = 高量柱K线的顶部
-    - 风险线 = 高量柱K线的底部
-    
-    取实还是取虚：
-    - 实体长、影线短 → 取实体顶底
-    - 实体短、影线长 → 取K线最低价
     """
     if len(recent_df) < 5:
         return None, None, None, None
     
-    # 找最高量柱
     max_vol_idx = recent_df['volume'].idxmax()
     max_vol_row = recent_df.loc[max_vol_idx]
     
-    # K线数据
     open_price = max_vol_row['open']
     close_price = max_vol_row['close']
     high_price = max_vol_row['high']
     low_price = max_vol_row['low']
     
-    # 计算实体大小和影线大小
     body_size = abs(close_price - open_price)
     total_range = high_price - low_price
     
     if total_range == 0:
         return None, None, None, None
     
-    # 实体占比
     body_ratio = body_size / total_range
     
-    # 决定取实还是取虚
     if body_ratio > 0.6:
-        # 实体长、影线短 → 取实体顶底
-        safe_line = max(open_price, close_price)  # 实体顶部
-        risk_line = min(open_price, close_price)   # 实体底部
+        safe_line = max(open_price, close_price)
+        risk_line = min(open_price, close_price)
         line_type = "实体"
     else:
-        # 实体短、影线长 → 取K线最低价
-        safe_line = high_price   # 最高价
-        risk_line = low_price    # 最低价
+        safe_line = high_price
+        risk_line = low_price
         line_type = "影线"
     
     return safe_line, risk_line, line_type, max_vol_row['date']
+
+
+# ============================================================
+# 找峰顶线和谷底线（多空双方博弈过的）
+# ============================================================
+def find_fenggu_lines(df, lookback_days, confirm_days):
+    """
+    找最近lookback_days内的峰顶线和谷底线
+    
+    识别条件：
+    1. 局部极值：前后各5天内最高/最低
+    2. 有量配合：近lookback_days天前30%以上
+    3. 右确认：之后confirm_days天都没突破/跌破
+    
+    返回：
+    - 最近的峰顶线价格、日期
+    - 最近的谷底线价格、日期
+    """
+    if len(df) < lookback_days + confirm_days + 10:
+        return None, None, None, None
+    
+    recent_df = df.iloc[-lookback_days:]
+    
+    # 计算量能分位
+    vol_threshold = recent_df['volume'].quantile(0.7)  # 前30%以上
+    
+    peaks = []  # 峰顶线
+    valleys = []  # 谷底线
+    
+    # 从第5根K线开始，到倒数第confirm_days根
+    for i in range(5, len(recent_df) - confirm_days):
+        row = recent_df.iloc[i]
+        
+        # 检查局部高点（前后各5天内最高）
+        window = recent_df.iloc[i-5:i+6]
+        is_local_high = row['high'] == window['high'].max()
+        is_local_low = row['low'] == window['low'].min()
+        
+        # 检查有量配合
+        has_vol = row['volume'] >= vol_threshold
+        
+        if is_local_high and has_vol:
+            # 右确认：之后confirm_days天收盘价都没超过这个高点
+            future = recent_df.iloc[i+1:i+1+confirm_days]
+            confirmed = all(future['close'] < row['high'])
+            
+            if confirmed:
+                peaks.append({
+                    'price': row['high'],
+                    'date': row['date'],
+                    'index': i
+                })
+        
+        if is_local_low and has_vol:
+            # 右确认：之后confirm_days天收盘价都没跌破这个低点
+            future = recent_df.iloc[i+1:i+1+confirm_days]
+            confirmed = all(future['close'] > row['low'])
+            
+            if confirmed:
+                valleys.append({
+                    'price': row['low'],
+                    'date': row['date'],
+                    'index': i
+                })
+    
+    # 取最近的峰顶线和谷底线
+    recent_peak = peaks[-1] if peaks else None
+    recent_valley = valleys[-1] if valleys else None
+    
+    return (recent_peak['price'] if recent_peak else None,
+            recent_peak['date'] if recent_peak else None,
+            recent_valley['price'] if recent_valley else None,
+            recent_valley['date'] if recent_valley else None)
 
 
 # ============================================================
@@ -151,19 +215,16 @@ def get_stock_data(market, code):
     pct_chg = (today['close'] - yesterday['close']) / yesterday['close'] * 100
     
     # ========== ① 从右向左看：找位置 ==========
-    # 短期（20日）
     recent_20 = df.iloc[-20:]
     recent_high = recent_20['high'].max()
     recent_low = recent_20['low'].min()
     
-    # 中期（60日）
     recent_60 = df.iloc[-60:] if len(df) > 60 else None
     mid_high = mid_low = None
     if recent_60 is not None:
         mid_high = recent_60['high'].max()
         mid_low = recent_60['low'].min()
     
-    # 长期（120日）
     recent_120 = df.iloc[-120:] if len(df) > 120 else None
     long_high = long_low = None
     if recent_120 is not None:
@@ -171,18 +232,29 @@ def get_stock_data(market, code):
         long_low = recent_120['low'].min()
     
     # ========== 高量柱的安全线和风险线 ==========
-    # 短期（20日）
     safe_20, risk_20, type_20, date_20 = find_gaoliang_lines(recent_20)
     
-    # 中期（60日）
     safe_60 = risk_60 = type_60 = date_60 = None
     if recent_60 is not None:
         safe_60, risk_60, type_60, date_60 = find_gaoliang_lines(recent_60)
     
-    # 长期（120日）
     safe_120 = risk_120 = type_120 = date_120 = None
     if recent_120 is not None:
         safe_120, risk_120, type_120, date_120 = find_gaoliang_lines(recent_120)
+    
+    # ========== 峰顶线和谷底线（多空博弈过的） ==========
+    # 短期(20日)：3天确认
+    peak_20, peak_date_20, valley_20, valley_date_20 = find_fenggu_lines(df, 20, 3)
+    
+    # 中期(60日)：5天确认
+    peak_60 = peak_date_60 = valley_60 = valley_date_60 = None
+    if len(df) >= 70:
+        peak_60, peak_date_60, valley_60, valley_date_60 = find_fenggu_lines(df, 60, 5)
+    
+    # 长期(120日)：10天确认
+    peak_120 = peak_date_120 = valley_120 = valley_date_120 = None
+    if len(df) >= 135:
+        peak_120, peak_date_120, valley_120, valley_date_120 = find_fenggu_lines(df, 120, 10)
     
     # ========== ② 从上往下看：看量柱 ==========
     vol_high_20 = recent_20['volume'].max()
@@ -274,16 +346,26 @@ def get_stock_data(market, code):
         # 高量柱安全线/风险线
         'safe_20': safe_20,
         'risk_20': risk_20,
-        'type_20': type_20,
         'date_20': date_20,
         'safe_60': safe_60,
         'risk_60': risk_60,
-        'type_60': type_60,
         'date_60': date_60,
         'safe_120': safe_120,
         'risk_120': risk_120,
-        'type_120': type_120,
         'date_120': date_120,
+        # 峰顶线/谷底线
+        'peak_20': peak_20,
+        'peak_date_20': peak_date_20,
+        'valley_20': valley_20,
+        'valley_date_20': valley_date_20,
+        'peak_60': peak_60,
+        'peak_date_60': peak_date_60,
+        'valley_60': valley_60,
+        'valley_date_60': valley_date_60,
+        'peak_120': peak_120,
+        'peak_date_120': peak_date_120,
+        'valley_120': valley_120,
+        'valley_date_120': valley_date_120,
         # ②从上往下
         'vol_high_20': vol_high_20,
         'vol_low_20': vol_low_20,
@@ -328,13 +410,21 @@ def generate_html(stocks_data, today_str):
         mid_high_str = f"{stock['mid_high']:.2f}" if stock['mid_high'] else '-'
         mid_low_str = f"{stock['mid_low']:.2f}" if stock['mid_low'] else '-'
         
-        # 高量柱安全线/风险线字符串（带日期）
+        # 高量柱安全线/风险线字符串
         safe_20_str = f"{stock['safe_20']:.2f}（{stock['date_20']}）" if stock['safe_20'] else '-'
         risk_20_str = f"{stock['risk_20']:.2f}（{stock['date_20']}）" if stock['risk_20'] else '-'
         safe_60_str = f"{stock['safe_60']:.2f}（{stock['date_60']}）" if stock['safe_60'] else '-'
         risk_60_str = f"{stock['risk_60']:.2f}（{stock['date_60']}）" if stock['risk_60'] else '-'
         safe_120_str = f"{stock['safe_120']:.2f}（{stock['date_120']}）" if stock['safe_120'] else '-'
         risk_120_str = f"{stock['risk_120']:.2f}（{stock['date_120']}）" if stock['risk_120'] else '-'
+        
+        # 峰顶线/谷底线字符串
+        peak_20_str = f"{stock['peak_20']:.2f}（{stock['peak_date_20']}）" if stock['peak_20'] else '-'
+        valley_20_str = f"{stock['valley_20']:.2f}（{stock['valley_date_20']}）" if stock['valley_20'] else '-'
+        peak_60_str = f"{stock['peak_60']:.2f}（{stock['peak_date_60']}）" if stock['peak_60'] else '-'
+        valley_60_str = f"{stock['valley_60']:.2f}（{stock['valley_date_60']}）" if stock['valley_60'] else '-'
+        peak_120_str = f"{stock['peak_120']:.2f}（{stock['peak_date_120']}）" if stock['peak_120'] else '-'
+        valley_120_str = f"{stock['valley_120']:.2f}（{stock['valley_date_120']}）" if stock['valley_120'] else '-'
         
         item_html = f"""
         <div class="stock-card">
@@ -366,6 +456,39 @@ def generate_html(stocks_data, today_str):
                         <div class="grid-item">
                             <div class="label">60日低点</div>
                             <div class="value">{mid_low_str}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 峰顶线/谷底线（多空博弈过的） -->
+            <div class="step-section">
+                <div class="step-title">峰顶线/谷底线（博弈过的）</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">20日峰顶线</div>
+                            <div class="value">{peak_20_str}</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">20日谷底线</div>
+                            <div class="value">{valley_20_str}</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">60日峰顶线</div>
+                            <div class="value">{peak_60_str}</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">60日谷底线</div>
+                            <div class="value">{valley_60_str}</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">120日峰顶线</div>
+                            <div class="value">{peak_120_str}</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">120日谷底线</div>
+                            <div class="value">{valley_120_str}</div>
                         </div>
                     </div>
                 </div>
@@ -596,7 +719,7 @@ def generate_html(stocks_data, today_str):
         <div class="header">
             <h1>四维循环看盘报告</h1>
             <div class="date">{today_str}</div>
-            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">四维循环看盘 + 高量柱安全线/风险线（带日期）</div>
+            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">四维循环看盘 + 峰顶线/谷底线 + 高量柱安全线/风险线</div>
         </div>
         
         {''.join(items)}
@@ -613,7 +736,7 @@ def generate_html(stocks_data, today_str):
 # ============================================================
 def main():
     print("=" * 60)
-    print("四维循环看盘报告 - HTML版（含高量柱安全线/风险线日期）")
+    print("四维循环看盘报告 - HTML版（含峰顶线/谷底线）")
     print("=" * 60)
     
     stocks_data = []
