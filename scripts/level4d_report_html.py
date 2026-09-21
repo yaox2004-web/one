@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-四维循环看盘法报告 - HTML版
+四维循环看盘法报告 - HTML版（含第六步全景总结）
 =================================================
 设计思路（为什么这样写）：
   按照四维循环看盘法步骤生成报告！
   ①从右向左找位置 ②从上往下看量柱 ③从左往右比量能 ④从下往上看量价
+  ⑤和历史对比 ⑥全景总结
   客观描述，不做主观判断！
 
 硬约束：
@@ -91,53 +92,40 @@ def get_stock_data(market, code):
     pct_chg = (today['close'] - yesterday['close']) / yesterday['close'] * 100
     
     # ========== ① 从右向左看：找位置 ==========
-    # 找最近的峰顶和谷底
+    # 短期（20日）
     recent_20 = df.iloc[-20:]
     recent_high = recent_20['high'].max()
     recent_low = recent_20['low'].min()
     recent_high_date = recent_20.loc[recent_20['high'].idxmax(), 'date']
     recent_low_date = recent_20.loc[recent_20['low'].idxmin(), 'date']
     
-    # 60日
+    # 中期（60日）
     recent_60 = df.iloc[-60:] if len(df) > 60 else None
     mid_high = mid_low = None
     if recent_60 is not None:
         mid_high = recent_60['high'].max()
         mid_low = recent_60['low'].min()
     
-    # 120日
+    # 长期（120日）
     recent_120 = df.iloc[-120:] if len(df) > 120 else None
     long_high = long_low = None
     if recent_120 is not None:
         long_high = recent_120['high'].max()
         long_low = recent_120['low'].min()
     
-    # 价格位置
-    pos_20 = (today_price - recent_low) / (recent_high - recent_low) * 100
-    pos_60 = (today_price - mid_low) / (mid_high - mid_low) * 100 if mid_high else 0
-    pos_120 = (today_price - long_low) / (long_high - long_low) * 100 if long_high else 0
-    
     # ========== ② 从上往下看：看量柱 ==========
-    # 找关键位置对应的量柱
-    # 找最近的高量柱和低量柱
     vol_high_20 = recent_20['volume'].max()
     vol_low_20 = recent_20['volume'].min()
     
-    # 今天的量柱大小
     vol_ratio_yesterday = today_volume / yesterday['volume']
     vol_ratio_ma5 = today_volume / df['volume'].iloc[-6:-1].mean()
     
-    # 量能位置
     vol_pos_20 = (today_volume - vol_low_20) / (vol_high_20 - vol_low_20) * 100
     
     # ========== ③ 从左往右看：比量能 ==========
-    # 今天的量柱和左侧关键量柱对比
-    # 和最近的高量柱对比
     vol_vs_recent_high = today_volume / vol_high_20 * 100
-    # 和最近的低量柱对比
     vol_vs_recent_low = today_volume / vol_low_20 * 100
     
-    # 连续放量/缩量
     v1 = df.iloc[-1]['volume']
     v2 = df.iloc[-2]['volume']
     v3 = df.iloc[-3]['volume']
@@ -149,7 +137,6 @@ def get_stock_data(market, code):
         vol_trend = "无连续趋势"
     
     # ========== ④ 从下往上看：看量价 ==========
-    # 今天的量价组合
     is_yang = today['close'] > today['open']
     
     if is_yang and vol_ratio_yesterday > 1.5:
@@ -163,9 +150,46 @@ def get_stock_data(market, code):
     else:
         vol_price = "平量整理"
     
-    # 实体大小
     body_size = abs(today['close'] - today['open'])
     body_ratio = body_size / (today['high'] - today['low']) * 100
+    
+    # ========== ⑤ 和历史对比 ==========
+    short_dist_high = (recent_high - today_price) / today_price * 100
+    short_dist_low = (today_price - recent_low) / today_price * 100
+    
+    mid_dist_high = (mid_high - today_price) / today_price * 100 if mid_high else 0
+    mid_dist_low = (today_price - mid_low) / today_price * 100 if mid_low else 0
+    
+    long_dist_high = (long_high - today_price) / today_price * 100 if long_high else 0
+    long_dist_low = (today_price - long_low) / today_price * 100 if long_low else 0
+    
+    # ========== ⑥ 全景总结 ==========
+    # 位置状态
+    pos_120 = (today_price - long_low) / (long_high - long_low) * 100 if long_high else 50
+    if pos_120 > 70:
+        pos_status = "高位"
+    elif pos_120 < 30:
+        pos_status = "低位"
+    else:
+        pos_status = "中位"
+    
+    # 量能状态
+    if vol_pos_20 > 80:
+        vol_status = "天量"
+    elif vol_pos_20 < 20:
+        vol_status = "地量"
+    else:
+        vol_status = "正常"
+    
+    # 多空力量
+    if is_yang:
+        power = "买方占优"
+    else:
+        power = "卖方占优"
+    
+    # 连续涨跌幅
+    pct_3d = (today['close'] - df.iloc[-4]['close']) / df.iloc[-4]['close'] * 100
+    pct_5d = (today['close'] - df.iloc[-6]['close']) / df.iloc[-6]['close'] * 100
     
     return {
         'name': name,
@@ -176,11 +200,10 @@ def get_stock_data(market, code):
         # ①从右向左
         'recent_high': recent_high,
         'recent_low': recent_low,
-        'recent_high_date': recent_high_date,
-        'recent_low_date': recent_low_date,
-        'pos_20': pos_20,
-        'pos_60': pos_60,
-        'pos_120': pos_120,
+        'mid_high': mid_high,
+        'mid_low': mid_low,
+        'long_high': long_high,
+        'long_low': long_low,
         # ②从上往下
         'vol_high_20': vol_high_20,
         'vol_low_20': vol_low_20,
@@ -195,6 +218,19 @@ def get_stock_data(market, code):
         'is_yang': is_yang,
         'vol_price': vol_price,
         'body_ratio': body_ratio,
+        # ⑤和历史对比
+        'short_dist_high': short_dist_high,
+        'short_dist_low': short_dist_low,
+        'mid_dist_high': mid_dist_high,
+        'mid_dist_low': mid_dist_low,
+        'long_dist_high': long_dist_high,
+        'long_dist_low': long_dist_low,
+        # ⑥全景总结
+        'pos_status': pos_status,
+        'vol_status': vol_status,
+        'power': power,
+        'pct_3d': pct_3d,
+        'pct_5d': pct_5d,
     }
 
 
@@ -277,6 +313,14 @@ def generate_html(stocks_data, today_str):
         }}
         .grid-item .label {{ color: #94a3b8; font-size: 11px; }}
         .grid-item .value {{ font-weight: bold; color: #e2e8f0; }}
+        
+        .summary-box {{
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }}
+        .summary-box p {{ margin: 0; color: #fbbf24; font-size: 13px; line-height: 1.8; }}
     </style>
 </head>
 <body>
@@ -284,7 +328,7 @@ def generate_html(stocks_data, today_str):
         <div class="header">
             <h1>四维循环看盘报告</h1>
             <div class="date">{today_str}</div>
-            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">从右向左找位置 + 从上往下看量柱 + 从左往右比量能 + 从下往上看量价</div>
+            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">从右向左找位置 + 从上往下看量柱 + 从左往右比量能 + 从下往上看量价 + 和历史对比 + 全景总结</div>
         </div>
 """
     
@@ -293,7 +337,6 @@ def generate_html(stocks_data, today_str):
             continue
         
         price_class = "price-up" if stock['pct_chg'] > 0 else "price-down"
-        position_type = "高位" if stock['pos_120'] > 70 else "低位" if stock['pos_120'] < 30 else "中位"
         
         html += f"""
         <div class="stock-card">
@@ -319,12 +362,12 @@ def generate_html(stocks_data, today_str):
                             <div class="value">{stock['recent_low']:.2f}</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">20日位置</div>
-                            <div class="value">{stock['pos_20']:.1f}%</div>
+                            <div class="label">60日高点</div>
+                            <div class="value">{stock['mid_high']:.2f if stock['mid_high'] else '-'}</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">120日位置</div>
-                            <div class="value">{stock['pos_120']:.1f}%（{position_type}）</div>
+                            <div class="label">60日低点</div>
+                            <div class="value">{stock['mid_low']:.2f if stock['mid_low'] else '-'}</div>
                         </div>
                     </div>
                 </div>
@@ -396,6 +439,38 @@ def generate_html(stocks_data, today_str):
                     </div>
                 </div>
             </div>
+            
+            <!-- ⑤ 和历史对比 -->
+            <div class="step-section">
+                <div class="step-title">⑤ 和历史对比</div>
+                <div class="step-content">
+                    <p><strong>短期(20日)：</strong>
+                        离高点 {stock['short_dist_high']:+.2f}% | 
+                        离低点 {stock['short_dist_low']:+.2f}%
+                    </p>
+                    <p><strong>中期(60日)：</strong>
+                        离高点 {stock['mid_dist_high']:+.2f}% | 
+                        离低点 {stock['mid_dist_low']:+.2f}%
+                    </p>
+                    <p><strong>长期(120日)：</strong>
+                        离高点 {stock['long_dist_high']:+.2f}% | 
+                        离低点 {stock['long_dist_low']:+.2f}%
+                    </p>
+                </div>
+            </div>
+            
+            <!-- ⑥ 全景总结 -->
+            <div class="step-section">
+                <div class="step-title">⑥ 全景总结</div>
+                <div class="summary-box">
+                    <p>
+                        今日{stock['pct_chg']:+.2f}%，{stock['vol_status']}，{stock['pos_status']}。<br>
+                        量价组合：{stock['vol_price']}，{stock['power']}。<br>
+                        近3日涨跌：{stock['pct_3d']:+.2f}%，近5日涨跌：{stock['pct_5d']:+.2f}%。<br>
+                        {stock['vol_trend']}。
+                    </p>
+                </div>
+            </div>
         </div>
 """
     
@@ -413,7 +488,7 @@ def generate_html(stocks_data, today_str):
 # ============================================================
 def main():
     print("=" * 60)
-    print("四维循环看盘报告 - HTML版")
+    print("四维循环看盘报告 - HTML版（含第六步全景总结）")
     print("=" * 60)
     
     stocks_data = []
@@ -442,4 +517,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
