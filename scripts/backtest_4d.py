@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-四维循环看盘法 - 历史回测验证（全信号版）
+四维循环看盘法 - 历史回测验证（自动扫描版·限50只）
 =================================================
 【无未来函数】
 【回测标准】T日收盘确认信号 → T+1日开盘价买入 → T+1+N日收盘卖出
@@ -20,6 +20,10 @@ from collections import defaultdict
 
 DATA_DIR = Path(__file__).parent.parent / "data" / "kline"
 
+# 自动扫描：最多跑多少只（避免超时）
+MAX_STOCKS = 50
+
+# 持仓股（保留，放在最前面优先跑）
 HOLDINGS = [
     ("sh", "600584"),
     ("sz", "002156"),
@@ -162,6 +166,8 @@ def load_klines(market, code):
             with open(filepath, 'r') as f:
                 data = json.load(f)
             klines = data.get('klines', [])
+            if not klines:
+                return None
             ncols = len(klines[0])
             cols = ['date', 'open', 'close', 'high', 'low', 'volume'] if ncols == 6 else ['date', 'open', 'close', 'high', 'low', 'volume', 'amount']
             df = pd.DataFrame(klines)
@@ -172,6 +178,38 @@ def load_klines(market, code):
             df = df.dropna(subset=['open', 'close', 'high', 'low', 'volume'])
             return df
     return None
+
+
+# ============================================================
+# 【自动扫描所有股票】
+# ============================================================
+def scan_all_stocks():
+    stocks = []
+    # 先加持仓股
+    for market, code in HOLDINGS:
+        stocks.append((market, code))
+    
+    # 扫描sh目录
+    sh_dir = DATA_DIR / "sh"
+    if sh_dir.exists():
+        for f in sh_dir.glob("*.json"):
+            code = f.stem
+            if not any(c == code for _, c in stocks):
+                stocks.append(("sh", code))
+    
+    # 扫描sz目录
+    sz_dir = DATA_DIR / "sz"
+    if sz_dir.exists():
+        for f in sz_dir.glob("*.json"):
+            code = f.stem
+            if not any(c == code for _, c in stocks):
+                stocks.append(("sz", code))
+    
+    # 限制数量
+    if len(stocks) > MAX_STOCKS:
+        stocks = stocks[:MAX_STOCKS]
+    
+    return stocks
 
 
 # ============================================================
@@ -488,33 +526,6 @@ def find_precise_at(df, end_idx, lookback_days=120, min_points=3, price_toleranc
 
 
 # ============================================================
-# 【找高量柱安全线/风险线】
-# ============================================================
-def find_gaoliang_lines_at(df, end_idx, lookback=20):
-    if end_idx < lookback:
-        return None, None
-    recent_df = df.iloc[end_idx-lookback+1:end_idx+1]
-    max_vol_idx = recent_df['volume'].idxmax()
-    max_vol_row = recent_df.loc[max_vol_idx]
-    open_price = max_vol_row['open']
-    close_price = max_vol_row['close']
-    high_price = max_vol_row['high']
-    low_price = max_vol_row['low']
-    body_size = abs(close_price - open_price)
-    total_range = high_price - low_price
-    if total_range == 0:
-        return None, None
-    body_ratio = body_size / total_range
-    if body_ratio > BODY_RATIO_THRESHOLD:
-        safe_line = max(open_price, close_price)
-        risk_line = min(open_price, close_price)
-    else:
-        safe_line = high_price
-        risk_line = low_price
-    return safe_line, risk_line
-
-
-# ============================================================
 # 【找大阴实顶】
 # ============================================================
 def find_big_yin_top_at(df, end_idx, lookback_days, yin_body_pct):
@@ -590,18 +601,22 @@ def find_pillars_at(df, end_idx, lookback_days=60):
 # ============================================================
 def main():
     print("=" * 70)
-    print("四维循环看盘法 - 全信号历史回测验证")
+    print("四维循环看盘法 - 历史回测验证（自动扫描版）")
     print("=" * 70)
     
-    print(f"\n回测股票数：{len(HOLDINGS)}只")
+    # 自动扫描所有股票
+    all_stocks = scan_all_stocks()
+    
+    print(f"\n自动扫描到股票数：{len(all_stocks)}只")
+    print(f"（最多跑{MAX_STOCKS}只，避免超时）")
     print(f"持有周期：{HOLD_PERIODS}个交易日")
     print(f"无未来函数：每个信号只用截止到当天的数据")
     print(f"回测标准：T日收盘确认 → T+1开盘价买入 → T+1+N日收盘卖出\n")
     
     all_trades = defaultdict(lambda: {h: [] for h in HOLD_PERIODS})
     
-    for market, code in HOLDINGS:
-        print(f"  回测中：{market}{code} ...")
+    for idx, (market, code) in enumerate(all_stocks):
+        print(f"  回测中 {idx+1}/{len(all_stocks)}: {market}{code} ...")
         df = load_klines(market, code)
         if df is None:
             continue
@@ -613,7 +628,6 @@ def main():
             today = df.iloc[i]
             tomorrow = df.iloc[i+1]
             
-            # 排除一字涨停买不进去
             if tomorrow['open'] == tomorrow['close'] and (tomorrow['close'] - df.iloc[i]['close']) / df.iloc[i]['close'] * 100 > 9.5:
                 continue
             
@@ -627,7 +641,6 @@ def main():
             big_yin_top, big_yin_date = find_big_yin_top_at(df, i, YIN_LOOKBACK, yin_body_thresh)
             pillar_type, pillar_date = find_pillars_at(df, i)
             
-            buy_price = tomorrow['open']
             signals_today = []
             
             # 量柱六种
@@ -712,7 +725,7 @@ def main():
     print("\n" + "=" * 70)
     print("四维循环看盘法 - 历史回测结果")
     print("=" * 70)
-    print(f"\n总股票数：{len(HOLDINGS)}只")
+    print(f"\n总股票数：{len(all_stocks)}只")
     print(f"持有周期：{HOLD_PERIODS}个交易日\n")
     
     for hold_days in HOLD_PERIODS:
@@ -754,7 +767,7 @@ def main():
     summary_file = output_dir / "backtest_4d_full_summary.txt"
     with open(summary_file, 'w', encoding='utf-8') as f:
         f.write("四维循环看盘法 - 全信号历史回测结果\n")
-        f.write(f"股票数：{len(HOLDINGS)}只\n")
+        f.write(f"股票数：{len(all_stocks)}只\n")
         f.write(f"持有周期：{HOLD_PERIODS}个交易日\n\n")
         for hold_days in HOLD_PERIODS:
             f.write(f"\n=== 持有{hold_days}天 ===\n")
