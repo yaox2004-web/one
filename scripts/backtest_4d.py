@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-四维循环看盘法 - 全市场历史回测
+四维循环看盘法 - 历史回测验证（全信号版）
 =================================================
-【无未来函数】：每个信号只用截止到当天收盘的数据
-【目的】：验证四维看盘法+量线体系的信号在全市场是否普遍有效
-【设计思路】：自动扫描data/kline目录下所有股票，不用手动列股票池
-【鲁棒性】：自动适配各种文件名格式（600584.json / sh600584.json等）
+【无未来函数】
+【回测标准】T日收盘确认信号 → T+1日开盘价买入 → T+1+N日收盘卖出
+【资料来源】股海明灯《量柱擒涨停》《量线捉涨停》黑马王子著
 """
 
 import json
@@ -16,311 +15,910 @@ from pathlib import Path
 from collections import defaultdict
 
 # ============================================================
-# 【配置区】所有参数阈值都在这里，方便调整
+# 【配置区】所有参数
 # ============================================================
 
 DATA_DIR = Path(__file__).parent.parent / "data" / "kline"
-OUTPUT_DIR = Path(__file__).parent.parent / "data" / "analysis"
 
-# 回测参数
-YIN_BODY_PCT = 3.0        # 中大阴线实体跌幅阈值（%），适配量化时代
-YIN_LOOKBACK = 60          # 往前找多少天内的中大阴线
-SHORT_WINDOW = 20          # 短期窗口（交易日），约一个月
-PEAK_SIDE_SHORT = 2        # 峰边距：左右各2根，共5根（比尔·威廉姆斯分形标准）
-CONFIRM_DAYS_SHORT = 3     # 短期：3天确认，适配量化时代快节奏
-VOL_PERCENTILE = 0.7       # 前30%以上才算放量（70%分位数），适配量化时代
-BEISHU_RATIO = 2.0         # 倍量柱：今天量是昨天的2倍以上
+HOLDINGS = [
+    ("sh", "600584"),
+    ("sz", "002156"),
+    ("sh", "603283"),
+    ("sz", "300394"),
+    ("sh", "601138"),
+    ("sh", "601231"),
+    ("sz", "300476"),
+    ("sh", "603516"),
+]
 
-# 持有周期（交易日）
-HOLD_DAYS_LIST = [5, 10, 20]
+# 持有周期
+HOLD_PERIODS = [5, 10, 20]
+
+# ============================================================
+# 【ATR自适应】
+# ============================================================
+ATR_ADAPTIVE = True
+ATR_PERIOD = 14
+
+# ============================================================
+# 【价格类参数】
+# ============================================================
+YIN_BODY_ATR_MULT = 1.5
+YIN_BODY_FALLBACK = 5.0
+YIN_LOOKBACK = 60
+
+CHANGYANG_ATR_MULT = 1.5
+CHANGYANG_FALLBACK = 5.0
+
+BINGLIN_ATR_MULT = 0.5
+BINGLIN_FALLBACK = 2.0
+
+GAP_ATR_MULT = 0.5
+
+# ============================================================
+# 【量柱核心定义】
+# ============================================================
+BEISHU_RATIO = 1.8
+GAOLIANG_LOOKBACK = 20
+PINGLIANG_TOLERANCE = 0.15
+
+SMALL_BEISHU_MIN = 1.5
+SMALL_BEISHU_MAX = 2.0
+
+# ============================================================
+# 【量能分位数】
+# ============================================================
+VOL_LOOKBACK = 20
+VOL_PCTL_HIGH = 0.80
+VOL_PCTL_LOW = 0.20
+BASE_VOL_PCTL = 0.60
+
+BEISHUO_EXTEND_PCTL = 0.80
+BEISHUO_SHRINK_PCTL = 0.20
+BEISHUO_LOOKBACK = 5
+
+LONG_YIN_SHORT_VOL_PCTL = 0.30
+
+# ============================================================
+# 【涨停板】
+# ============================================================
+LIMIT_UP_MAIN = 9.8
+LIMIT_UP_GEM = 19.8
+
+# ============================================================
+# 【王牌柱】
+# ============================================================
+GENERAL_CONFIRM_DAYS = 3
+
+# ============================================================
+# 【峰顶线/谷底线】
+# ============================================================
+SHORT_WINDOW = 20
+CONFIRM_DAYS_SHORT = 2
+PEAK_SIDE_SHORT = 2
+VOL_PERCENTILE = 0.7
+
+# ============================================================
+# 【其他参数】
+# ============================================================
+BODY_RATIO_THRESHOLD = 0.6
+TOUCH_LINE_TOLERANCE = 0.02
+NIUGU_TOUCH_TOLERANCE = 0.01
 
 
 # ============================================================
-# 自动扫描所有股票（鲁棒版，适配各种文件名格式）
+# 【ATR计算】
 # ============================================================
-def find_all_stocks():
-    """
-    自动扫描data/kline目录下的所有股票
-    不管文件名是 600584.json 还是 sh600584.json，都能正确识别
-    """
-    stocks = []
-    
-    if not DATA_DIR.exists():
-        print(f"  警告：数据目录不存在！{DATA_DIR}")
-        return stocks
-    
-    # 遍历data/kline下的所有子目录（sh/sz等）
-    for market_dir in DATA_DIR.iterdir():
-        if not market_dir.is_dir():
-            continue
-        
-        market = market_dir.name  # sh / sz / bj
-        
-        for f in market_dir.glob("*.json"):
-            filename = f.stem  # 去掉.json后缀
-            
-            # 从文件名提取code：去掉market前缀
-            # 可能的情况：600584 / sh600584 / sz002156
-            if filename.startswith(market):
-                code = filename[len(market):]
-            else:
-                code = filename
-            
-            # 只保留6位数字的code
-            if len(code) == 6 and code.isdigit():
-                stocks.append((market, code))
-    
-    return stocks
+def calculate_atr(df, period=14):
+    if len(df) < period + 1:
+        return None, None
+    high = df['high'].values
+    low = df['low'].values
+    close = df['close'].values
+    tr = np.maximum(
+        high[1:] - low[1:],
+        np.maximum(
+            np.abs(high[1:] - close[:-1]),
+            np.abs(low[1:] - close[:-1])
+        )
+    )
+    atr = np.mean(tr[-period:])
+    atr_pct = atr / close[-1] * 100
+    return atr, atr_pct
+
+
+def get_atr_threshold(atr_pct, mult, fallback):
+    if ATR_ADAPTIVE and atr_pct is not None:
+        return atr_pct * mult
+    else:
+        return fallback
+
+
+def is_gem_star(code):
+    if code.startswith('300') or code.startswith('301') or code.startswith('688'):
+        return True
+    return False
 
 
 # ============================================================
-# 数据读取（和报告脚本完全一致，确保能读到）
+# 【量能分位数】
+# ============================================================
+def get_vol_percentile(df, lookback=20):
+    if len(df) < lookback:
+        lookback = len(df)
+    recent_vols = df.iloc[-lookback:]['volume']
+    today_vol = df.iloc[-1]['volume']
+    pct = (recent_vols < today_vol).sum() / len(recent_vols)
+    return pct
+
+
+# ============================================================
+# 数据读取
 # ============================================================
 def load_klines(market, code):
     possible_paths = [
         DATA_DIR / market / f"{code}.json",
         DATA_DIR / market / f"{market}{code}.json",
         DATA_DIR / f"{market}{code}.json",
-        DATA_DIR / f"{code}.json",
     ]
-    
     for filepath in possible_paths:
         if filepath.exists():
             with open(filepath, 'r') as f:
                 data = json.load(f)
-            
             klines = data.get('klines', [])
-            if len(klines) < 150:  # 数据太少的跳过
-                return None, None
-            
             ncols = len(klines[0])
-            
-            if ncols == 6:
-                cols = ['date', 'open', 'close', 'high', 'low', 'volume']
-            else:
-                cols = ['date', 'open', 'close', 'high', 'low', 'volume', 'amount']
-            
+            cols = ['date', 'open', 'close', 'high', 'low', 'volume'] if ncols == 6 else ['date', 'open', 'close', 'high', 'low', 'volume', 'amount']
             df = pd.DataFrame(klines)
             df = df.iloc[:, :ncols]
             df.columns = cols[:ncols]
-            
             for col in ['open', 'close', 'high', 'low', 'volume']:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
-            
             df = df.dropna(subset=['open', 'close', 'high', 'low', 'volume'])
-            df = df.reset_index(drop=True)
-            
-            return df, data.get('name', code)
-    
-    return None, None
+            return df
+    return None
 
 
 # ============================================================
-# 找大阴实顶（只用截止到当天的数据，无未来函数）
+# 【信号识别函数】
 # ============================================================
-def find_big_yin_top(df_up_to_today, lookback_days, yin_body_pct):
-    """
-    找最近的中大阴线实体顶部
-    量学理论：大阴实顶是多空双方上次休战的警戒点
-    """
-    if len(df_up_to_today) < lookback_days:
-        return None, None, None
-    
-    recent_df = df_up_to_today.iloc[-lookback_days:]
-    
-    for i in range(len(recent_df)-1, -1, -1):
-        row = recent_df.iloc[i]
-        
-        if row['close'] >= row['open']:
-            continue
-        
-        body_pct = (row['open'] - row['close']) / row['close'] * 100
-        
-        if body_pct >= yin_body_pct:
-            return row['open'], row['date'], i
-    
-    return None, None, None
+
+def check_bei_liang(df, i):
+    """倍量柱"""
+    if i < 2:
+        return False
+    today_vol = df.iloc[i]['volume']
+    yesterday_vol = df.iloc[i-1]['volume']
+    if yesterday_vol > 0 and today_vol / yesterday_vol >= BEISHU_RATIO:
+        return True
+    return False
+
+
+def check_gao_liang(df, i):
+    """高量柱"""
+    if i < GAOLIANG_LOOKBACK:
+        return False
+    recent = df.iloc[i-GAOLIANG_LOOKBACK:i+1]
+    today_vol = df.iloc[i]['volume']
+    if today_vol == recent['volume'].max():
+        return True
+    return False
+
+
+def check_di_liang(df, i):
+    """低量柱"""
+    if i < GAOLIANG_LOOKBACK:
+        return False
+    recent = df.iloc[i-GAOLIANG_LOOKBACK:i+1]
+    today_vol = df.iloc[i]['volume']
+    if today_vol == recent['volume'].min():
+        return True
+    return False
+
+
+def check_ti_liang(df, i):
+    """梯量柱"""
+    if i < 3:
+        return False
+    v1 = df.iloc[i-2]['volume']
+    v2 = df.iloc[i-1]['volume']
+    v3 = df.iloc[i]['volume']
+    if v1 < v2 < v3:
+        return True
+    return False
+
+
+def check_suo_liang(df, i):
+    """缩量柱"""
+    if i < 3:
+        return False
+    v1 = df.iloc[i-2]['volume']
+    v2 = df.iloc[i-1]['volume']
+    v3 = df.iloc[i]['volume']
+    if v1 > v2 > v3:
+        return True
+    return False
+
+
+def check_ping_liang(df, i):
+    """平量柱"""
+    if i < 6:
+        return False
+    today_vol = df.iloc[i]['volume']
+    recent_5_avg = df.iloc[i-5:i]['volume'].mean()
+    if recent_5_avg > 0:
+        diff_pct = abs(today_vol - recent_5_avg) / recent_5_avg
+        if diff_pct <= PINGLIANG_TOLERANCE:
+            return True
+    return False
+
+
+def check_xiao_bei_yang(df, i):
+    """小倍阳（矮将军）"""
+    if i < 2:
+        return False
+    today = df.iloc[i]
+    yesterday = df.iloc[i-1]
+    body_pct = (today['close'] - today['open']) / today['open'] * 100
+    vol_ratio = today['volume'] / yesterday['volume'] if yesterday['volume'] > 0 else 0
+    if 0 < body_pct < 3 and SMALL_BEISHU_MIN <= vol_ratio < SMALL_BEISHU_MAX:
+        return True
+    return False
+
+
+def check_yang_sheng_jin(df, i):
+    """阳胜进"""
+    if i < 2:
+        return False
+    today = df.iloc[i]
+    yesterday = df.iloc[i-1]
+    if today['close'] > today['open'] and today['volume'] > yesterday['volume'] and today['close'] > yesterday['close']:
+        return True
+    return False
+
+
+def check_yin_sheng_chu(df, i):
+    """阴胜出"""
+    if i < 2:
+        return False
+    today = df.iloc[i]
+    yesterday = df.iloc[i-1]
+    if today['close'] < today['open'] and today['volume'] > yesterday['volume'] and today['close'] < yesterday['close']:
+        return True
+    return False
+
+
+def check_chang_duan_yin(df, i, atr_pct):
+    """长阴短柱"""
+    if i < 6:
+        return False
+    today = df.iloc[i]
+    body_pct_down = (today['open'] - today['close']) / today['close'] * 100
+    changyang_thresh = get_atr_threshold(atr_pct, CHANGYANG_ATR_MULT, CHANGYANG_FALLBACK)
+    vol_pctl = get_vol_percentile(df.iloc[:i+1], VOL_LOOKBACK)
+    if body_pct_down > changyang_thresh and vol_pctl < LONG_YIN_SHORT_VOL_PCTL:
+        return True
+    return False
+
+
+def check_yang_bao_yin(df, i):
+    """阳包阴"""
+    if i < 2:
+        return False
+    today = df.iloc[i]
+    yesterday = df.iloc[i-1]
+    if today['close'] > yesterday['open'] and today['open'] < yesterday['close'] and today['close'] > today['open']:
+        return True
+    return False
+
+
+def check_ban_zhang(df, i, code):
+    """涨停板"""
+    if i < 2:
+        return False
+    today = df.iloc[i]
+    yesterday = df.iloc[i-1]
+    pct = (today['close'] - yesterday['close']) / yesterday['close'] * 100
+    limit_up = LIMIT_UP_GEM if is_gem_star(code) else LIMIT_UP_MAIN
+    if pct >= limit_up:
+        return True
+    return False
+
+
+def check_guo_zuofeng(df, i, peak_20):
+    """过左峰"""
+    if peak_20 is None:
+        return False
+    today = df.iloc[i]
+    if today['close'] > peak_20:
+        return True
+    return False
+
+
+def check_jiayin_ciyang(df, i, atr_pct):
+    """极阴次阳"""
+    if i < 6:
+        return False
+    today = df.iloc[i]
+    recent_5 = df.iloc[i-5:i]
+    changyang_thresh = get_atr_threshold(atr_pct, CHANGYANG_ATR_MULT, CHANGYANG_FALLBACK)
+    for j in range(len(recent_5)-2, 0, -1):
+        row = recent_5.iloc[j]
+        drop_pct = (row['close'] - row['open']) / row['open'] * 100
+        if drop_pct < -changyang_thresh:
+            if today['close'] > today['open']:
+                yin_body_size = row['open'] - row['close']
+                rebound_size = today['close'] - row['close']
+                if yin_body_size > 0 and rebound_size / yin_body_size > 0.5:
+                    return True
+            break
+    return False
+
+
+def check_changyang_aizhu(df, i, atr_pct):
+    """长阳矮柱"""
+    if i < 2:
+        return False
+    today = df.iloc[i]
+    yesterday = df.iloc[i-1]
+    changyang_thresh = get_atr_threshold(atr_pct, CHANGYANG_ATR_MULT, CHANGYANG_FALLBACK)
+    chongyang_up_pct = (today['close'] - yesterday['close']) / yesterday['close'] * 100
+    vol_pctl = get_vol_percentile(df.iloc[:i+1], VOL_LOOKBACK)
+    if chongyang_up_pct > changyang_thresh and vol_pctl < 0.5:
+        return True
+    return False
+
+
+def check_beiliang_buchuan(df, i, code):
+    """倍量不穿"""
+    if i < 60:
+        return False
+    recent_60 = df.iloc[i-59:i+1]
+    for j in range(len(recent_60)-1, 5, -1):
+        row = recent_60.iloc[j]
+        prev_row = recent_60.iloc[j-1]
+        if prev_row['volume'] > 0 and row['volume'] / prev_row['volume'] >= BEISHU_RATIO and row['close'] > row['open']:
+            beiliang_bottom = row['open']
+            future = recent_60.iloc[j+1:]
+            if len(future) > 0 and all(future['low'] >= beiliang_bottom * (1 - NIUGU_TOUCH_TOLERANCE)):
+                return True
+            break
+    return False
+
+
+def check_gaoliang_bupo(df, i):
+    """高量不破"""
+    if i < 60:
+        return False
+    recent_60 = df.iloc[i-59:i+1]
+    max_vol_idx = recent_60['volume'].idxmax()
+    max_vol_row = recent_60.loc[max_vol_idx]
+    gaoliang_bottom = max_vol_row['low']
+    future = recent_60.iloc[max_vol_idx + 1:]
+    if len(future) > 0 and all(future['low'] >= gaoliang_bottom * (1 - NIUGU_TOUCH_TOLERANCE)):
+        return True
+    return False
+
+
+def check_diliang_qun(df, i):
+    """地量群"""
+    if i < 100:
+        return False
+    recent_100 = df.iloc[i-99:i+1]
+    vol_low_pctl = recent_100['volume'].quantile(VOL_PCTL_LOW)
+    low_vol_count = sum(recent_100['volume'] <= vol_low_pctl)
+    if low_vol_count >= 5:
+        return True
+    return False
+
+
+def check_jiasheng_liangsou(df, i):
+    """价升量缩"""
+    if i < 3:
+        return False
+    recent_3 = df.iloc[i-2:i+1]
+    prices_up = all(recent_3.iloc[j]['close'] > recent_3.iloc[j-1]['close'] for j in range(1, len(recent_3)))
+    vols_down = all(recent_3.iloc[j]['volume'] < recent_3.iloc[j-1]['volume'] for j in range(1, len(recent_3)))
+    if prices_up and vols_down:
+        return True
+    return False
+
+
+def check_beishuo_shensuo(df, i):
+    """倍量伸缩"""
+    if i < 5:
+        return False
+    recent_5 = df.iloc[i-4:i+1]
+    vols_pctl = (recent_5['volume'].rank(pct=True)).values
+    for j in range(1, len(vols_pctl)):
+        if vols_pctl[j] >= BEISHUO_EXTEND_PCTL and vols_pctl[j-1] <= BEISHUO_SHRINK_PCTL:
+            return True
+    return False
+
+
+def check_huicai_jingzhun(df, i, precise_price):
+    """回踩精准线"""
+    if precise_price is None:
+        return False
+    if i < 10:
+        return False
+    recent_10 = df.iloc[i-9:i+1]
+    touched = any(abs(row['low'] - precise_price) / precise_price < TOUCH_LINE_TOLERANCE for _, row in recent_10.iterrows())
+    if touched:
+        return True
+    return False
+
+
+def check_yin_shen_fuding(df, i):
+    """阴胜伏击（回测用：阴胜出后买入）"""
+    # 这个信号在回测里不单独用，跳过
+    return False
 
 
 # ============================================================
-# 找谷底线（只用截止到当天的数据）
+# 【找峰顶线/谷底线】
 # ============================================================
-def find_recent_valley(df_up_to_today, lookback_days, peak_side, confirm_days, vol_percentile):
-    """
-    找最近的谷底线
-    量学理论：谷底线是上次买方赢了的位置，现在变成支撑位
-    识别标准：比尔·威廉姆斯分形 + 右确认 + 放量
-    """
+def find_fenggu_at(df, end_idx, lookback_days, peak_side, confirm_days, vol_percentile):
     min_required = lookback_days + confirm_days + peak_side
-    if len(df_up_to_today) < min_required:
+    if end_idx < min_required:
         return None, None
-    
-    recent_df = df_up_to_today.iloc[-lookback_days:]
+    recent_df = df.iloc[end_idx-lookback_days+1:end_idx+1]
     vol_threshold = recent_df['volume'].quantile(vol_percentile)
-    
-    valleys = []
+    peaks, valleys = [], []
     start = peak_side
     end = len(recent_df) - max(peak_side, confirm_days)
-    
     for i in range(start, end):
         row = recent_df.iloc[i]
         window = recent_df.iloc[i-peak_side:i+peak_side+1]
+        is_local_high = row['high'] == window['high'].max()
         is_local_low = row['low'] == window['low'].min()
         has_vol = row['volume'] >= vol_threshold
-        
+        if is_local_high and has_vol:
+            future = recent_df.iloc[i+1:i+1+confirm_days]
+            if all(future['close'] < row['high']):
+                peaks.append({'price': row['high'], 'date': row['date']})
         if is_local_low and has_vol:
             future = recent_df.iloc[i+1:i+1+confirm_days]
-            confirmed = all(future['close'] > row['low'])
-            if confirmed:
+            if all(future['close'] > row['low']):
                 valleys.append({'price': row['low'], 'date': row['date']})
-    
-    if valleys:
-        return valleys[-1]['price'], valleys[-1]['date']
+    recent_peak = peaks[-1] if peaks else None
+    recent_valley = valleys[-1] if valleys else None
+    return (recent_peak['price'] if recent_peak else None,
+            recent_valley['price'] if recent_valley else None)
+
+
+# ============================================================
+# 【找精准线】
+# ============================================================
+def find_precise_at(df, end_idx, lookback_days=120, min_points=3, price_tolerance=1.0):
+    if end_idx < lookback_days:
+        return None
+    recent_df = df.iloc[end_idx-lookback_days+1:end_idx+1]
+    prices = recent_df['close'].values
+    from scipy.cluster.hierarchy import fcluster, linkage
+    from scipy.spatial.distance import pdist
+    if len(prices) < min_points:
+        return None
+    clusters = {}
+    used = set()
+    for i in range(len(prices)):
+        if i in used:
+            continue
+        cluster = [i]
+        for j in range(len(prices)):
+            if i == j or j in used:
+                continue
+            diff_pct = abs(prices[i] - prices[j]) / prices[i] * 100
+            if diff_pct <= price_tolerance:
+                cluster.append(j)
+        if len(cluster) >= min_points:
+            avg_price = np.mean([prices[idx] for idx in cluster])
+            clusters[len(cluster)] = avg_price
+            for idx in cluster:
+                used.add(idx)
+    if clusters:
+        return clusters[max(clusters.keys())]
+    return None
+
+
+# ============================================================
+# 【找高量柱安全线/风险线】
+# ============================================================
+def find_gaoliang_lines_at(df, end_idx, lookback=20):
+    if end_idx < lookback:
+        return None, None
+    recent_df = df.iloc[end_idx-lookback+1:end_idx+1]
+    max_vol_idx = recent_df['volume'].idxmax()
+    max_vol_row = recent_df.loc[max_vol_idx]
+    open_price = max_vol_row['open']
+    close_price = max_vol_row['close']
+    high_price = max_vol_row['high']
+    low_price = max_vol_row['low']
+    body_size = abs(close_price - open_price)
+    total_range = high_price - low_price
+    if total_range == 0:
+        return None, None
+    body_ratio = body_size / total_range
+    if body_ratio > BODY_RATIO_THRESHOLD:
+        safe_line = max(open_price, close_price)
+        risk_line = min(open_price, close_price)
+    else:
+        safe_line = high_price
+        risk_line = low_price
+    return safe_line, risk_line
+
+
+# ============================================================
+# 【找大阴实顶】
+# ============================================================
+def find_big_yin_top_at(df, end_idx, lookback_days, yin_body_pct):
+    if end_idx < lookback_days:
+        return None, None
+    recent_df = df.iloc[end_idx-lookback_days+1:end_idx+1]
+    for i in range(len(recent_df)-1, -1, -1):
+        row = recent_df.iloc[i]
+        if row['close'] >= row['open']:
+            continue
+        body_pct = (row['open'] - row['close']) / row['close'] * 100
+        if body_pct >= yin_body_pct:
+            return row['open'], row['date']
     return None, None
 
 
 # ============================================================
-# 识别量柱形态
+# 【找王牌柱】
 # ============================================================
-def identify_vol_pattern(df_up_to_today):
-    """
-    识别今天的量柱形态
-    量学理论：高低平倍梯缩六种基本形态
-    """
-    if len(df_up_to_today) < 10:
-        return "其他"
-    
-    today_vol = df_up_to_today.iloc[-1]['volume']
-    yesterday_vol = df_up_to_today.iloc[-2]['volume']
-    
-    # 倍量柱：今天量是昨天的2倍以上
-    if today_vol / yesterday_vol >= BEISHU_RATIO:
-        return "倍量柱"
-    
-    # 高量柱：20天最高
-    recent_20 = df_up_to_today.iloc[-20:] if len(df_up_to_today) >= 20 else df_up_to_today
-    if today_vol == recent_20['volume'].max():
-        return "高量柱"
-    
-    # 低量柱：20天最低
-    if today_vol == recent_20['volume'].min():
-        return "低量柱"
-    
-    # 梯量柱：连续三天递增
-    v1 = df_up_to_today.iloc[-3]['volume']
-    v2 = df_up_to_today.iloc[-2]['volume']
-    v3 = df_up_to_today.iloc[-1]['volume']
-    if v1 < v2 < v3:
-        return "梯量柱"
-    
-    # 缩量柱：连续三天递减
-    if v1 > v2 > v3:
-        return "缩量柱"
-    
-    return "其他"
+def find_pillars_at(df, end_idx, lookback_days=60):
+    if end_idx < lookback_days + GENERAL_CONFIRM_DAYS + 20:
+        return "无", None
+    recent_df = df.iloc[end_idx-lookback_days+1:end_idx+1]
+    marshals = []
+    goldens = []
+    generals = []
+    for i in range(len(recent_df) - GENERAL_CONFIRM_DAYS - 1, 5, -1):
+        row = recent_df.iloc[i]
+        if row['close'] <= row['open']:
+            continue
+        if i < 20:
+            continue
+        vol_window = recent_df.iloc[i-20:i]['volume']
+        vol_pctl = (vol_window < row['volume']).sum() / len(vol_window)
+        if vol_pctl < BASE_VOL_PCTL:
+            continue
+        future = recent_df.iloc[i+1:i+1+GENERAL_CONFIRM_DAYS]
+        if len(future) < GENERAL_CONFIRM_DAYS:
+            continue
+        base_open = row['open']
+        base_close = row['close']
+        base_vol = row['volume']
+        future_avg_close = future['close'].mean()
+        if future_avg_close < base_open:
+            continue
+        future_last_vol = future.iloc[-1]['volume']
+        if future_last_vol >= base_vol:
+            continue
+        is_golden = future_avg_close >= base_close
+        if i > 0:
+            prev_row = recent_df.iloc[i-1]
+            is_gap_up = row['open'] > prev_row['high']
+        else:
+            is_gap_up = False
+        if is_golden and is_gap_up:
+            marshals.append(row['date'])
+        elif is_golden:
+            goldens.append(row['date'])
+        else:
+            generals.append(row['date'])
+    if marshals:
+        return "元帅柱", marshals[0]
+    elif goldens:
+        return "黄金柱", goldens[0]
+    elif generals:
+        return "将军柱", generals[0]
+    else:
+        return "无", None
 
 
 # ============================================================
-# 单只股票回测
+# 【单只股票回测】
 # ============================================================
-def backtest_stock(market, code, hold_days_list):
-    """
-    对单只股票进行回测
-    在每个历史时间点生成信号，统计未来N天的表现
-    严格无未来函数：每个信号只用截止到当天的数据
-    """
-    df, name = load_klines(market, code)
+def backtest_one_stock(market, code):
+    df = load_klines(market, code)
     if df is None:
-        return None
+        return {}
     
-    # 信号统计：每个信号对应持有N天的收益列表
-    results = defaultdict(lambda: {h: [] for h in hold_days_list})
+    full_code = f"{market}{code}"
+    n = len(df)
     
-    # 从第120天开始（确保有足够数据计算信号）
-    # 到倒数第20天结束（确保能看到未来20天）
+    # 初始化信号记录
+    signal_trades = defaultdict(list)
+    
+    # 从第120天开始，确保有足够历史数据
     start_idx = 120
-    end_idx = len(df) - max(hold_days_list)
     
-    for t in range(start_idx, end_idx):
-        # 关键：只用截止到t日的数据！绝对无未来函数
-        df_up_to_today = df.iloc[:t+1]
-        today_price = df.iloc[t]['close']
+    for i in range(start_idx, n - max(HOLD_PERIODS) - 1):
+        today = df.iloc[i]
+        tomorrow = df.iloc[i+1]
         
-        # ========== 信号1：突破大阴实顶 ==========
-        big_yin_top, _, _ = find_big_yin_top(df_up_to_today, YIN_LOOKBACK, YIN_BODY_PCT)
+        # 排除一字涨停买不进去的情况
+        if tomorrow['open'] == tomorrow['close'] and (tomorrow['close'] - df.iloc[i]['close']) / df.iloc[i]['close'] * 100 > 9.5:
+            continue
+        
+        # 计算ATR
+        atr_value, atr_pct = calculate_atr(df.iloc[:i+1], ATR_PERIOD)
+        yin_body_thresh = get_atr_threshold(atr_pct, YIN_BODY_ATR_MULT, YIN_BODY_FALLBACK)
+        changyang_thresh = get_atr_threshold(atr_pct, CHANGYANG_ATR_MULT, CHANGYANG_FALLBACK)
+        binglin_thresh = get_atr_threshold(atr_pct, BINGLIN_ATR_MULT, BINGLIN_FALLBACK)
+        
+        # 找关键位
+        peak_20, valley_20 = find_fenggu_at(df, i, SHORT_WINDOW, PEAK_SIDE_SHORT, CONFIRM_DAYS_SHORT, VOL_PERCENTILE)
+        precise_price = find_precise_at(df, i)
+        safe_20, risk_20 = find_gaoliang_lines_at(df, i, SHORT_WINDOW)
+        big_yin_top, big_yin_date = find_big_yin_top_at(df, i, YIN_LOOKBACK, yin_body_thresh)
+        pillar_type, pillar_date = find_pillars_at(df, i)
+        
+        # T+1开盘价买入
+        buy_price = tomorrow['open']
+        
+        # ===== 信号判断 =====
+        
+        # 量柱六种
+        if check_bei_liang(df, i):
+            signal_trades["倍量柱"].append(i)
+        if check_gao_liang(df, i):
+            signal_trades["高量柱"].append(i)
+        if check_di_liang(df, i):
+            signal_trades["低量柱（地量）"].append(i)
+        if check_ti_liang(df, i):
+            signal_trades["梯量柱"].append(i)
+        if check_suo_liang(df, i):
+            signal_trades["缩量柱"].append(i)
+        if check_ping_liang(df, i):
+            signal_trades["平量柱"].append(i)
+        
+        # 形态信号
+        if check_xiao_bei_yang(df, i):
+            signal_trades["小倍阳（矮将军）"].append(i)
+        if check_yang_sheng_jin(df, i):
+            signal_trades["阳胜进"].append(i)
+        if check_yin_sheng_chu(df, i):
+            signal_trades["阴胜出"].append(i)
+        if check_chang_duan_yin(df, i, atr_pct):
+            signal_trades["长阴短柱"].append(i)
+        if check_yang_bao_yin(df, i):
+            signal_trades["阳包阴"].append(i)
+        if check_ban_zhang(df, i, full_code):
+            signal_trades["涨停板"].append(i)
+        if check_guo_zuofeng(df, i, peak_20):
+            signal_trades["过左峰"].append(i)
+        if check_jiayin_ciyang(df, i, atr_pct):
+            signal_trades["极阴次阳"].append(i)
+        if check_changyang_aizhu(df, i, atr_pct):
+            signal_trades["长阳矮柱"].append(i)
+        if check_beiliang_buchuan(df, i, full_code):
+            signal_trades["倍量不穿"].append(i)
+        if check_gaoliang_bupo(df, i):
+            signal_trades["高量不破"].append(i)
+        if check_diliang_qun(df, i):
+            signal_trades["地量群"].append(i)
+        if check_jiasheng_liangsou(df, i):
+            signal_trades["价升量缩"].append(i)
+        if check_beishuo_shensuo(df, i):
+            signal_trades["倍量伸缩"].append(i)
+        if check_huicai_jingzhun(df, i, precise_price):
+            signal_trades["回踩精准线"].append(i)
+        
+        # 王牌柱
+        if pillar_type == "元帅柱":
+            signal_trades["元帅柱"].append(i)
+        elif pillar_type == "黄金柱":
+            signal_trades["黄金柱"].append(i)
+        elif pillar_type == "将军柱":
+            signal_trades["将军柱"].append(i)
+        
+        # 量线信号
+        if valley_20:
+            touched = abs(today['low'] - valley_20) / valley_20 < TOUCH_LINE_TOLERANCE
+            if touched and today['close'] > valley_20:
+                signal_trades["回踩谷底线不破"].append(i)
         
         if big_yin_top:
-            # 前一天还在大阴实顶下方，今天突破上去了
-            prev_price = df.iloc[t-1]['close']
-            if prev_price < big_yin_top and today_price > big_yin_top:
-                for h in hold_days_list:
-                    future_price = df.iloc[t+h]['close']
-                    ret = (future_price - today_price) / today_price * 100
-                    results["突破大阴实顶"][h].append(ret)
-        
-        # ========== 信号2：回踩谷底线不破 ==========
-        valley_price, _ = find_recent_valley(df_up_to_today, SHORT_WINDOW, PEAK_SIDE_SHORT, CONFIRM_DAYS_SHORT, VOL_PERCENTILE)
-        
-        if valley_price:
-            # 今天最低价接近谷底线（±2%），但收盘价在谷底线上方
-            today_low = df.iloc[t]['low']
-            if abs(today_low - valley_price) / valley_price < 0.02 and today_price > valley_price:
-                for h in hold_days_list:
-                    future_price = df.iloc[t+h]['close']
-                    ret = (future_price - today_price) / today_price * 100
-                    results["回踩谷底线不破"][h].append(ret)
-        
-        # ========== 信号3-5：量柱形态 ==========
-        vol_pattern = identify_vol_pattern(df_up_to_today)
-        
-        if vol_pattern in ["倍量柱", "缩量柱", "低量柱", "高量柱", "梯量柱"]:
-            signal_name = vol_pattern if vol_pattern != "低量柱" else "低量柱（地量）"
-            for h in hold_days_list:
-                future_price = df.iloc[t+h]['close']
-                ret = (future_price - today_price) / today_price * 100
-                results[signal_name][h].append(ret)
+            if today['close'] > big_yin_top:
+                signal_trades["突破大阴实顶"].append(i)
     
-    return name, results
+    # 计算收益
+    results = {}
+    for signal_name, signal_indices in signal_trades.items():
+        results[signal_name] = {}
+        for hold_days in HOLD_PERIODS:
+            returns = []
+            for idx in signal_indices:
+                buy_idx = idx + 1  # T+1开盘价买入
+                sell_idx = buy_idx + hold_days  # 持有N天后收盘卖出
+                if sell_idx >= n:
+                    continue
+                buy_price = df.iloc[buy_idx]['open']
+                sell_price = df.iloc[sell_idx]['close']
+                if buy_price <= 0:
+                    continue
+                ret = (sell_price - buy_price) / buy_price * 100
+                returns.append(ret)
+            
+            if len(returns) > 0:
+                avg_ret = np.mean(returns)
+                median_ret = np.median(returns)
+                win_rate = sum(1 for r in returns if r > 0) / len(returns) * 100
+                results[signal_name][hold_days] = {
+                    'count': len(returns),
+                    'avg_ret': avg_ret,
+                    'median_ret': median_ret,
+                    'win_rate': win_rate,
+                }
+            else:
+                results[signal_name][hold_days] = {
+                    'count': 0,
+                    'avg_ret': 0,
+                    'median_ret': 0,
+                    'win_rate': 0,
+                }
+    
+    return results
 
 
 # ============================================================
-# 打印统计结果
+# 【主函数】
 # ============================================================
-def print_results(all_results, hold_days_list):
-    print("\n" + "=" * 80)
-    print("四维循环看盘法 - 全市场历史回测结果")
-    print("=" * 80)
+def main():
+    print("=" * 70)
+    print("四维循环看盘法 - 全信号历史回测验证")
+    print("=" * 70)
     
-    # 汇总所有股票的结果
-    combined = defaultdict(lambda: {h: [] for h in hold_days_list})
+    print(f"\n回测股票数：{len(HOLDINGS)}只")
+    print(f"持有周期：{HOLD_PERIODS}个交易日")
+    print(f"无未来函数：每个信号只用截止到当天的数据")
+    print(f"回测标准：T日收盘确认 → T+1开盘价买入 → T+1+N日收盘卖出")
+    print()
     
-    for name, results in all_results:
-        for signal_name, returns_dict in results.items():
-            for h in hold_days_list:
-                combined[signal_name][h].extend(returns_dict[h])
+    all_results = {}
     
-    total_samples = sum(len(v[hold_days_list[0]]) for v in combined.values())
+    for market, code in HOLDINGS:
+        print(f"  回测中：{market}{code} ...")
+        results = backtest_one_stock(market, code)
+        for signal_name, signal_data in results.items():
+            if signal_name not in all_results:
+                all_results[signal_name] = {h: {'returns': []} for h in HOLD_PERIODS}
+            for hold_days, data in signal_data.items():
+                if data['count'] > 0:
+                    # 这里简化处理，只汇总统计
+                    pass
     
-    print(f"\n回测股票数：{len(all_results)}只")
-    print(f"总信号样本数：{total_samples}个")
-    print(f"持有周期：{hold_days_list}个交易日\n")
+    # 重新计算汇总统计
+    # 因为上面的简化了，重新跑一遍汇总
+    print("\n" + "=" * 70)
+    print("四维循环看盘法 - 历史回测结果")
+    print("=" * 70)
+    print(f"\n总股票数：{len(HOLDINGS)}只")
+    print(f"持有周期：{HOLD_PERIODS}个交易日\n")
     
-    for h in hold_days_list:
-        print(f"\n{'='*80}")
-        print(f"=== 持有{h}天 ===")
-        print(f"{'信号':<20} {'样本数':>8} {'平均收益%':>10} {'中位数%':>10} {'胜率%':>8} {'结论':>10}")
-        print("-" * 80)
+    # 重新跑一遍收集所有交易
+    all_trades = defaultdict(lambda: {h: [] for h in HOLD_PERIODS})
+    
+    for market, code in HOLDINGS:
+        df = load_klines(market, code)
+        if df is None:
+            continue
+        full_code = f"{market}{code}"
+        n = len(df)
+        start_idx = 120
         
-        for signal_name in sorted(combined.keys()):
-            returns = combined[signal_name][h]
-            if len(returns) < 30:  # 样本太少的不统计
+        for i in range(start_idx, n - max(HOLD_PERIODS) - 1):
+            today = df.iloc[i]
+            tomorrow = df.iloc[i+1]
+            
+            if tomorrow['open'] == tomorrow['close'] and (tomorrow['close'] - df.iloc[i]['close']) / df.iloc[i]['close'] * 100 > 9.5:
                 continue
             
+            atr_value, atr_pct = calculate_atr(df.iloc[:i+1], ATR_PERIOD)
+            yin_body_thresh = get_atr_threshold(atr_pct, YIN_BODY_ATR_MULT, YIN_BODY_FALLBACK)
+            changyang_thresh = get_atr_threshold(atr_pct, CHANGYANG_ATR_MULT, CHANGYANG_FALLBACK)
+            binglin_thresh = get_atr_threshold(atr_pct, BINGLIN_ATR_MULT, BINGLIN_FALLBACK)
+            
+            peak_20, valley_20 = find_fenggu_at(df, i, SHORT_WINDOW, PEAK_SIDE_SHORT, CONFIRM_DAYS_SHORT, VOL_PERCENTILE)
+            precise_price = find_precise_at(df, i)
+            safe_20, risk_20 = find_gaoliang_lines_at(df, i, SHORT_WINDOW)
+            big_yin_top, big_yin_date = find_big_yin_top_at(df, i, YIN_LOOKBACK, yin_body_thresh)
+            pillar_type, pillar_date = find_pillars_at(df, i)
+            
+            buy_price = tomorrow['open']
+            signals_today = []
+            
+            if check_bei_liang(df, i):
+                signals_today.append("倍量柱")
+            if check_gao_liang(df, i):
+                signals_today.append("高量柱")
+            if check_di_liang(df, i):
+                signals_today.append("低量柱（地量）")
+            if check_ti_liang(df, i):
+                signals_today.append("梯量柱")
+            if check_suo_liang(df, i):
+                signals_today.append("缩量柱")
+            if check_ping_liang(df, i):
+                signals_today.append("平量柱")
+            if check_xiao_bei_yang(df, i):
+                signals_today.append("小倍阳（矮将军）")
+            if check_yang_sheng_jin(df, i):
+                signals_today.append("阳胜进")
+            if check_yin_sheng_chu(df, i):
+                signals_today.append("阴胜出")
+            if check_chang_duan_yin(df, i, atr_pct):
+                signals_today.append("长阴短柱")
+            if check_yang_bao_yin(df, i):
+                signals_today.append("阳包阴")
+            if check_ban_zhang(df, i, full_code):
+                signals_today.append("涨停板")
+            if check_guo_zuofeng(df, i, peak_20):
+                signals_today.append("过左峰")
+            if check_jiayin_ciyang(df, i, atr_pct):
+                signals_today.append("极阴次阳")
+            if check_changyang_aizhu(df, i, atr_pct):
+                signals_today.append("长阳矮柱")
+            if check_beiliang_buchuan(df, i, full_code):
+                signals_today.append("倍量不穿")
+            if check_gaoliang_bupo(df, i):
+                signals_today.append("高量不破")
+            if check_diliang_qun(df, i):
+                signals_today.append("地量群")
+            if check_jiasheng_liangsou(df, i):
+                signals_today.append("价升量缩")
+            if check_beishuo_shensuo(df, i):
+                signals_today.append("倍量伸缩")
+            if check_huicai_jingzhun(df, i, precise_price):
+                signals_today.append("回踩精准线")
+            if pillar_type == "元帅柱":
+                signals_today.append("元帅柱")
+            elif pillar_type == "黄金柱":
+                signals_today.append("黄金柱")
+            elif pillar_type == "将军柱":
+                signals_today.append("将军柱")
+            
+            if valley_20:
+                touched = abs(today['low'] - valley_20) / valley_20 < TOUCH_LINE_TOLERANCE
+                if touched and today['close'] > valley_20:
+                    signals_today.append("回踩谷底线不破")
+            
+            if big_yin_top:
+                if today['close'] > big_yin_top:
+                    signals_today.append("突破大阴实顶")
+            
+            for signal_name in signals_today:
+                for hold_days in HOLD_PERIODS:
+                    buy_idx = i + 1
+                    sell_idx = buy_idx + hold_days
+                    if sell_idx >= n:
+                        continue
+                    bp = df.iloc[buy_idx]['open']
+                    sp = df.iloc[sell_idx]['close']
+                    if bp <= 0:
+                        continue
+                    ret = (sp - bp) / bp * 100
+                    all_trades[signal_name][hold_days].append(ret)
+    
+    # 输出结果
+    for hold_days in HOLD_PERIODS:
+        print(f"\n=== 持有{hold_days}天 ===")
+        print(f"{'信号':<20} {'样本数':>8} {'平均收益%':>10} {'中位数%':>10} {'胜率%':>8} {'结论':>10}")
+        print("-" * 70)
+        
+        sorted_signals = sorted(all_trades.keys(), key=lambda x: len(all_trades[x][hold_days]), reverse=True)
+        
+        for signal_name in sorted_signals:
+            returns = all_trades[signal_name][hold_days]
+            count = len(returns)
+            if count < 10:
+                continue
             avg_ret = np.mean(returns)
             median_ret = np.median(returns)
-            win_rate = sum(1 for r in returns if r > 0) / len(returns) * 100
+            win_rate = sum(1 for r in returns if r > 0) / count * 100
             
-            # 结论
             if win_rate > 55 and avg_ret > 0:
                 conclusion = "✅ 有效"
             elif win_rate > 50:
@@ -328,56 +926,38 @@ def print_results(all_results, hold_days_list):
             else:
                 conclusion = "❌ 无效"
             
-            print(f"{signal_name:<20} {len(returns):>8} {avg_ret:>10.2f} {median_ret:>10.2f} {win_rate:>8.1f} {conclusion:>10}")
+            print(f"{signal_name:<20} {count:>8} {avg_ret:>10.2f} {median_ret:>10.2f} {win_rate:>8.1f} {conclusion:>10}")
     
-    print("\n" + "=" * 80)
+    print("\n" + "=" * 70)
     print("结论说明：")
     print("- ✅ 胜率>55% 且 平均收益>0：信号有效，有统计意义")
     print("- ⚠️ 胜率50%-55%：信号一般，参考价值有限")
     print("- ❌ 胜率<50%：信号无效，甚至反向使用")
-    print("=" * 80)
-
-
-# ============================================================
-# 主函数
-# ============================================================
-def main():
-    print("=" * 80)
-    print("四维循环看盘法 - 全市场历史回测验证")
-    print("=" * 80)
-    
-    # 自动扫描所有股票
-    all_stocks = find_all_stocks()
-    print(f"\n自动扫描到股票数：{len(all_stocks)}只")
-    print(f"数据目录：{DATA_DIR}")
-    print(f"持有周期：{HOLD_DAYS_LIST}个交易日")
-    print(f"无未来函数：每个信号只用截止到当天的数据\n")
-    
-    all_results = []
-    
-    for i, (market, code) in enumerate(all_stocks):
-        if (i+1) % 200 == 0:
-            print(f"  进度：{i+1}/{len(all_stocks)} 已完成")
-        try:
-            result = backtest_stock(market, code, HOLD_DAYS_LIST)
-            if result:
-                all_results.append(result)
-        except Exception as e:
-            pass  # 个别股票出错跳过
-    
-    print_results(all_results, HOLD_DAYS_LIST)
+    print("=" * 70)
     
     # 保存结果
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    output_file = OUTPUT_DIR / "backtest_4d_full_market.txt"
+    output_dir = Path(__file__).parent.parent / "data" / "analysis"
+    output_dir.mkdir(parents=True, exist_ok=True)
     
-    with open(output_file, 'w', encoding='utf-8') as f:
-        f.write("四维循环看盘法 - 全市场历史回测结果\n")
-        f.write("=" * 80 + "\n\n")
-        f.write(f"回测股票数：{len(all_results)}只\n")
-        f.write(f"持有周期：{HOLD_DAYS_LIST}个交易日\n\n")
+    summary_file = output_dir / "backtest_4d_full_summary.txt"
+    with open(summary_file, 'w', encoding='utf-8') as f:
+        f.write("四维循环看盘法 - 全信号历史回测结果\n")
+        f.write(f"股票数：{len(HOLDINGS)}只\n")
+        f.write(f"持有周期：{HOLD_PERIODS}个交易日\n\n")
+        for hold_days in HOLD_PERIODS:
+            f.write(f"\n=== 持有{hold_days}天 ===\n")
+            sorted_signals = sorted(all_trades.keys(), key=lambda x: len(all_trades[x][hold_days]), reverse=True)
+            for signal_name in sorted_signals:
+                returns = all_trades[signal_name][hold_days]
+                count = len(returns)
+                if count < 10:
+                    continue
+                avg_ret = np.mean(returns)
+                median_ret = np.median(returns)
+                win_rate = sum(1 for r in returns if r > 0) / count * 100
+                f.write(f"{signal_name}: 样本{count}个, 平均{avg_ret:.2f}%, 中位{median_ret:.2f}%, 胜率{win_rate:.1f}%\n")
     
-    print(f"\n已保存统计结果: {output_file}")
+    print(f"\n已保存统计结果: {summary_file}")
 
 
 if __name__ == "__main__":
