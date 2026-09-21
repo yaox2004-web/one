@@ -43,156 +43,162 @@ ATR_PERIOD = 14
 # ============================================================
 # 【价格类参数·ATR倍数】
 # ============================================================
-YIN_BODY_ATR_MULT = 1.5        # 中大阴线实体跌幅 = ATR × 1.5
-YIN_BODY_FALLBACK = 5.0        # 不启用ATR时，默认5%
-YIN_LOOKBACK = 60              # 往前找多少天内的中大阴线
+YIN_BODY_ATR_MULT = 1.5
+YIN_BODY_FALLBACK = 5.0
+YIN_LOOKBACK = 60
 
-CHANGYANG_ATR_MULT = 1.5       # 大阳线 = ATR × 1.5
-CHANGYANG_FALLBACK = 5.0       # 不启用ATR时，默认5%
+CHANGYANG_ATR_MULT = 1.5
+CHANGYANG_FALLBACK = 5.0
 
-LONG_RANGE_ATR_MULT = 2.0      # 长价柱 = ATR × 2.0
-SHORT_RANGE_ATR_MULT = 0.7     # 短价柱 = ATR × 0.7
+LONG_RANGE_ATR_MULT = 2.0
+SHORT_RANGE_ATR_MULT = 0.7
 
-BINGLIN_ATR_MULT = 0.5         # 兵临城下：离峰顶 < ATR × 0.5
-BINGLIN_FALLBACK = 2.0         # 不启用ATR时，默认2%
+BINGLIN_ATR_MULT = 0.5
+BINGLIN_FALLBACK = 2.0
 
-LONG_LEG_ATR_MULT = 1.0        # 长腿：下影线 > ATR × 1.0
-GAP_ATR_MULT = 0.5             # 跳空：缺口 > ATR × 0.5
+LONG_LEG_ATR_MULT = 1.0
+GAP_ATR_MULT = 0.5
 
 # ============================================================
 # 【量柱核心定义参数·来源：股海明灯官网】
-# 这些是量学的"语言"，不要随便改！
 # ============================================================
-BEISHU_RATIO = 1.8             # 倍量柱：今天量/昨天量 >= 1.8（官方最低90%，放宽到1.8）
-GAOLIANG_LOOKBACK = 20         # 高量柱：前多少天最高？（默认20天）
-PINGLIANG_TOLERANCE = 0.15     # 平量柱：和前5天平均差不超过15%
+BEISHU_RATIO = 1.8
+GAOLIANG_LOOKBACK = 20
+PINGLIANG_TOLERANCE = 0.15
 
-SMALL_BEISHU_MIN = 1.5         # 小倍阳下限：1.5倍
-SMALL_BEISHU_MAX = 2.0         # 小倍阳上限：2.0倍
+SMALL_BEISHU_MIN = 1.5
+SMALL_BEISHU_MAX = 2.0
 
 # ============================================================
 # 【量能自适应参数·分位数·来源：量化行业通用做法】
-# 这些是辅助判断，用分位数自动适配每只股票
 # ============================================================
-VOL_LOOKBACK = 20              # 分位数计算窗口：过去多少天？（默认20天）
-VOL_PCTL_HIGH = 0.80           # 大量/放量：多少分位以上？（默认80%）
-VOL_PCTL_LOW = 0.20            # 小量/缩量：多少分位以下？（默认20%）
-BASE_VOL_PCTL = 0.60           # 王牌柱基柱：多少分位以上？（默认60%）
+VOL_LOOKBACK = 20
+VOL_PCTL_HIGH = 0.80
+VOL_PCTL_LOW = 0.20
+BASE_VOL_PCTL = 0.60
 
-BEISHUO_EXTEND_PCTL = 0.80     # 倍量伸缩：放量到多少分位？
-BEISHUO_SHRINK_PCTL = 0.20     # 倍量伸缩：缩量到多少分位？
-BEISHUO_LOOKBACK = 5           # 倍量伸缩：看前几天？
+BEISHUO_EXTEND_PCTL = 0.80
+BEISHUO_SHRINK_PCTL = 0.20
+BEISHUO_LOOKBACK = 5
 
-LONG_YIN_SHORT_VOL_PCTL = 0.30 # 长阴短柱：量在多少分位以下？（默认30%）
+LONG_YIN_SHORT_VOL_PCTL = 0.30
 
 # ============================================================
 # 【涨停板参数】
 # ============================================================
-LIMIT_UP_MAIN = 9.8            # 主板（60/00开头）涨停
-LIMIT_UP_GEM = 19.8            # 创业板/科创板（30/68开头）涨停
+LIMIT_UP_MAIN = 9.8
+LIMIT_UP_GEM = 19.8
 
 # ============================================================
 # 【王牌柱参数·官方定义】
 # ============================================================
-GENERAL_CONFIRM_DAYS = 3       # 王牌柱确认天数：3天
+GENERAL_CONFIRM_DAYS = 3
 
 # ============================================================
 # 【峰顶线/谷底线参数】
 # ============================================================
-SHORT_WINDOW = 20              # 短期窗口（交易日）
-MID_WINDOW = 60                # 中期窗口（交易日）
-LONG_WINDOW = 120              # 长期窗口（交易日）
+SHORT_WINDOW = 20
+MID_WINDOW = 60
+LONG_WINDOW = 120
 
-PEAK_SIDE_SHORT = 2            # 短期：左右各2根
-PEAK_SIDE_MID = 2              # 中期：左右各2根
-PEAK_SIDE_LONG = 3             # 长期：左右各3根
+PEAK_SIDE_SHORT = 2
+PEAK_SIDE_MID = 2
+PEAK_SIDE_LONG = 3
 
-CONFIRM_DAYS_SHORT = 2         # 短期确认天数
-CONFIRM_DAYS_MID = 3           # 中期确认天数
-CONFIRM_DAYS_LONG = 10         # 长期确认天数
+CONFIRM_DAYS_SHORT = 2
+CONFIRM_DAYS_MID = 3
+CONFIRM_DAYS_LONG = 10
 
-VOL_PERCENTILE = 0.7           # 峰顶/谷底：量柱在前30%以上
+VOL_PERCENTILE = 0.7
 
 # ============================================================
 # 【量线参数】
 # ============================================================
-BODY_RATIO_THRESHOLD = 0.6     # 实体占比超过60%取实体顶底，否则取K线最高最低
+BODY_RATIO_THRESHOLD = 0.6
 
-PRECISE_MIN_POINTS = 3         # 精准线：至少3个价格点重合
-PRECISE_PRICE_TOLERANCE = 1.0  # 精准线：价格相差不超过1%
-PRECISE_LOOKBACK = 120         # 精准线：往前找多少天？
+PRECISE_MIN_POINTS = 3
+PRECISE_PRICE_TOLERANCE = 1.0
+PRECISE_LOOKBACK = 120
 
-XIEHENG_MIN_POINTS = 2         # 斜衡线：至少2个点
+XIEHENG_MIN_POINTS = 2
 
-BALANCE_LOOKBACK = 30          # 平衡线：往前找多少天？
+BALANCE_LOOKBACK = 30
 
 # ============================================================
 # 【关键位量影响力参数】
 # ============================================================
-IMPACT_VS_KEY_VOL_HIGH = 0.8   # 今天量 > 关键位量的80% → 影响力强
-IMPACT_VS_KEY_VOL_MID = 0.5    # 今天量 > 关键位量的50% → 影响力中等
+IMPACT_VS_KEY_VOL_HIGH = 0.8
+IMPACT_VS_KEY_VOL_MID = 0.5
 
-IMPACT_TIME_NEAR = 15          # 时间距离<15天 → 时间近
-IMPACT_TIME_MID = 45           # 时间距离<45天 → 时间中等
+IMPACT_TIME_NEAR = 15
+IMPACT_TIME_MID = 45
 
 # ============================================================
 # 【位置分位参数】
 # ============================================================
-POSITION_HIGH = 70             # 位置>70%算高位
-POSITION_LOW = 30              # 位置<30%算低位
+POSITION_HIGH = 70
+POSITION_LOW = 30
 
-VOL_POS_HIGH = 80              # 量能位置>80%算天量
-VOL_POS_LOW = 20               # 量能位置<20%算地量
+VOL_POS_HIGH = 80
+VOL_POS_LOW = 20
+
+# ============================================================
+# 【实体长短参数】
+# ============================================================
+BODY_RATIO_LONG = 0.6
+BODY_RATIO_SHORT = 0.3
 
 # ============================================================
 # 【凹口线参数】
 # ============================================================
-AOKOU_MIN_GAP = 3              # 凹口线：最小间隔天数
-AOKOU_MAX_GAP = 13             # 凹口线：最大间隔天数
-AOKOU_PINGLIANG_TOLERANCE = 0.15  # 凹口线：两侧量差不超过15%
-AOKOU_MIDDLE_SHADOW = 0.6      # 凹口线：中间量 < 两侧平均的60%
+AOKOU_MIN_GAP = 3
+AOKOU_MAX_GAP = 13
+AOKOU_PINGLIANG_TOLERANCE = 0.15
+AOKOU_MIDDLE_SHADOW = 0.6
 
 # ============================================================
 # 【形态信号参数】
 # ============================================================
-TOUCH_LINE_TOLERANCE = 0.02    # 碰线容差：2%
+TOUCH_LINE_TOLERANCE = 0.02
 
-JIYIN_PREV_DAYS = 5            # 极阴次阳：往前找5天
-CIYANG_REBOUND_PCT = 50        # 极阴次阳：反弹幅度50%以上
+JIYIN_PREV_DAYS = 5
+CIYANG_REBOUND_PCT = 50
 
-NIUGU_LOOKBACK = 60            # 牛股三绝：往前找60天
-NIUGU_TOUCH_TOLERANCE = 0.01   # 牛股三绝：碰线容差1%
+NIUGU_LOOKBACK = 60
+NIUGU_TOUCH_TOLERANCE = 0.01
 
-DILIANG_GROUP_DAYS = 100       # 地量群：往前找100天
-DILIANG_GROUP_COUNT = 5        # 地量群：至少5天地量
+DILIANG_GROUP_DAYS = 100
+DILIANG_GROUP_COUNT = 5
 
-JIA_SHENG_LIANG_SUO_DAYS = 3   # 价升量缩：连续3天
+JIA_SHENG_LIANG_SUO_DAYS = 3
 
-HUICAI_PRECISION_DAYS = 10     # 回踩精准线：最近10天碰过
+HUICAI_PRECISION_DAYS = 10
 
-DOUBLE_SWORD_UPPER_RATIO = 2.0 # 双剑霸天地：上影线>实体2倍
-DOUBLE_SWORD_LOWER_RATIO = 2.0 # 双剑霸天地：下影线>实体2倍
+DOUBLE_SWORD_UPPER_RATIO = 2.0
+DOUBLE_SWORD_LOWER_RATIO = 2.0
 
-SANYUAN_DAYS = 3               # 三元连动：连续3天
+SANYUAN_DAYS = 3
 
-DAYANG_DOUBLE_REST_DAYS = 5    # 大阳双休：大阳后5天不破中位
+DAYANG_DOUBLE_REST_DAYS = 5
 
-JIELI_DOUBLE_YANG_GAP_MIN = 5  # 接力双阳：最小间隔5天
-JIELI_DOUBLE_YANG_GAP_MAX = 20 # 接力双阳：最大间隔20天
+JIELI_DOUBLE_YANG_GAP_MIN = 5
+JIELI_DOUBLE_YANG_GAP_MAX = 20
 
-GOLD_CROSS_SHORT_MA = 5        # 黄金十字架：短期均线5天
-GOLD_CROSS_LONG_MA = 10        # 黄金十字架：长期均线10天
+GOLD_CROSS_SHORT_MA = 5
+GOLD_CROSS_LONG_MA = 10
+GOLD_CROSS_VOL_SHORT = 5
+GOLD_CROSS_VOL_LONG = 10
 
-PRECISE_FENGGU_TOLERANCE = 0.01  # 精准峰谷线：容差1%
+PRECISE_FENGGU_TOLERANCE = 0.01
 
-XIANCHANG_ZHIBIE_DAYS = 10     # 现场直憋：10天窗口
-XIANCHANG_ZHIBIE_AMPLITUDE = 0.05  # 现场直憋：振幅<5%
-XIANCHANG_ZHIBIE_VOL = 0.8     # 现场直憋：后半段量<前半段80%
+XIANCHANG_ZHIBIE_DAYS = 10
+XIANCHANG_ZHIBIE_AMPLITUDE = 0.05
+XIANCHANG_ZHIBIE_VOL = 0.8
 
-XUANYIN31_DAYS = 3             # 悬阴31：连续3天
+XUANYIN31_DAYS = 3
 
-T4_VARIANT_DAYS = 4            # T4变异：4天
-T4_VARIANT_UP_PCT = 5.0        # T4变异：第4天涨5%以上
+T4_VARIANT_DAYS = 4
+T4_VARIANT_UP_PCT = 5.0
 
 
 # ============================================================
@@ -233,26 +239,12 @@ def is_gem_star(code):
 # 【量能分位数工具函数】
 # ============================================================
 def get_vol_percentile(df, lookback=20):
-    """
-    计算今天的量在过去lookback天的分位数
-    返回：0~1之间的数，0=最低，1=最高
-    """
     if len(df) < lookback:
         lookback = len(df)
     recent_vols = df.iloc[-lookback:]['volume']
     today_vol = df.iloc[-1]['volume']
     pct = (recent_vols < today_vol).sum() / len(recent_vols)
     return pct
-
-
-def is_high_volume(df, lookback=20, pct_threshold=0.8):
-    """今天的量是不是大量？"""
-    return get_vol_percentile(df, lookback) >= pct_threshold
-
-
-def is_low_volume(df, lookback=20, pct_threshold=0.2):
-    """今天的量是不是小量？"""
-    return get_vol_percentile(df, lookback) <= pct_threshold
 
 
 # ============================================================
@@ -456,29 +448,21 @@ def identify_vol_pattern(df):
     today_vol = df.iloc[-1]['volume']
     yesterday_vol = df.iloc[-2]['volume']
     
-    # 倍量柱：今天量/昨天量 >= BEISHU_RATIO（官方最低90%，参数化）
     if yesterday_vol > 0 and today_vol / yesterday_vol >= BEISHU_RATIO:
         return "倍量柱"
     
-    # 高量柱：前20天最高
     recent_20 = df.iloc[-GAOLIANG_LOOKBACK:] if len(df) >= GAOLIANG_LOOKBACK else df
     if today_vol == recent_20['volume'].max():
         return "高量柱"
-    
-    # 低量柱：前20天最低
     if today_vol == recent_20['volume'].min():
         return "低量柱"
     
-    # 梯量柱：连续3天递增
     v1, v2, v3 = df.iloc[-3]['volume'], df.iloc[-2]['volume'], df.iloc[-1]['volume']
     if v1 < v2 < v3:
         return "梯量柱"
-    
-    # 缩量柱：连续3天递减
     if v1 > v2 > v3:
         return "缩量柱"
     
-    # 平量柱：和前5天平均差不多
     recent_5_avg = df.iloc[-6:-1]['volume'].mean()
     if recent_5_avg > 0:
         diff_pct = abs(today_vol - recent_5_avg) / recent_5_avg
@@ -527,12 +511,6 @@ def judge_key_vol_impact(df, key_vol, key_date):
 # 【王牌柱官方版·优先级搜索·基柱用量分位数】
 # ============================================================
 def find_pillars_official(df, lookback_days=60):
-    """
-    王牌柱官方定义（股海明灯官网）
-    搜索优先级：元帅柱 > 黄金柱 > 将军柱
-    
-    基柱条件：基柱量在过去20日的BASE_VOL_PCTL分位以上（自适应）
-    """
     if len(df) < lookback_days + GENERAL_CONFIRM_DAYS + 20:
         return "无", None, None
     
@@ -545,12 +523,9 @@ def find_pillars_official(df, lookback_days=60):
     for i in range(len(recent_df) - GENERAL_CONFIRM_DAYS - 1, 5, -1):
         row = recent_df.iloc[i]
         
-        # 基柱必须是阳线
         if row['close'] <= row['open']:
             continue
         
-        # 【自适应】基柱量在过去20日的BASE_VOL_PCTL分位以上
-        # 而不是写死"比前一天高"
         if i < 20:
             continue
         vol_window = recent_df.iloc[i-20:i]['volume']
@@ -558,7 +533,6 @@ def find_pillars_official(df, lookback_days=60):
         if vol_pctl < BASE_VOL_PCTL:
             continue
         
-        # 后三日数据
         future = recent_df.iloc[i+1:i+1+GENERAL_CONFIRM_DAYS]
         if len(future) < GENERAL_CONFIRM_DAYS:
             continue
@@ -567,20 +541,16 @@ def find_pillars_official(df, lookback_days=60):
         base_close = row['close']
         base_vol = row['volume']
         
-        # 原则1：收盘价三日不破底
         future_avg_close = future['close'].mean()
         if future_avg_close < base_open:
             continue
         
-        # 原则2：量柱群三日不过头（最后一天量 < 基柱量）
         future_last_vol = future.iloc[-1]['volume']
         if future_last_vol >= base_vol:
             continue
         
-        # 判断是将军柱还是黄金柱
         is_golden = future_avg_close >= base_close
         
-        # 元帅柱：黄金柱 + 基柱跳空高开
         if i > 0:
             prev_row = recent_df.iloc[i-1]
             is_gap_up = row['open'] > prev_row['high']
@@ -596,7 +566,6 @@ def find_pillars_official(df, lookback_days=60):
         else:
             generals.append(pillar)
     
-    # 按优先级返回
     if marshals:
         return "元帅柱", marshals[0][0], marshals[0][1]
     elif goldens:
@@ -662,7 +631,6 @@ def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top
     yesterday_close = yesterday['close']
     yesterday_vol = yesterday['volume']
     
-    # 量能分位数
     today_vol_pctl = get_vol_percentile(df, VOL_LOOKBACK)
     
     if today_close > today_open and today_vol > yesterday_vol and today_close > yesterday_close:
@@ -700,7 +668,6 @@ def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top
             else:
                 signals.append("长腿（未踩线）")
     
-    # 长阴短柱：用分位数
     body_pct_down = (today_open - today_close) / today_close * 100
     if body_pct_down > changyang_threshold and today_vol_pctl < LONG_YIN_SHORT_VOL_PCTL:
         signals.append("长阴短柱")
@@ -741,7 +708,6 @@ def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top
                         signals.append("极阴次阳")
                 break
     
-    # 长阳矮柱：用分位数
     chongyang_up_pct = (today_close - yesterday_close) / yesterday_close * 100
     if chongyang_up_pct > changyang_threshold and today_vol_pctl < 0.5:
         signals.append("长阳矮柱")
@@ -779,7 +745,6 @@ def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top
                     signals.append("跳空不补")
                 break
     
-    # 地量群：用分位数
     if len(df) >= DILIANG_GROUP_DAYS:
         recent_100 = df.iloc[-DILIANG_GROUP_DAYS:]
         vol_low_pctl = recent_100['volume'].quantile(VOL_PCTL_LOW)
@@ -848,13 +813,11 @@ def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top
     if today_pct >= limit_up_pct:
         signals.append("涨停板")
     
-    # 倍量伸缩：用分位数
     if len(df) >= BEISHUO_LOOKBACK:
         recent_5 = df.iloc[-BEISHUO_LOOKBACK:]
-        vols = recent_5['volume'].values
         vols_pctl = (recent_5['volume'].rank(pct=True)).values
         has_beishuo = False
-        for i in range(1, len(vols)):
+        for i in range(1, len(vols_pctl)):
             if vols_pctl[i] >= BEISHUO_EXTEND_PCTL and vols_pctl[i-1] <= BEISHUO_SHRINK_PCTL:
                 has_beishuo = True
                 break
@@ -866,10 +829,10 @@ def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top
         ma5_yesterday = df.iloc[-GOLD_CROSS_SHORT_MA-1:-1]['close'].mean()
         ma10_today = df.iloc[-GOLD_CROSS_LONG_MA:]['close'].mean()
         ma10_yesterday = df.iloc[-GOLD_CROSS_LONG_MA-1:-1]['close'].mean()
-        vol_ma5_today = df.iloc[-GOLD_CROSS_VOL_SHORT_MA:]['volume'].mean()
-        vol_ma5_yesterday = df.iloc[-GOLD_CROSS_VOL_SHORT_MA-1:-1]['volume'].mean()
-        vol_ma10_today = df.iloc[-GOLD_CROSS_VOL_LONG_MA:]['volume'].mean()
-        vol_ma10_yesterday = df.iloc[-GOLD_CROSS_VOL_LONG_MA-1:-1]['volume'].mean()
+        vol_ma5_today = df.iloc[-GOLD_CROSS_VOL_SHORT:]['volume'].mean()
+        vol_ma5_yesterday = df.iloc[-GOLD_CROSS_VOL_SHORT-1:-1]['volume'].mean()
+        vol_ma10_today = df.iloc[-GOLD_CROSS_VOL_LONG:]['volume'].mean()
+        vol_ma10_yesterday = df.iloc[-GOLD_CROSS_VOL_LONG-1:-1]['volume'].mean()
         price_cross = ma5_yesterday <= ma10_yesterday and ma5_today > ma10_today
         vol_cross = vol_ma5_yesterday <= vol_ma10_yesterday and vol_ma5_today > vol_ma10_today
         if price_cross and vol_cross:
@@ -1137,9 +1100,7 @@ def get_stock_data(market, code):
     recent_high = recent_20['high'].max()
     recent_low = recent_20['low'].min()
     
-    # 大阴实顶的量判断：用分位数
     if big_yin_vol:
-        # 找大阴实顶那天在过去20日的量分位数
         big_yin_idx_in_df = None
         for i in range(len(df)):
             if df.iloc[i]['date'] == big_yin_date:
@@ -1245,7 +1206,6 @@ def get_stock_data(market, code):
     vol_pattern = identify_vol_pattern(df)
     impact_20, vol_ratio_20, time_dist_20 = judge_key_vol_impact(df, key_vol_20, date_20)
     
-    # 王牌柱
     pillar_type, pillar_date, golden_line = find_pillars_official(df)
     
     aokou_price, aokou_date, aokou_gap = find_aokou_line(df)
