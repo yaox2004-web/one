@@ -1,27 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-四维循环看盘法报告 - HTML版（量学原版：大阴实顶+四维对比+个股解读+所有量线）
+四维循环看盘法报告 - HTML版（量学理论推导版）
 =================================================
-设计思路（为什么这样写）：
-  1. 【起点】先找最近的大阴实顶（量学原版四维看盘的起点）
-  2. 【四维对比】从大阴实顶开始做四维对比
-     - ① 从右向左看：比较价柱的高低阴阳
-     - ② 从上往下看：比较量价的真假大小
-     - ③ 从左往右看：比较量柱的远近多少
-     - ④ 从下往上看：比较量价的长短伸缩
-  3. 【所有量线】保留之前加的所有量线（安全线/风险线/峰顶线/谷底线/平衡线/精准线/斜衡线）
-  4. 【个股解读】用四维看盘法客观描述当前状态，不做主观判断
+设计思路：
+  1. 起点：大阴实顶（量学四维看盘的起点）
+  2. 四维对比：从大阴实顶开始做四维对比
+  3. 左侧关键位：所有量线（平衡线/精准线/斜衡线/峰顶线/谷底线/高量柱线）
+  4. 综合解读：量学理论驱动的逻辑推导，不是数据罗列
+     - 每一步都有市场机理
+     - 每一步都有量学理论依据
+     - 每一步都能推导下一步
+     - 最终形成逻辑闭环
 
-【重要：无未来函数保证】
-  1. 所有判断只用截止到今天收盘的数据
-  2. 大阴实顶是历史数据，不是未来数据
-
-量学理论来源：
-  - 股海明灯（量学官网论坛）
-  - 《量柱擒涨停》黑马王子著
-  - 《量线捉涨停》黑马王子著
-  - 四维看盘 = 回形针看盘法
+【无未来函数】：所有判断只用截止到今天收盘的数据
+【资料来源】：股海明灯《量柱擒涨停》《量线捉涨停》黑马王子著
 """
 
 import json
@@ -30,14 +23,12 @@ import numpy as np
 from pathlib import Path
 
 # ============================================================
-# 【配置区】所有参数阈值都在这里，方便调整！
+# 【配置区】所有参数阈值都在这里
 # ============================================================
 
-# --- 文件路径配置 ---
 DATA_DIR = Path(__file__).parent.parent / "data" / "kline"
 OUTPUT_DIR = Path(__file__).parent.parent / "data" / "analysis"
 
-# --- 持仓股配置 ---
 HOLDINGS = [
     ("sh", "600584"),  # 长电科技
     ("sz", "002156"),  # 通富微电
@@ -49,66 +40,51 @@ HOLDINGS = [
     ("sh", "603516"),  # 淳中科技
 ]
 
-# --- 大阴实顶参数 ---
-YIN_BODY_PCT = 3.0        # 中大阴线实体跌幅阈值（%）
-YIN_LOOKBACK = 60          # 往前找多少天内的中大阴线
+YIN_BODY_PCT = 3.0
+YIN_LOOKBACK = 60
 
-# --- 周期配置 ---
-SHORT_WINDOW = 20    # 短期窗口（交易日）
-MID_WINDOW = 60      # 中期窗口（交易日）
-LONG_WINDOW = 120    # 长期窗口（交易日）
+SHORT_WINDOW = 20
+MID_WINDOW = 60
+LONG_WINDOW = 120
 
-# --- 峰顶线/谷底线识别参数（适配量化时代） ---
-PEAK_SIDE_SHORT = 2    # 短期(20日)：左右各2根 → 共5根（标准分形）
-PEAK_SIDE_MID = 2      # 中期(60日)：左右各2根 → 共5根（标准分形）
-PEAK_SIDE_LONG = 3     # 长期(120日)：左右各3根 → 共7根（更严格）
+PEAK_SIDE_SHORT = 2
+PEAK_SIDE_MID = 2
+PEAK_SIDE_LONG = 3
 
-CONFIRM_DAYS_SHORT = 3  # 短期：3天确认
-CONFIRM_DAYS_MID = 5    # 中期：5天确认
-CONFIRM_DAYS_LONG = 10  # 长期：10天确认
+CONFIRM_DAYS_SHORT = 3
+CONFIRM_DAYS_MID = 5
+CONFIRM_DAYS_LONG = 10
 
-VOL_PERCENTILE = 0.7    # 前30%以上（= 70%分位数）
+VOL_PERCENTILE = 0.7
+BODY_RATIO_THRESHOLD = 0.6
 
-# --- 高量柱安全线/风险线参数 ---
-BODY_RATIO_THRESHOLD = 0.6  # 实体占比超过60%取实体顶底，否则取K线最高最低
+BALANCE_YIN_BODY_PCT = 3.0
+BALANCE_LOOKBACK = 30
 
-# --- 平衡线参数 ---
-BALANCE_YIN_BODY_PCT = 3.0  # 中大阴线实体跌幅阈值（%）
-BALANCE_LOOKBACK = 30        # 往前找多少天内的中大阴线
+PRECISE_MIN_POINTS = 3
+PRECISE_PRICE_TOLERANCE = 1.0
+PRECISE_LOOKBACK = 120
 
-# --- 精准线参数 ---
-PRECISE_MIN_POINTS = 3        # 至少3个价格点重合
-PRECISE_PRICE_TOLERANCE = 1.0 # 价格相差不超过1%
-PRECISE_LOOKBACK = 120         # 往前找多少天内的价格点
+XIEHENG_MIN_POINTS = 2
 
-# --- 斜衡线参数 ---
-XIEHENG_MIN_POINTS = 2        # 至少2个点
+BEISHU_RATIO = 2.0
+PINGLIANG_TOLERANCE = 0.15
+GAOLIANG_LOOKBACK = 20
 
-# --- 量柱形态识别参数（量学理论：高低平倍梯缩） ---
-BEISHU_RATIO = 2.0          # 倍量柱：今天量是昨天的2倍以上
-PINGLIANG_TOLERANCE = 0.15  # 平量柱：和前5天平均相差不超过15%
-GAOLIANG_LOOKBACK = 20       # 高量柱：前20天最高
-DILIANGLIANG_LOOKBACK = 20   # 低量柱：前20天最低
+IMPACT_VS_KEY_VOL_HIGH = 0.8
+IMPACT_VS_KEY_VOL_MID = 0.5
+IMPACT_TIME_NEAR = 20
+IMPACT_TIME_MID = 60
 
-# --- 关键位量影响力参数 ---
-IMPACT_VS_KEY_VOL_HIGH = 0.8   # 今天量 > 关键位量的80% → 影响力强
-IMPACT_VS_KEY_VOL_MID = 0.5    # 今天量 > 关键位量的50% → 影响力中等
-IMPACT_TIME_NEAR = 20           # 时间距离<20天 → 时间近
-IMPACT_TIME_MID = 60            # 时间距离<60天 → 时间中等
+VOL_RATIO_HIGH = 1.5
+VOL_RATIO_LOW = 0.7
+BODY_RATIO_LONG = 0.6
+BODY_RATIO_SHORT = 0.3
 
-# --- 量价组合参数 ---
-VOL_RATIO_HIGH = 1.5     # 量比>1.5算放量
-VOL_RATIO_LOW = 0.7      # 量比<0.7算缩量
-BODY_RATIO_LONG = 0.6    # 实体占比超过60%算长实体
-BODY_RATIO_SHORT = 0.3   # 实体占比<30%算短实体
-
-# --- 位置分位参数 ---
-POSITION_HIGH = 70        # 位置>70%算高位
-POSITION_LOW = 30         # 位置<30%算低位
-
-# --- 量能位置参数 ---
-VOL_POS_HIGH = 80         # 量能位置>80%算天量
-VOL_POS_LOW = 20          # 量能位置<20%算地量
+POSITION_HIGH = 70
+POSITION_LOW = 30
+VOL_POS_HIGH = 80
+VOL_POS_LOW = 20
 
 
 # ============================================================
@@ -149,19 +125,9 @@ def load_klines(market, code):
 
 
 # ============================================================
-# 找大阴实顶（四维看盘的起点！）
+# 找大阴实顶
 # ============================================================
 def find_big_yin_top(df, lookback_days, yin_body_pct):
-    """
-    找最近的中大阴线实体顶部（大阴实顶）
-    
-    量学理论：
-    - 四维看盘的起点：从大阴实顶开始看
-    - 大阴实顶 = 中大阴线的开盘价（因为是阴线，开盘价>收盘价）
-    - 大阴实顶是多空双方上次休战的"警戒点"
-    
-    【无未来函数】：只用历史数据
-    """
     if len(df) < lookback_days:
         return None, None, None, None, None
     
@@ -170,20 +136,17 @@ def find_big_yin_top(df, lookback_days, yin_body_pct):
     for i in range(len(recent_df)-1, -1, -1):
         row = recent_df.iloc[i]
         
-        # 找阴线
         if row['close'] >= row['open']:
             continue
         
-        # 计算实体跌幅
         body_pct = (row['open'] - row['close']) / row['close'] * 100
         
-        # 中大阴线
         if body_pct >= yin_body_pct:
-            big_yin_top = row['open']  # 阴线实体顶部 = 开盘价
-            big_yin_bottom = row['close']  # 阴线实体底部 = 收盘价
+            big_yin_top = row['open']
+            big_yin_bottom = row['close']
             big_yin_date = row['date']
             big_yin_vol = row['volume']
-            big_yin_idx = len(df) - lookback_days + i  # 在整个df中的索引
+            big_yin_idx = len(df) - lookback_days + i
             
             return big_yin_top, big_yin_bottom, big_yin_date, big_yin_vol, big_yin_idx
     
@@ -191,7 +154,7 @@ def find_big_yin_top(df, lookback_days, yin_body_pct):
 
 
 # ============================================================
-# 找高量柱的安全线和风险线
+# 找高量柱安全线/风险线
 # ============================================================
 def find_gaoliang_lines(recent_df):
     if len(recent_df) < 5:
@@ -226,7 +189,7 @@ def find_gaoliang_lines(recent_df):
 
 
 # ============================================================
-# 找平衡线（量学理论：左侧中大阴线实体顶部）
+# 找平衡线
 # ============================================================
 def find_balance_line(df, lookback_days, yin_body_pct):
     if len(df) < lookback_days:
@@ -251,18 +214,15 @@ def find_balance_line(df, lookback_days, yin_body_pct):
 
 
 # ============================================================
-# 找精准线（量学理论：多个价格重合的位置）
+# 找精准线
 # ============================================================
 def find_precise_lines(df, lookback_days, min_points, price_tolerance):
     if len(df) < lookback_days:
         return []
     
     recent_df = df.iloc[-lookback_days:]
-    
     prices = recent_df['close'].values
-    
     precise_lines = []
-    
     used_indices = set()
     
     for i in range(len(prices)):
@@ -275,36 +235,29 @@ def find_precise_lines(df, lookback_days, min_points, price_tolerance):
         for j in range(len(prices)):
             if i == j or j in used_indices:
                 continue
-            
             price_j = prices[j]
-            
             diff_pct = abs(price_i - price_j) / price_i * 100
-            
             if diff_pct <= price_tolerance:
                 cluster_indices.append(j)
         
         if len(cluster_indices) >= min_points:
             avg_price = np.mean([prices[idx] for idx in cluster_indices])
-            
             dates = [recent_df.iloc[idx]['date'] for idx in cluster_indices]
-            
             precise_lines.append({
                 'price': avg_price,
                 'points': len(cluster_indices),
                 'first_date': min(dates),
                 'last_date': max(dates),
             })
-            
             for idx in cluster_indices:
                 used_indices.add(idx)
     
     precise_lines.sort(key=lambda x: x['points'], reverse=True)
-    
     return precise_lines[:3]
 
 
 # ============================================================
-# 找峰顶线和谷底线（多空双方博弈过的）
+# 找峰顶线/谷底线
 # ============================================================
 def find_fenggu_lines(df, lookback_days, peak_side, confirm_days, vol_percentile):
     min_required = lookback_days + confirm_days + peak_side
@@ -312,7 +265,6 @@ def find_fenggu_lines(df, lookback_days, peak_side, confirm_days, vol_percentile
         return None, None, None, None, [], []
     
     recent_df = df.iloc[-lookback_days:]
-    
     vol_threshold = recent_df['volume'].quantile(vol_percentile)
     
     peaks = []
@@ -323,34 +275,22 @@ def find_fenggu_lines(df, lookback_days, peak_side, confirm_days, vol_percentile
     
     for i in range(start, end):
         row = recent_df.iloc[i]
-        
         window = recent_df.iloc[i-peak_side:i+peak_side+1]
         is_local_high = row['high'] == window['high'].max()
         is_local_low = row['low'] == window['low'].min()
-        
         has_vol = row['volume'] >= vol_threshold
         
         if is_local_high and has_vol:
             future = recent_df.iloc[i+1:i+1+confirm_days]
             confirmed = all(future['close'] < row['high'])
-            
             if confirmed:
-                peaks.append({
-                    'price': row['high'],
-                    'date': row['date'],
-                    'volume': row['volume'],
-                })
+                peaks.append({'price': row['high'], 'date': row['date'], 'volume': row['volume']})
         
         if is_local_low and has_vol:
             future = recent_df.iloc[i+1:i+1+confirm_days]
             confirmed = all(future['close'] > row['low'])
-            
             if confirmed:
-                valleys.append({
-                    'price': row['low'],
-                    'date': row['date'],
-                    'volume': row['volume'],
-                })
+                valleys.append({'price': row['low'], 'date': row['date'], 'volume': row['volume']})
     
     recent_peak = peaks[-1] if peaks else None
     recent_valley = valleys[-1] if valleys else None
@@ -363,7 +303,7 @@ def find_fenggu_lines(df, lookback_days, peak_side, confirm_days, vol_percentile
 
 
 # ============================================================
-# 找斜衡线（量学理论：连接两个峰顶/谷底的斜线）
+# 找斜衡线
 # ============================================================
 def find_xieheng_line(peaks, valleys, today_price):
     up_line = None
@@ -372,42 +312,34 @@ def find_xieheng_line(peaks, valleys, today_price):
     if len(valleys) >= XIEHENG_MIN_POINTS:
         v1 = valleys[-2]
         v2 = valleys[-1]
-        
         if v2['price'] > v1['price']:
-            today_on_line = v2['price']
-            
             up_line = {
                 'type': '上升',
                 'point1_price': v1['price'],
                 'point1_date': v1['date'],
                 'point2_price': v2['price'],
                 'point2_date': v2['date'],
-                'current_on_line': today_on_line,
-                'above_line': today_price > today_on_line,
+                'above_line': today_price > v2['price'],
             }
     
     if len(peaks) >= XIEHENG_MIN_POINTS:
         p1 = peaks[-2]
         p2 = peaks[-1]
-        
         if p2['price'] < p1['price']:
-            today_on_line = p2['price']
-            
             down_line = {
                 'type': '下降',
                 'point1_price': p1['price'],
                 'point1_date': p1['date'],
                 'point2_price': p2['price'],
                 'point2_date': p2['date'],
-                'current_on_line': today_on_line,
-                'above_line': today_price > today_on_line,
+                'above_line': today_price > p2['price'],
             }
     
     return up_line, down_line
 
 
 # ============================================================
-# 识别量柱形态（量学理论：高低平倍梯缩）
+# 识别量柱形态
 # ============================================================
 def identify_vol_pattern(df):
     if len(df) < 10:
@@ -415,15 +347,12 @@ def identify_vol_pattern(df):
     
     today_vol = df.iloc[-1]['volume']
     yesterday_vol = df.iloc[-2]['volume']
-    
     recent_20 = df.iloc[-GAOLIANG_LOOKBACK:] if len(df) >= GAOLIANG_LOOKBACK else df
     
     if today_vol / yesterday_vol >= BEISHU_RATIO:
         return "倍量柱"
-    
     if today_vol == recent_20['volume'].max():
         return "高量柱"
-    
     if today_vol == recent_20['volume'].min():
         return "低量柱"
     
@@ -432,13 +361,11 @@ def identify_vol_pattern(df):
     v3 = df.iloc[-1]['volume']
     if v1 < v2 < v3:
         return "梯量柱"
-    
     if v1 > v2 > v3:
         return "缩量柱"
     
     recent_5_avg = df.iloc[-6:-1]['volume'].mean()
     diff_pct = abs(today_vol - recent_5_avg) / recent_5_avg
-    
     if diff_pct <= PINGLIANG_TOLERANCE:
         return "平量柱"
     
@@ -446,40 +373,23 @@ def identify_vol_pattern(df):
 
 
 # ============================================================
-# 关键位量对今天的影响力判断
+# 关键位量影响力判断
 # ============================================================
 def judge_key_vol_impact(df, key_vol, key_date):
-    """
-    判断关键位的量对今天的影响力
-    
-    量学理论：
-    - 关键位的量越大，影响力越强
-    - 关键位离今天越近，影响力越强
-    - 今天的量越接近关键位的量，说明关键位的量对今天影响越大
-    
-    【无未来函数】：只用历史数据
-    """
     if key_vol is None or key_date is None:
         return "无关键位", 0, 0
     
     today_vol = df.iloc[-1]['volume']
-    
-    # 1. 量能对比：今天量是关键位量的百分之多少
     vol_ratio = today_vol / key_vol * 100
     
-    # 2. 时间距离：关键位到今天隔了多少天
     key_idx = None
     for i in range(len(df)-1, -1, -1):
         if df.iloc[i]['date'] == key_date:
             key_idx = i
             break
     
-    if key_idx is None:
-        time_distance = 0
-    else:
-        time_distance = len(df) - 1 - key_idx
+    time_distance = len(df) - 1 - key_idx if key_idx else 0
     
-    # 3. 综合判断影响力
     if vol_ratio >= IMPACT_VS_KEY_VOL_HIGH * 100:
         vol_impact = "强"
     elif vol_ratio >= IMPACT_VS_KEY_VOL_MID * 100:
@@ -505,120 +415,214 @@ def judge_key_vol_impact(df, key_vol, key_date):
 
 
 # ============================================================
-# 生成个股解读
+# 【核心】生成量学理论推导式综合解读
 # ============================================================
 def generate_interpretation(stock):
     """
-    用四维看盘法客观解读个股当前状态
-    
-    原则：客观描述，不做主观判断
+    量学理论驱动的逻辑推导式解读
+    不是数据罗列，而是一步步推导，形成逻辑闭环
     """
-    interpretations = []
+    sections = []
     
-    # 1. 大阴实顶位置解读
+    # ========== 【起点】大阴实顶的市场意义 ==========
     if stock['big_yin_top']:
-        if stock['price_above_yintop']:
-            interpretations.append(
-                f"当前价格在大阴实顶（{stock['big_yin_top']:.2f}元，{stock['big_yin_date']}）上方，"
-                f"高出{stock['price_vs_yintop_pct']:.2f}%。"
-                f"说明大阴实顶那天卖出的人，卖出后价格又涨回来了。"
-            )
+        above_text = "上方" if bool(stock['price_above_yintop']) else "下方"
+        pct_text = f"{stock['price_vs_yintop_pct']:+.2f}%"
+        
+        if bool(stock['price_above_yintop']):
+            conclusion = "说明买方已经把那天卖方的成果抢回来了，买方在这个区间占优。"
         else:
-            interpretations.append(
-                f"当前价格在大阴实顶（{stock['big_yin_top']:.2f}元，{stock['big_yin_date']}）下方，"
-                f"低于{abs(stock['price_vs_yintop_pct']):.2f}%。"
-                f"说明大阴实顶那天卖出的人，卖出后价格继续下跌。"
-            )
+            conclusion = "说明买方还没能收复那天卖方的失地，卖方在这个区间仍占优。"
+        
+        sections.append({
+            'title': '【起点】大阴实顶的市场意义',
+            'content': [
+                f"大阴实顶发生在{stock['days_since_yin']}天前（{stock['big_yin_date']}），价格{stock['big_yin_top']:.2f}元。",
+                f"<strong>市场机理</strong>：这是多空双方上次"休战"的警戒点。那天卖方赢了，但休战后买方开始组织反击。",
+                f"<strong>推导</strong>：现在价格在大阴实顶<strong>{above_text}</strong> {pct_text}，{conclusion}",
+                f"<strong>量学依据</strong>：大阴实顶是回形针看盘法的起点，是多空力量转换的分水岭。"
+            ]
+        })
     else:
-        interpretations.append("近60日没有出现中大阴线，说明近期没有明显的多空大战分界线。")
+        sections.append({
+            'title': '【起点】大阴实顶的市场意义',
+            'content': [
+                "近60日没有出现中大阴线。",
+                "<strong>市场机理</strong>：说明近期没有明显的多空大战分界线，市场处于相对平稳的状态。",
+                "<strong>量学依据</strong>：没有大阴实顶，说明多空双方还没有进行过大规模决战。"
+            ]
+        })
     
-    # 2. 阴阳对比解读
+    # ========== 【第一步】从右向左看——多空力量对比 ==========
     if stock['yang_count'] + stock['yin_count'] > 0:
-        if stock['yang_yin_ratio'] > 1.5:
-            interpretations.append(
-                f"从大阴实顶到今天，阳线{stock['yang_count']}根，阴线{stock['yin_count']}根，"
-                f"阴阳比{stock['yang_yin_ratio']:.2f}，阳线明显多于阴线。"
-            )
-        elif stock['yang_yin_ratio'] < 0.67:
-            interpretations.append(
-                f"从大阴实顶到今天，阳线{stock['yang_count']}根，阴线{stock['yin_count']}根，"
-                f"阴阳比{stock['yang_yin_ratio']:.2f}，阴线明显多于阳线。"
-            )
+        ratio = stock['yang_yin_ratio']
+        if ratio > 1.5:
+            power = "买方"
+            detail = "阳线明显多于阴线，说明买方赢得更频繁，在这个区间有持续性优势。"
+        elif ratio < 0.67:
+            power = "卖方"
+            detail = "阴线明显多于阳线，说明卖方赢得更频繁，在这个区间仍占主动。"
         else:
-            interpretations.append(
-                f"从大阴实顶到今天，阳线{stock['yang_count']}根，阴线{stock['yin_count']}根，"
-                f"阴阳比{stock['yang_yin_ratio']:.2f}，多空双方力量相当。"
-            )
+            power = "多空双方"
+            detail = "阴阳数量相当，说明多空双方在这个区间力量均衡，处于拉锯状态。"
+        
+        sections.append({
+            'title': '【第一步】从右向左看——多空力量对比',
+            'content': [
+                f"从大阴实顶到今天：阳线{stock['yang_count']}根、阴线{stock['yin_count']}根，阴阳比{ratio:.2f}。",
+                f"<strong>市场机理</strong>：每根K线都是多空一天的战斗结果。阳线多=买方赢的天数多，阴线多=卖方赢的天数多。",
+                f"<strong>推导</strong>：阴阳比{ratio:.2f}，{detail}",
+                f"<strong>量学依据</strong>：价柱的阴阳数量对比，是多空力量最直观的体现。"
+            ]
+        })
     
-    # 3. 量价真假解读
-    if stock['yin_vol_size'] == "大量":
-        interpretations.append(
-            f"大阴实顶那天的成交量很大（{stock['yin_vol_size']}），"
-            f"说明那天多空双方博弈很激烈。"
-        )
-    elif stock['yin_vol_size'] == "小量":
-        interpretations.append(
-            f"大阴实顶那天的成交量很小（{stock['yin_vol_size']}），"
-            f"说明那天虽然价格跌了，但成交很清淡。"
-        )
+    # ========== 【第二步】从上往下看——量的真假判断 ==========
+    if stock['big_yin_vol']:
+        vol_size = stock['yin_vol_size']
+        if vol_size == "大量":
+            mechanism = "那天多空双方真刀真枪干了一架，卖方放量砸盘，说明卖方是真出货。"
+            conclusion = "大阴实顶那天是<strong>大量</strong>，说明上方的抛压是真实的，后面突破起来会比较费劲。"
+        elif vol_size == "小量":
+            mechanism = "那天虽然价格跌了，但成交很清淡，说明没人接盘的"假跌"，卖方只是虚晃一枪。"
+            conclusion = "大阴实顶那天是<strong>小量</strong>，说明那天的下跌是无量空跌，卖方力量其实不强，后面可能要涨。"
+        else:
+            mechanism = "那天的量和平时差不多，说明是正常的调整，没有明显的多空意图。"
+            conclusion = "大阴实顶那天是<strong>平量</strong>，说明那次下跌是正常调整，没有特别的信号意义。"
+        
+        sections.append({
+            'title': '【第二步】从上往下看——量的真假判断',
+            'content': [
+                f"大阴实顶那天的成交量：{vol_size}。",
+                f"<strong>市场机理</strong>：{mechanism}",
+                f"<strong>推导</strong>：{conclusion}",
+                f"<strong>量学依据</strong>：量是因，价是果。量大说明真有人卖，量小说明跌了也没人接。"
+            ]
+        })
     
-    # 4. 时间距离解读
-    if stock['days_since_yin'] <= 10:
-        interpretations.append(
-            f"大阴实顶发生在{stock['days_since_yin']}天前，时间很近，"
-            f"这个位置的记忆还很新鲜。"
-        )
-    elif stock['days_since_yin'] <= 30:
-        interpretations.append(
-            f"大阴实顶发生在{stock['days_since_yin']}天前，时间中等，"
-            f"这个位置还有一定的影响力。"
-        )
+    # ========== 【第三步】从左往右看——量的影响力 ==========
+    if stock['big_yin_vol']:
+        vol_ratio = stock['today_vs_yin_vol']
+        days = stock['days_since_yin']
+        
+        if vol_ratio > 100:
+            vol_judge = f"今天的量比大阴实顶那天还大（{vol_ratio:.1f}%），说明今天的博弈比那天还激烈。"
+        elif vol_ratio < 50:
+            vol_judge = f"今天的量只有大阴实顶那天的{vol_ratio:.1f}%，说明今天的成交比那天清淡很多。"
+        else:
+            vol_judge = f"今天的量和大阴实顶那天差不多（{vol_ratio:.1f}%）。"
+        
+        if days <= 10:
+            time_judge = f"时间距离只有{days}天，那个位置的"记忆"还很新鲜。"
+        elif days <= 30:
+            time_judge = f"时间距离{days}天，那个位置还有一定的影响力。"
+        else:
+            time_judge = f"时间距离已经{days}天了，那个位置的影响力已经比较弱了。"
+        
+        sections.append({
+            'title': '【第三步】从左往右看——量的影响力',
+            'content': [
+                f"{vol_judge}",
+                f"{time_judge}",
+                f"<strong>市场机理</strong>：量越大、时间越近，那个位置的"记忆"就越新鲜，对当下的影响力就越强。就像打仗，刚打完的战场大家都记得住，隔了几个月的战场就没人在乎了。",
+                f"<strong>推导</strong>：综合量的大小和时间距离，大阴实顶的量对当下的影响力是<strong>{stock['time_impact']}</strong>。",
+                f"<strong>量学依据</strong>：量柱的远近多少，决定了那个量柱对当下的影响力大小。"
+            ]
+        })
+    
+    # ========== 【第四步】从下往上看——当下量价建构 ==========
+    vol_len = stock['vol_length']
+    price_len = stock['price_length']
+    body_ratio = stock['body_ratio']
+    
+    today_direction = "买方" if stock['power'] == "买方占优" else "卖方"
+    
+    if body_ratio > 60:
+        body_judge = f"实体占比{body_ratio:.1f}%，实体较长，说明{today_direction}今天赢了，而且赢得比较彻底。"
+    elif body_ratio < 30:
+        body_judge = f"实体占比{body_ratio:.1f}%，实体很短，说明今天多空打了个平手，都没占到便宜。"
     else:
-        interpretations.append(
-            f"大阴实顶发生在{stock['days_since_yin']}天前，时间很远，"
-            f"这个位置的影响力已经比较弱了。"
-        )
+        body_judge = f"实体占比{body_ratio:.1f}%，实体中等，说明{today_direction}今天赢了，但赢得不算彻底。"
     
-    # 5. 量的多少对比解读
-    if stock['today_vs_yin_vol'] > 100:
-        interpretations.append(
-            f"今天的成交量是大阴实顶那天的{stock['today_vs_yin_vol']:.1f}%，"
-            f"说明今天的博弈比那天还激烈。"
-        )
-    elif stock['today_vs_yin_vol'] < 50:
-        interpretations.append(
-            f"今天的成交量是大阴实顶那天的{stock['today_vs_yin_vol']:.1f}%，"
-            f"说明今天的成交比那天清淡很多。"
-        )
-    else:
-        interpretations.append(
-            f"今天的成交量是大阴实顶那天的{stock['today_vs_yin_vol']:.1f}%，"
-            f"和那天差不多。"
-        )
+    sections.append({
+        'title': '【第四步】从下往上看——当下量价建构',
+        'content': [
+            f"今天的量柱：{vol_len}；今天的价柱：{price_len}。",
+            f"{body_judge}",
+            f"<strong>市场机理</strong>：量柱长短=今天多空双方投入了多少兵力；价柱长短=今天战斗的激烈程度；实体长短=今天哪一方赢了，赢得彻不彻底。",
+            f"<strong>推导</strong>：今天{vol_len}、{price_len}、{body_judge}",
+            f"<strong>量学依据</strong>：量价的长短伸缩，是当下多空力量最直接的体现。"
+        ]
+    })
     
-    # 6. 量价长短伸缩解读
-    interpretations.append(
-        f"今天的量柱：{stock['vol_length']}；今天的价柱：{stock['price_length']}。"
-    )
+    # ========== 【第五步】左侧关键位的约束 ==========
+    key_points = []
     
-    if stock['body_ratio'] > 60:
-        interpretations.append(
-            f"今天K线实体占比{stock['body_ratio']:.1f}%，实体较长，"
-            f"说明今天多空一方赢了，而且赢得比较彻底。"
-        )
-    elif stock['body_ratio'] < 30:
-        interpretations.append(
-            f"今天K线实体占比{stock['body_ratio']:.1f}%，实体很短，"
-            f"说明今天多空打了个平手。"
-        )
+    if stock['peak_20']:
+        above = "上方" if stock['close'] > stock['peak_20'] else "下方"
+        key_points.append(f"20日峰顶线{stock['peak_20']:.2f}元（{stock['peak_date_20']}）：当前在<strong>{above}</strong>")
     
-    # 7. 位置总结
-    interpretations.append(
-        f"当前价格在近120日{stock['pos_status']}，近3日涨跌{stock['pct_3d']:+.2f}%，"
-        f"近5日涨跌{stock['pct_5d']:+.2f}%。"
-    )
+    if stock['valley_20']:
+        above = "上方" if stock['close'] > stock['valley_20'] else "下方"
+        key_points.append(f"20日谷底线{stock['valley_20']:.2f}元（{stock['valley_date_20']}）：当前在<strong>{above}</strong>")
     
-    return interpretations
+    if stock['precise_lines']:
+        pl = stock['precise_lines'][0]
+        above = "上方" if stock['close'] > pl['price'] else "下方"
+        key_points.append(f"精准线{pl['price']:.2f}元（{pl['points']}个点）：当前在<strong>{above}</strong>")
+    
+    if stock['safe_20']:
+        above = "上方" if stock['close'] > stock['safe_20'] else "下方"
+        key_points.append(f"20日高量柱安全线{stock['safe_20']:.2f}元（{stock['date_20']}）：当前在<strong>{above}</strong>")
+    
+    if stock['balance_price']:
+        above = "上方" if stock['close'] > stock['balance_price'] else "下方"
+        key_points.append(f"平衡线{stock['balance_price']:.2f}元（{stock['balance_date']}）：当前在<strong>{above}</strong>")
+    
+    if key_points:
+        sections.append({
+            'title': '【第五步】左侧关键位的约束',
+            'content': [
+                f"当前价格与左侧关键位的关系：",
+                *[f"• {kp}" for kp in key_points],
+                f"<strong>市场机理</strong>：峰顶线=上次卖方赢了的位置，现在变成压力位；谷底线=上次买方赢了的位置，现在变成支撑位；精准线=多空双方多次在同一价位交手，说明这个位置双方都很看重；高量柱安全线=上次多空最激烈战斗中买方守住的位置。",
+                f"<strong>量学依据</strong>：量线是多空双方的"记忆"，每次打到这个位置，都会触发上次的记忆，产生支撑或压力。"
+            ]
+        })
+    
+    # ========== 【综合结论】逻辑闭环 ==========
+    conclusion_points = []
+    
+    # 串起前面的推导
+    if stock['big_yin_top']:
+        if bool(stock['price_above_yintop']):
+            conclusion_points.append("买方已经收复了大阴实顶，说明买方在这个区间占优")
+        else:
+            conclusion_points.append("买方还没能收复大阴实顶，卖方仍在这个区间占优")
+    
+    if stock['yang_yin_ratio'] > 1.5:
+        conclusion_points.append("从大阴实顶到今天，阳线多于阴线，说明买方在逐步推进")
+    elif stock['yang_yin_ratio'] < 0.67:
+        conclusion_points.append("从大阴实顶到今天，阴线多于阳线，说明卖方仍在压制")
+    
+    if stock['yin_vol_size'] == "小量":
+        conclusion_points.append("大阴实顶那天是小量，说明那次下跌是无量空跌，卖方力量不强")
+    elif stock['yin_vol_size'] == "大量":
+        conclusion_points.append("大阴实顶那天是大量，说明那次下跌是真出货，上方有真实压力")
+    
+    conclusion_points.append(f"今天{stock['pct_chg']:+.2f}%，{stock['power']}")
+    conclusion_points.append(f"当前在近120日{stock['pos_status']}")
+    
+    sections.append({
+        'title': '【综合结论】逻辑闭环',
+        'content': [
+            f"把以上五步串起来：",
+            *[f"{i+1}. {p}" for i, p in enumerate(conclusion_points)],
+            f"<strong>最终判断</strong>：当前价格在{stock['pos_status']}，{stock['power']}，近3日涨跌{stock['pct_3d']:+.2f}%，近5日涨跌{stock['pct_5d']:+.2f}%。",
+            f"<strong>注意</strong>：以上是基于量学理论的客观描述，不构成任何交易建议。"
+        ]
+    })
+    
+    return sections
 
 
 # ============================================================
@@ -638,16 +642,14 @@ def get_stock_data(market, code):
     
     pct_chg = (today['close'] - yesterday['close']) / yesterday['close'] * 100
     
-    # ========== 【起点】找大阴实顶 ==========
     big_yin_top, big_yin_bottom, big_yin_date, big_yin_vol, big_yin_idx = find_big_yin_top(
         df, YIN_LOOKBACK, YIN_BODY_PCT
     )
     
-    # ========== ① 从右向左看：比较价柱的高低阴阳 ==========
     if big_yin_top:
         price_vs_yintop = today_price - big_yin_top
         price_vs_yintop_pct = price_vs_yintop / big_yin_top * 100
-        price_above_yintop = price_vs_yintop > 0
+        price_above_yintop = bool(price_vs_yintop > 0)
     else:
         price_vs_yintop = 0
         price_vs_yintop_pct = 0
@@ -655,8 +657,8 @@ def get_stock_data(market, code):
     
     if big_yin_idx:
         period_df = df.iloc[big_yin_idx:]
-        yang_count = sum(period_df['close'] > period_df['open'])
-        yin_count = sum(period_df['close'] < period_df['open'])
+        yang_count = int(sum(period_df['close'] > period_df['open']))
+        yin_count = int(sum(period_df['close'] < period_df['open']))
         yang_yin_ratio = yang_count / max(yin_count, 1)
     else:
         yang_count = 0
@@ -667,11 +669,9 @@ def get_stock_data(market, code):
     recent_high = recent_20['high'].max()
     recent_low = recent_20['low'].min()
     
-    # ========== ② 从上往下看：比较量价的真假大小 ==========
     if big_yin_vol:
         avg_vol_20 = recent_20['volume'].mean()
         big_yin_vs_avg = big_yin_vol / avg_vol_20
-        
         if big_yin_vs_avg > VOL_RATIO_HIGH:
             yin_vol_size = "大量"
         elif big_yin_vs_avg < VOL_RATIO_LOW:
@@ -682,17 +682,6 @@ def get_stock_data(market, code):
         yin_vol_size = "未知"
         big_yin_vs_avg = 0
     
-    if big_yin_vol and big_yin_vs_avg:
-        if big_yin_vs_avg > VOL_RATIO_HIGH:
-            yin_vol_true = "量大（可能是出货）"
-        elif big_yin_vs_avg < VOL_RATIO_LOW:
-            yin_vol_true = "量小（真跌，没人接）"
-        else:
-            yin_vol_true = "量平（正常调整）"
-    else:
-        yin_vol_true = "未知"
-    
-    # ========== ③ 从左往右看：比较量柱的远近多少 ==========
     if big_yin_idx:
         days_since_yin = len(df) - 1 - big_yin_idx
     else:
@@ -700,16 +689,8 @@ def get_stock_data(market, code):
     
     if big_yin_vol:
         today_vs_yin_vol = today_volume / big_yin_vol * 100
-        
-        if today_vs_yin_vol > 100:
-            vol_more_less = "今天量更大"
-        elif today_vs_yin_vol < 50:
-            vol_more_less = "今天量更小"
-        else:
-            vol_more_less = "差不多"
     else:
         today_vs_yin_vol = 0
-        vol_more_less = "未知"
     
     if days_since_yin <= 10:
         time_impact = "很近（影响力强）"
@@ -718,7 +699,6 @@ def get_stock_data(market, code):
     else:
         time_impact = "很远（影响力弱）"
     
-    # ========== ④ 从下往上看：比较量价的长短伸缩 ==========
     vol_high_20 = recent_20['volume'].max()
     vol_low_20 = recent_20['volume'].min()
     vol_pos_20 = (today_volume - vol_low_20) / (vol_high_20 - vol_low_20) * 100
@@ -751,8 +731,6 @@ def get_stock_data(market, code):
     else:
         body_length = "中等实体"
     
-    # ========== 所有量线 ==========
-    # 高量柱安全线/风险线
     safe_20, risk_20, type_20, date_20, key_vol_20 = find_gaoliang_lines(recent_20)
     
     safe_60 = risk_60 = type_60 = date_60 = key_vol_60 = None
@@ -765,13 +743,9 @@ def get_stock_data(market, code):
     if recent_120 is not None:
         safe_120, risk_120, type_120, date_120, key_vol_120 = find_gaoliang_lines(recent_120)
     
-    # 平衡线
     balance_price, balance_date = find_balance_line(df, BALANCE_LOOKBACK, BALANCE_YIN_BODY_PCT)
-    
-    # 精准线
     precise_lines = find_precise_lines(df, PRECISE_LOOKBACK, PRECISE_MIN_POINTS, PRECISE_PRICE_TOLERANCE)
     
-    # 峰顶线/谷底线
     peak_20, peak_date_20, valley_20, valley_date_20, peaks_20, valleys_20 = find_fenggu_lines(
         df, SHORT_WINDOW, PEAK_SIDE_SHORT, CONFIRM_DAYS_SHORT, VOL_PERCENTILE
     )
@@ -792,16 +766,10 @@ def get_stock_data(market, code):
             df, LONG_WINDOW, PEAK_SIDE_LONG, CONFIRM_DAYS_LONG, VOL_PERCENTILE
         )
     
-    # 斜衡线
     up_line, down_line = find_xieheng_line(peaks_120, valleys_120, today_price)
-    
-    # 量柱形态
     vol_pattern = identify_vol_pattern(df)
-    
-    # 关键位量影响力
     impact_20, vol_ratio_20, time_dist_20 = judge_key_vol_impact(df, key_vol_20, date_20)
     
-    # ========== ⑤ 和历史对比 ==========
     short_dist_high = (recent_high - today_price) / today_price * 100
     short_dist_low = (today_price - recent_low) / today_price * 100
     
@@ -821,7 +789,6 @@ def get_stock_data(market, code):
         long_dist_high = (long_high - today_price) / today_price * 100
         long_dist_low = (today_price - long_low) / today_price * 100
     
-    # ========== ⑥ 全景总结 ==========
     pos_120 = (today_price - long_low) / (long_high - long_low) * 100 if long_high else 50
     
     if pos_120 > POSITION_HIGH:
@@ -831,10 +798,7 @@ def get_stock_data(market, code):
     else:
         pos_status = "中位"
     
-    if today['close'] > today['open']:
-        power = "买方占优"
-    else:
-        power = "卖方占优"
+    power = "买方占优" if today['close'] > today['open'] else "卖方占优"
     
     pct_3d = (today['close'] - df.iloc[-4]['close']) / df.iloc[-4]['close'] * 100
     pct_5d = (today['close'] - df.iloc[-6]['close']) / df.iloc[-6]['close'] * 100
@@ -845,12 +809,9 @@ def get_stock_data(market, code):
         'date': today['date'],
         'close': today_price,
         'pct_chg': pct_chg,
-        # 大阴实顶
         'big_yin_top': big_yin_top,
-        'big_yin_bottom': big_yin_bottom,
         'big_yin_date': big_yin_date,
         'big_yin_vol': big_yin_vol,
-        # ① 从右向左看
         'price_above_yintop': price_above_yintop,
         'price_vs_yintop_pct': price_vs_yintop_pct,
         'yang_count': yang_count,
@@ -858,21 +819,15 @@ def get_stock_data(market, code):
         'yang_yin_ratio': yang_yin_ratio,
         'recent_high': recent_high,
         'recent_low': recent_low,
-        # ② 从上往下看
         'yin_vol_size': yin_vol_size,
-        'yin_vol_true': yin_vol_true,
-        # ③ 从左往右看
         'days_since_yin': days_since_yin,
         'today_vs_yin_vol': today_vs_yin_vol,
-        'vol_more_less': vol_more_less,
         'time_impact': time_impact,
-        # ④ 从下往上看
         'vol_pos_20': vol_pos_20,
         'vol_length': vol_length,
         'price_length': price_length,
         'body_length': body_length,
         'body_ratio': body_ratio,
-        # 所有量线
         'safe_20': safe_20,
         'risk_20': risk_20,
         'date_20': date_20,
@@ -902,8 +857,6 @@ def get_stock_data(market, code):
         'vol_pattern': vol_pattern,
         'impact_20': impact_20,
         'vol_ratio_20': vol_ratio_20,
-        'time_dist_20': time_dist_20,
-        # ⑤ 和历史对比
         'short_dist_high': short_dist_high,
         'short_dist_low': short_dist_low,
         'mid_high': mid_high,
@@ -914,101 +867,15 @@ def get_stock_data(market, code):
         'long_low': long_low,
         'long_dist_high': long_dist_high,
         'long_dist_low': long_dist_low,
-        # ⑥ 全景总结
         'pos_status': pos_status,
         'power': power,
         'pct_3d': pct_3d,
         'pct_5d': pct_5d,
     }
     
-    # 生成个股解读
     stock_data['interpretations'] = generate_interpretation(stock_data)
     
     return stock_data
-
-
-# ============================================================
-# 生成峰顶线/谷底线的HTML
-# ============================================================
-def render_peak_item(label, price, date):
-    if price is not None and date is not None:
-        value = f"{price:.2f}（{date}）"
-        value_class = "value"
-    else:
-        value = "无（寻顶中·偏强）"
-        value_class = "value value-none value-strong"
-    
-    return f"""
-    <div class="grid-item">
-        <div class="label">{label}</div>
-        <div class="{value_class}">{value}</div>
-    </div>
-    """
-
-
-def render_valley_item(label, price, date):
-    if price is not None and date is not None:
-        value = f"{price:.2f}（{date}）"
-        value_class = "value"
-    else:
-        value = "无（寻底中·偏弱）"
-        value_class = "value value-none value-weak"
-    
-    return f"""
-    <div class="grid-item">
-        <div class="label">{label}</div>
-        <div class="{value_class}">{value}</div>
-    </div>
-    """
-
-
-# ============================================================
-# 生成斜衡线的HTML
-# ============================================================
-def render_xieheng_html(up_line, down_line):
-    html = ""
-    
-    if up_line:
-        above_text = "上方" if up_line['above_line'] else "下方"
-        html += f"""
-        <div class="grid-item">
-            <div class="label">上升斜衡线（支撑）</div>
-            <div class="value">
-                {up_line['point1_price']:.2f}（{up_line['point1_date']}）
-                → {up_line['point2_price']:.2f}（{up_line['point2_date']}）
-                <br><span style="font-size:11px; color:#94a3b8;">当前在{above_text}</span>
-            </div>
-        </div>
-        """
-    else:
-        html += """
-        <div class="grid-item">
-            <div class="label">上升斜衡线（支撑）</div>
-            <div class="value value-none">无</div>
-        </div>
-        """
-    
-    if down_line:
-        above_text = "上方" if down_line['above_line'] else "下方"
-        html += f"""
-        <div class="grid-item">
-            <div class="label">下降斜衡线（阻力）</div>
-            <div class="value">
-                {down_line['point1_price']:.2f}（{down_line['point1_date']}）
-                → {down_line['point2_price']:.2f}（{down_line['point2_date']}）
-                <br><span style="font-size:11px; color:#94a3b8;">当前在{above_text}</span>
-            </div>
-        </div>
-        """
-    else:
-        html += """
-        <div class="grid-item">
-            <div class="label">下降斜衡线（阻力）</div>
-            <div class="value value-none">无</div>
-        </div>
-        """
-    
-    return html
 
 
 # ============================================================
@@ -1022,28 +889,20 @@ def generate_html(stocks_data, today_str):
         
         price_class = "price-up" if stock['pct_chg'] > 0 else "price-down"
         
-        # 大阴实顶显示
         if stock['big_yin_top']:
             yintop_text = f"{stock['big_yin_top']:.2f}（{stock['big_yin_date']}）"
         else:
             yintop_text = "无（近60日无中大阴线）"
         
-        if stock['price_above_yintop'] is True:
-            yintop_status = "上方（强势）"
-            yintop_color = "#ef4444"
-        elif stock['price_above_yintop'] is False:
-            yintop_status = "下方（弱势）"
-            yintop_color = "#22c55e"
-        else:
+        if stock['price_above_yintop'] is None:
             yintop_status = "未知"
             yintop_color = "#94a3b8"
-        
-        mid_high_str = f"{stock['mid_high']:.2f}" if stock['mid_high'] else '-'
-        mid_low_str = f"{stock['mid_low']:.2f}" if stock['mid_low'] else '-'
-        long_high_str = f"{stock['long_high']:.2f}" if stock['long_high'] else '-'
-        long_low_str = f"{stock['long_low']:.2f}" if stock['long_low'] else '-'
-        
-        balance_str = f"{stock['balance_price']:.2f}（{stock['balance_date']}）" if stock['balance_price'] else '-'
+        elif bool(stock['price_above_yintop']):
+            yintop_status = "上方（强势）"
+            yintop_color = "#ef4444"
+        else:
+            yintop_status = "下方（弱势）"
+            yintop_color = "#22c55e"
         
         # 精准线HTML
         precise_html = ""
@@ -1063,28 +922,49 @@ def generate_html(stocks_data, today_str):
             </div>
             """
         
-        xieheng_html = render_xieheng_html(stock['up_line'], stock['down_line'])
+        # 峰顶谷底线
+        def peak_html(label, price, date):
+            if price is not None and date is not None:
+                return f"""
+                <div class="grid-item">
+                    <div class="label">{label}</div>
+                    <div class="value">{price:.2f}（{date}）</div>
+                </div>
+                """
+            else:
+                return f"""
+                <div class="grid-item">
+                    <div class="label">{label}</div>
+                    <div class="value value-none value-strong">无（寻顶中·偏强）</div>
+                </div>
+                """
         
-        safe_20_str = f"{stock['safe_20']:.2f}（{stock['date_20']}）" if stock['safe_20'] else '-'
-        risk_20_str = f"{stock['risk_20']:.2f}（{stock['date_20']}）" if stock['risk_20'] else '-'
-        safe_60_str = f"{stock['safe_60']:.2f}（{stock['date_60']}）" if stock['safe_60'] else '-'
-        risk_60_str = f"{stock['risk_60']:.2f}（{stock['date_60']}）" if stock['risk_60'] else '-'
-        safe_120_str = f"{stock['safe_120']:.2f}（{stock['date_120']}）" if stock['safe_120'] else '-'
-        risk_120_str = f"{stock['risk_120']:.2f}（{stock['date_120']}）" if stock['risk_120'] else '-'
+        def valley_html(label, price, date):
+            if price is not None and date is not None:
+                return f"""
+                <div class="grid-item">
+                    <div class="label">{label}</div>
+                    <div class="value">{price:.2f}（{date}）</div>
+                </div>
+                """
+            else:
+                return f"""
+                <div class="grid-item">
+                    <div class="label">{label}</div>
+                    <div class="value value-none value-weak">无（寻底中·偏弱）</div>
+                </div>
+                """
         
-        peak_20_html = render_peak_item("20日峰顶线", stock['peak_20'], stock['peak_date_20'])
-        valley_20_html = render_valley_item("20日谷底线", stock['valley_20'], stock['valley_date_20'])
-        peak_60_html = render_peak_item("60日峰顶线", stock['peak_60'], stock['peak_date_60'])
-        valley_60_html = render_valley_item("60日谷底线", stock['valley_60'], stock['valley_date_60'])
-        peak_120_html = render_peak_item("120日峰顶线", stock['peak_120'], stock['peak_date_120'])
-        valley_120_html = render_valley_item("120日谷底线", stock['valley_120'], stock['valley_date_120'])
-        
-        impact_color = "#ef4444" if stock['impact_20'] == "强" else ("#fbbf24" if stock['impact_20'] == "中" else "#94a3b8")
-        
-        # 个股解读HTML
-        interpretation_html = ""
-        for interp in stock['interpretations']:
-            interpretation_html += f"<p style='margin:8px 0; padding-left:10px; border-left: 3px solid #fbbf24;'>{interp}</p>\n"
+        # 解读HTML
+        interp_html = ""
+        for section in stock['interpretations']:
+            interp_html += f"""
+            <div style="margin-bottom: 12px; padding: 10px; background: #0f172a; border-radius: 8px; border-left: 3px solid #fbbf24;">
+                <div style="font-weight: bold; color: #fbbf24; margin-bottom: 6px; font-size: 13px;">{section['title']}</div>
+            """
+            for line in section['content']:
+                interp_html += f'                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">{line}</p>\n'
+            interp_html += """            </div>"""
         
         item_html = f"""
         <div class="stock-card">
@@ -1096,7 +976,6 @@ def generate_html(stocks_data, today_str):
                 <div class="stock-price {price_class}">{stock['close']:.2f}元 ({stock['pct_chg']:+.2f}%)</div>
             </div>
             
-            <!-- 【起点】大阴实顶 -->
             <div class="step-section">
                 <div class="step-title">起点：大阴实顶</div>
                 <div class="step-content">
@@ -1113,7 +992,6 @@ def generate_html(stocks_data, today_str):
                 </div>
             </div>
             
-            <!-- ① 从右向左看：比较价柱的高低阴阳 -->
             <div class="step-section">
                 <div class="step-title">① 从右向左看：比较价柱的高低阴阳</div>
                 <div class="step-content">
@@ -1142,76 +1020,6 @@ def generate_html(stocks_data, today_str):
                 </div>
             </div>
             
-            <!-- 所有量线 -->
-            <div class="step-section">
-                <div class="step-title">量线体系</div>
-                <div class="step-content">
-                    <div class="grid-2">
-                        <div class="grid-item">
-                            <div class="label">平衡线（大阴实顶）</div>
-                            <div class="value">{balance_str}</div>
-                        </div>
-                    </div>
-                    
-                    <div style="margin-top:10px;">
-                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">精准线：</p>
-                        <div class="grid-2">
-                            {precise_html}
-                        </div>
-                    </div>
-                    
-                    <div style="margin-top:10px;">
-                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">斜衡线：</p>
-                        <div class="grid-2">
-                            {xieheng_html}
-                        </div>
-                    </div>
-                    
-                    <div style="margin-top:10px;">
-                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">峰顶线/谷底线：</p>
-                        <div class="grid-2">
-                            {peak_20_html}
-                            {valley_20_html}
-                            {peak_60_html}
-                            {valley_60_html}
-                            {peak_120_html}
-                            {valley_120_html}
-                        </div>
-                    </div>
-                    
-                    <div style="margin-top:10px;">
-                        <p style="color:#60a5fa; font-size:12px; margin-bottom:5px;">高量柱安全线/风险线：</p>
-                        <div class="grid-2">
-                            <div class="grid-item">
-                                <div class="label">20日安全线</div>
-                                <div class="value">{safe_20_str}</div>
-                            </div>
-                            <div class="grid-item">
-                                <div class="label">20日风险线</div>
-                                <div class="value">{risk_20_str}</div>
-                            </div>
-                            <div class="grid-item">
-                                <div class="label">60日安全线</div>
-                                <div class="value">{safe_60_str}</div>
-                            </div>
-                            <div class="grid-item">
-                                <div class="label">60日风险线</div>
-                                <div class="value">{risk_60_str}</div>
-                            </div>
-                            <div class="grid-item">
-                                <div class="label">120日安全线</div>
-                                <div class="value">{safe_120_str}</div>
-                            </div>
-                            <div class="grid-item">
-                                <div class="label">120日风险线</div>
-                                <div class="value">{risk_120_str}</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- ② 从上往下看：比较量价的真假大小 -->
             <div class="step-section">
                 <div class="step-title">② 从上往下看：比较量价的真假大小</div>
                 <div class="step-content">
@@ -1221,10 +1029,6 @@ def generate_html(stocks_data, today_str):
                             <div class="value">{stock['yin_vol_size']}</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">量价真假判断</div>
-                            <div class="value">{stock['yin_vol_true']}</div>
-                        </div>
-                        <div class="grid-item">
                             <div class="label">今日量柱形态</div>
                             <div class="value">{stock['vol_pattern']}</div>
                         </div>
@@ -1232,7 +1036,6 @@ def generate_html(stocks_data, today_str):
                 </div>
             </div>
             
-            <!-- ③ 从左往右看：比较量柱的远近多少 -->
             <div class="step-section">
                 <div class="step-title">③ 从左往右看：比较量柱的远近多少</div>
                 <div class="step-content">
@@ -1250,22 +1053,13 @@ def generate_html(stocks_data, today_str):
                             <div class="value">{stock['today_vs_yin_vol']:.1f}%</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">量的多少对比</div>
-                            <div class="value">{stock['vol_more_less']}</div>
-                        </div>
-                        <div class="grid-item">
                             <div class="label">关键位量影响力</div>
-                            <div class="value" style="color:{impact_color}">{stock['impact_20']}</div>
-                        </div>
-                        <div class="grid-item">
-                            <div class="label">今日量vs关键位量</div>
-                            <div class="value">{stock['vol_ratio_20']:.1f}%</div>
+                            <div class="value" style="color:{'#ef4444' if stock['impact_20'] == '强' else '#fbbf24' if stock['impact_20'] == '中' else '#94a3b8'}">{stock['impact_20']}</div>
                         </div>
                     </div>
                 </div>
             </div>
             
-            <!-- ④ 从下往上看：比较量价的长短伸缩 -->
             <div class="step-section">
                 <div class="step-title">④ 从下往上看：比较量价的长短伸缩</div>
                 <div class="step-content">
@@ -1283,10 +1077,6 @@ def generate_html(stocks_data, today_str):
                             <div class="value">{stock['price_length']}</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">实体长短</div>
-                            <div class="value">{stock['body_length']}</div>
-                        </div>
-                        <div class="grid-item">
                             <div class="label">实体占比</div>
                             <div class="value">{stock['body_ratio']:.1f}%</div>
                         </div>
@@ -1294,43 +1084,36 @@ def generate_html(stocks_data, today_str):
                 </div>
             </div>
             
-            <!-- ⑤ 和历史对比 -->
             <div class="step-section">
-                <div class="step-title">⑤ 和历史对比</div>
+                <div class="step-title">⑤ 左侧关键位</div>
                 <div class="step-content">
-                    <p><strong>短期(20日)：</strong>
-                        离高点 {stock['short_dist_high']:+.2f}% | 
-                        离低点 {stock['short_dist_low']:+.2f}%
-                    </p>
-                    <p><strong>中期(60日)：</strong>
-                        离高点 {stock['mid_dist_high']:+.2f}% | 
-                        离低点 {stock['mid_dist_low']:+.2f}%
-                    </p>
-                    <p><strong>长期(120日)：</strong>
-                        离高点 {stock['long_dist_high']:+.2f}% | 
-                        离低点 {stock['long_dist_low']:+.2f}%
-                    </p>
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">平衡线</div>
+                            <div class="value">{f"{stock['balance_price']:.2f}（{stock['balance_date']}）" if stock['balance_price'] else '-'}</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">精准线</div>
+                            <div class="value">{f"{stock['precise_lines'][0]['price']:.2f}（{stock['precise_lines'][0]['points']}点）" if stock['precise_lines'] else '-'}</div>
+                        </div>
+                        {peak_html('20日峰顶线', stock['peak_20'], stock['peak_date_20'])}
+                        {valley_html('20日谷底线', stock['valley_20'], stock['valley_date_20'])}
+                        <div class="grid-item">
+                            <div class="label">20日安全线</div>
+                            <div class="value">{f"{stock['safe_20']:.2f}（{stock['date_20']}）" if stock['safe_20'] else '-'}</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">20日风险线</div>
+                            <div class="value">{f"{stock['risk_20']:.2f}（{stock['date_20']}）" if stock['risk_20'] else '-'}</div>
+                        </div>
+                    </div>
                 </div>
             </div>
             
-            <!-- 个股解读 -->
             <div class="step-section">
-                <div class="step-title">📖 个股解读（四维看盘法）</div>
+                <div class="step-title">📖 综合解读（量学理论推导）</div>
                 <div class="step-content" style="background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);">
-                    {interpretation_html}
-                </div>
-            </div>
-            
-            <!-- ⑥ 全景总结 -->
-            <div class="step-section">
-                <div class="step-title">⑥ 全景总结</div>
-                <div class="summary-box">
-                    <p>
-                        今日{stock['pct_chg']:+.2f}%，{stock['pos_status']}，{stock['power']}。<br>
-                        量柱：{stock['vol_length']}，价柱：{stock['price_length']}。<br>
-                        大阴实顶：{yintop_text}<br>
-                        近3日涨跌：{stock['pct_3d']:+.2f}%，近5日涨跌：{stock['pct_5d']:+.2f}%。<br>
-                    </p>
+                    {interp_html}
                 </div>
             </div>
         </div>
@@ -1437,7 +1220,6 @@ def generate_html(stocks_data, today_str):
             font-size: 13px; 
             color: #cbd5e1; 
         }}
-        .step-content p {{ margin-bottom: 4px; }}
         
         .grid-2 {{ display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }}
         .grid-item {{ 
@@ -1451,14 +1233,6 @@ def generate_html(stocks_data, today_str):
         .grid-item .value-none {{ color: #94a3b8; font-weight: normal; font-size: 11px; }}
         .grid-item .value-strong {{ color: #ef4444; font-weight: normal; font-size: 11px; }}
         .grid-item .value-weak {{ color: #22c55e; font-weight: normal; font-size: 11px; }}
-        
-        .summary-box {{
-            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 10px;
-        }}
-        .summary-box p {{ margin: 0; color: #fbbf24; font-size: 13px; line-height: 1.8; }}
     </style>
 </head>
 <body>
@@ -1466,20 +1240,16 @@ def generate_html(stocks_data, today_str):
         <div class="header">
             <h1>四维循环看盘报告</h1>
             <div class="date">{today_str}</div>
-            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">量学原版：大阴实顶 + 四维对比 + 所有量线 + 个股解读</div>
+            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">量学理论推导版：大阴实顶 + 四维对比 + 左侧关键位 + 逻辑闭环解读</div>
         </div>
         
-        <!-- 信号说明区（顶部，只放一次） -->
         <div class="signal-guide">
             <h2>四维看盘法说明</h2>
             
             <div class="signal-item">
                 <h3>起点：大阴实顶</h3>
-                <p><strong>定义：</strong>从今天往左找最近的中大阴线（实体幅度≥3%），其实体顶部就是"大阴实顶"</p>
+                <p><strong>定义：</strong>从今天往左找最近的中大阴线，其实体顶部就是"大阴实顶"</p>
                 <p><strong>原理：</strong>大阴实顶是多空双方上次休战的"警戒点"，下次争夺的"起动点"</p>
-                <p><strong>参数：</strong>近60日搜索，阴线实体幅度≥3%</p>
-                <p><strong>设计思路：</strong>以最近的大阴线为基准，建立对比锚点</p>
-                <p><strong>注意事项：</strong>必须是最近的，不能用太远的</p>
                 <p class="source">来源：股海明灯（量学官网）</p>
             </div>
             
@@ -1487,8 +1257,6 @@ def generate_html(stocks_data, today_str):
                 <h3>① 从右向左看：比较价柱的高低阴阳</h3>
                 <p><strong>视线：</strong>从今天往左，往大阴实顶方向看</p>
                 <p><strong>对比内容：</strong>价格高低、阴阳数量、阴阳比</p>
-                <p><strong>参数：</strong>统计从大阴实顶到今天的所有K线</p>
-                <p><strong>设计思路：</strong>看多空双方力量对比</p>
                 <p class="source">来源：股海明灯《量柱擒涨停》黑马王子著</p>
             </div>
             
@@ -1496,8 +1264,6 @@ def generate_html(stocks_data, today_str):
                 <h3>② 从上往下看：比较量价的真假大小</h3>
                 <p><strong>视线：</strong>从大阴实顶的价柱往下看量柱</p>
                 <p><strong>对比内容：</strong>量柱大小、量价真假</p>
-                <p><strong>量柱形态：</strong>高量柱、低量柱、平量柱、倍量柱、梯量柱、缩量柱</p>
-                <p><strong>设计思路：</strong>判断大阴实顶那天的量是真还是假</p>
                 <p class="source">来源：股海明灯《量柱擒涨停》黑马王子著</p>
             </div>
             
@@ -1505,9 +1271,6 @@ def generate_html(stocks_data, today_str):
                 <h3>③ 从左往右看：比较量柱的远近多少</h3>
                 <p><strong>视线：</strong>从大阴实顶的量柱往右看，看到今天的量柱</p>
                 <p><strong>对比内容：</strong>时间距离、量的多少对比</p>
-                <p><strong>时间影响力：</strong>很近（≤10天）、较近（11-30天）、较远（31-60天）、很远（>60天）</p>
-                <p><strong>关键位量影响力：</strong>强/中/弱</p>
-                <p><strong>设计思路：</strong>看大阴实顶的量对当下的影响力</p>
                 <p class="source">来源：股海明灯《量柱擒涨停》黑马王子著</p>
             </div>
             
@@ -1515,136 +1278,26 @@ def generate_html(stocks_data, today_str):
                 <h3>④ 从下往上看：比较量价的长短伸缩</h3>
                 <p><strong>视线：</strong>从今天的量柱往上看价柱</p>
                 <p><strong>对比内容：</strong>量柱长短、价柱伸缩、实体长短</p>
-                <p><strong>实体占比：</strong>实体长度/振幅长度</p>
-                <p><strong>设计思路：</strong>判断当下的量价建构</p>
                 <p class="source">来源：股海明灯《量柱擒涨停》黑马王子著</p>
             </div>
             
             <div class="signal-item">
-                <h3>量线体系</h3>
+                <h3>⑤ 左侧关键位（量线体系）</h3>
+                <p><strong>包含：</strong>平衡线、精准线、斜衡线、峰顶线、谷底线、高量柱安全线/风险线</p>
                 <p class="source">来源：股海明灯《量线捉涨停》黑马王子著</p>
             </div>
             
             <div class="signal-item">
-                <h3>平衡线（大阴实顶）</h3>
-                <p><strong>定义：</strong>最近大阴线的实体顶部</p>
-                <p><strong>原理：</strong>多空双方上次休战的"警戒点"</p>
-                <p><strong>参数：</strong>近60日搜索</p>
-                <p><strong>设计思路：</strong>以最近的大阴实顶为基准</p>
-                <p class="source">来源：股海明灯《量线捉涨停》黑马王子著</p>
-            </div>
-            
-            <div class="signal-item">
-                <h3>精准线</h3>
-                <p><strong>定义：</strong>多个价格点重合在同一水平线上</p>
-                <p><strong>原理：</strong>多空双方多次在同一价位博弈，形成"精准"支撑/压力</p>
-                <p><strong>参数：</strong>至少3个价格点重合，误差≤1%</p>
-                <p><strong>设计思路：</strong>找多空双方反复争夺的关键价位</p>
-                <p><strong>注意事项：</strong>需要右确认（至少3个点）</p>
-                <p class="source">来源：股海明灯《量线捉涨停》黑马王子著</p>
-            </div>
-            
-            <div class="signal-item">
-                <h3>斜衡线</h3>
-                <p><strong>定义：</strong>连接两个或多个峰顶/谷底的斜线</p>
-                <p><strong>原理：</strong>反映趋势的斜率和方向</p>
-                <p><strong>参数：</strong>至少2个点，上升斜衡线=支撑，下降斜衡线=阻力</p>
-                <p><strong>设计思路：</strong>看趋势的方向和斜率</p>
-                <p class="source">来源：股海明灯《量线捉涨停》黑马王子著</p>
-            </div>
-            
-            <div class="signal-item">
-                <h3>峰顶线/谷底线</h3>
-                <p><strong>定义：</strong>多空双方激烈博弈过的高点/低点</p>
-                <p><strong>原理：</strong>峰顶=卖方赢了，谷底线=买方赢了</p>
-                <p><strong>参数：</strong>峰边距≥3天（左右各3天，取中间最高/最低），成交量要求适配当前环境</p>
-                <p><strong>设计思路：</strong>找真正博弈过的关键位，不用左侧历史极值法</p>
-                <p><strong>注意事项：</strong>需要右确认（峰边距≥3天）</p>
-                <p><strong>没有峰顶/谷底的情况：</strong>无峰顶=寻顶中（偏强势），无谷底=寻底中（偏弱势）</p>
-                <p class="source">来源：股海明灯《量线捉涨停》黑马王子著</p>
-            </div>
-            
-            <div class="signal-item">
-                <h3>高量柱安全线/风险线</h3>
-                <p><strong>定义：</strong>高量柱的最高价=安全线，最低价=风险线</p>
-                <p><strong>原理：</strong>高量柱那天多空博弈最激烈，最高价和最低价就是关键位</p>
-                <p><strong>参数：</strong>20日/60日/120日高量柱</p>
-                <p><strong>设计思路：</strong>以高量柱的高低点为基准</p>
-                <p><strong>注意事项：</strong>取实（最高价/最低价），不取虚</p>
-                <p class="source">来源：股海明灯《量线捉涨停》黑马王子著</p>
-            </div>
-            
-            <div class="signal-item">
-                <h3>量柱六种形态</h3>
-                <p class="source">来源：股海明灯《量柱擒涨停》黑马王子著</p>
-            </div>
-            
-            <div class="signal-item">
-                <h3>高量柱</h3>
-                <p><strong>定义：</strong>近N日最大成交量</p>
-                <p><strong>原理：</strong>多空博弈最激烈的一天</p>
-                <p><strong>参数：</strong>近20日/60日/120日天量</p>
-                <p><strong>设计思路：</strong>找博弈最激烈的位置</p>
-            </div>
-            
-            <div class="signal-item">
-                <h3>低量柱</h3>
-                <p><strong>定义：</strong>近N日最小成交量</p>
-                <p><strong>原理：</strong>多空双方都休息了，无人关注</p>
-                <p><strong>参数：</strong>近20日/60日/120日地量</p>
-                <p><strong>设计思路：</strong>找无人关注的位置</p>
-            </div>
-            
-            <div class="signal-item">
-                <h3>平量柱</h3>
-                <p><strong>定义：</strong>与昨日量差不多（±20%以内）</p>
-                <p><strong>原理：</strong>多空双方力量平衡</p>
-                <p><strong>参数：</strong>±20%以内</p>
-                <p><strong>设计思路：</strong>看量能是否平稳</p>
-            </div>
-            
-            <div class="signal-item">
-                <h3>倍量柱</h3>
-                <p><strong>定义：</strong>今日量≥昨日量×1.9</p>
-                <p><strong>原理：</strong>多空一方突然发力</p>
-                <p><strong>参数：</strong>≥1.9倍</p>
-                <p><strong>设计思路：</strong>看是否有突然放量</p>
-            </div>
-            
-            <div class="signal-item">
-                <h3>梯量柱</h3>
-                <p><strong>定义：</strong>连续3天放量</p>
-                <p><strong>原理：</strong>多空双方逐步加码</p>
-                <p><strong>参数：</strong>连续3天递增</p>
-                <p><strong>设计思路：</strong>看是否有连续放量</p>
-            </div>
-            
-            <div class="signal-item">
-                <h3>缩量柱</h3>
-                <p><strong>定义：</strong>连续3天缩量</p>
-                <p><strong>原理：</strong>多空双方逐步退场</p>
-                <p><strong>参数：</strong>连续3天递减</p>
-                <p><strong>设计思路：</strong>看是否有连续缩量</p>
-            </div>
-            
-            <div class="signal-item">
-                <h3>关键位量影响力</h3>
-                <p><strong>定义：</strong>判断关键位的量对当下的影响力</p>
-                <p><strong>原理：</strong>量越大、时间越近，影响力越强</p>
-                <p><strong>参数：</strong>强/中/弱</p>
-                <p><strong>设计思路：</strong>综合时间距离和量大小判断</p>
-            </div>
-            
-            <div class="signal-item">
-                <h3>个股解读</h3>
-                <p><strong>原则：</strong>客观描述，不做主观判断</p>
-                <p><strong>方法：</strong>用四维看盘法逐步描述</p>
+                <h3>综合解读</h3>
+                <p><strong>原则：</strong>量学理论驱动的逻辑推导，不是数据罗列</p>
+                <p><strong>方法：</strong>每一步都有市场机理、量学依据、推导结论，形成逻辑闭环</p>
             </div>
             
             <div class="signal-item">
                 <h3>最高原则</h3>
                 <p><strong>所有参数、阈值都要适配当前最新市场环境</strong></p>
                 <p><strong>代码不要写死，能用参数阈值的就用参数阈值</strong></p>
+                <p><strong>不构成任何交易建议，只做客观描述</strong></p>
             </div>
         </div>
         
@@ -1662,7 +1315,7 @@ def generate_html(stocks_data, today_str):
 # ============================================================
 def main():
     print("=" * 60)
-    print("四维循环看盘报告 - HTML版（量学原版：大阴实顶+四维对比+所有量线+个股解读）")
+    print("四维循环看盘报告 - HTML版（量学理论推导版）")
     print("=" * 60)
     
     stocks_data = []
