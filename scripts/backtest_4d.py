@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-四维循环看盘法 - 历史回测验证（位置分档版）
+四维循环看盘法 - 历史回测验证（最终完整版）
 =================================================
 【无未来函数】
-【回测标准】信号确认后 → 等回踩关键位 → 缩量企稳 → T+1开盘买入
+【买入标准】信号确认后 → 等回踩关键位 → 缩量企稳 → T+1开盘买入
+【卖出标准】跌破关键位就卖（动态止损），不固定持有N天
+【交易成本】买入0.125% + 卖出0.125% = 总共0.25%
 【位置分档】低位<30% / 中位30%-70% / 高位>70%
 【资料来源】股海明灯《量柱擒涨停》《量线捉涨停》黑马王子著
 """
@@ -45,11 +47,18 @@ SHRINK_VOL_RATIO = 0.8
 STAY_ABOVE = True
 
 # ============================================================
+# 【交易成本】
+# ============================================================
+COMMISSION_RATE = 0.00125    # 单边佣金+滑点 0.125%
+STAMP_TAX = 0.001             # 印花税 0.1%（卖出收）
+TOTAL_COST = COMMISSION_RATE * 2 + STAMP_TAX  # 一来一回总共0.35%
+
+# ============================================================
 # 【位置分档参数】
 # ============================================================
-POSITION_LOOKBACK = 120    # 用近120天算位置
-LOW_PCTL = 0.30            # <30%分位 = 低位
-HIGH_PCTL = 0.70           # >70%分位 = 高位
+POSITION_LOOKBACK = 120
+LOW_PCTL = 0.30
+HIGH_PCTL = 0.70
 
 # ============================================================
 # 【ATR自适应】
@@ -163,10 +172,6 @@ def get_vol_percentile(df, lookback=20):
 # 【位置计算】
 # ============================================================
 def get_position_level(df, end_idx, lookback=POSITION_LOOKBACK):
-    """
-    计算当前价格在近N天的位置分位
-    返回：低位/中位/高位
-    """
     if end_idx < lookback:
         lookback = end_idx
     recent_df = df.iloc[end_idx-lookback+1:end_idx+1]
@@ -254,6 +259,29 @@ def check_pullback_buy(df, confirm_idx, support_price, max_wait_days=MAX_WAIT_DA
             if buy_idx < n:
                 return buy_idx
     return None
+
+
+# ============================================================
+# 【动态卖出判断】
+# ============================================================
+def check_dynamic_sell(df, buy_idx, support_price, max_hold_days=60):
+    """
+    动态止损：买入后盯关键支撑位，跌破就卖
+    最多持有max_hold_days天，到期收盘卖
+    返回：卖出日索引
+    """
+    n = len(df)
+    sell_idx = min(buy_idx + max_hold_days, n - 1)
+    
+    # 从买入后第二天开始，每天检查是否跌破支撑位
+    for i in range(buy_idx + 1, n):
+        today = df.iloc[i]
+        # 收盘价跌破支撑位，就卖
+        if today['close'] < support_price * (1 - TOUCH_TOLERANCE):
+            sell_idx = i
+            break
+    
+    return sell_idx
 
 
 # ============================================================
@@ -667,19 +695,23 @@ def find_pillars_at(df, end_idx, lookback_days=60):
 # ============================================================
 def main():
     print("=" * 70)
-    print("四维循环看盘法 - 历史回测验证（位置分档版）")
+    print("四维循环看盘法 - 历史回测验证（最终完整版）")
     print("=" * 70)
     
     all_stocks = scan_all_stocks()
     
     print(f"\n自动扫描到股票数：{len(all_stocks)}只")
     print(f"（最多跑{MAX_STOCKS}只，避免超时）")
-    print(f"持有周期：{HOLD_PERIODS}个交易日")
+    print(f"持有周期：{HOLD_PERIODS}个交易日（固定持有对照组）")
     print(f"回测标准：信号确认后 → 等回踩关键位 → 缩量企稳 → T+1开盘买")
+    print(f"交易成本：{TOTAL_COST*100:.2f}%（买入+卖出）")
+    print(f"动态止损：跌破关键位就卖，最多持有60天")
     print(f"位置分档：低位<{LOW_PCTL*100:.0f}% / 中位{LOW_PCTL*100:.0f}%-{HIGH_PCTL*100:.0f}% / 高位>{HIGH_PCTL*100:.0f}%\n")
     
     # 结构：{信号名: {位置: {持有天数: [收益列表]}}}
     all_trades = defaultdict(lambda: defaultdict(lambda: {h: [] for h in HOLD_PERIODS}))
+    # 动态止损的结果
+    dynamic_trades = defaultdict(lambda: defaultdict(list))
     
     for idx, (market, code) in enumerate(all_stocks):
         print(f"  回测中 {idx+1}/{len(all_stocks)}: {market}{code} ...")
@@ -690,7 +722,7 @@ def main():
         n = len(df)
         start_idx = 120
         
-        for i in range(start_idx, n - max(HOLD_PERIODS) - MAX_WAIT_DAYS - 2):
+        for i in range(start_idx, n - 60 - MAX_WAIT_DAYS - 2):
             atr_value, atr_pct = calculate_atr(df.iloc[:i+1], ATR_PERIOD)
             yin_body_thresh = get_atr_threshold(atr_pct, YIN_BODY_ATR_MULT, YIN_BODY_FALLBACK)
             
@@ -699,7 +731,6 @@ def main():
             big_yin_top, big_yin_date = find_big_yin_top_at(df, i, YIN_LOOKBACK, yin_body_thresh)
             pillar_type, golden_line = find_pillars_at(df, i)
             
-            # 计算位置
             position = get_position_level(df, i)
             
             signals_today = []
@@ -802,28 +833,39 @@ def main():
                 if buy_today['open'] == buy_today['close'] and (buy_today['close'] - buy_yesterday['close']) / buy_yesterday['close'] * 100 > 9.5:
                     continue
                 
+                bp = df.iloc[buy_idx]['open']
+                
+                # 1. 固定持有期（对照组）
                 for hold_days in HOLD_PERIODS:
                     sell_idx = buy_idx + hold_days
                     if sell_idx >= n:
                         continue
-                    bp = df.iloc[buy_idx]['open']
                     sp = df.iloc[sell_idx]['close']
                     if bp <= 0:
                         continue
-                    ret = (sp - bp) / bp * 100
+                    ret = (sp - bp) / bp * 100 - TOTAL_COST * 100  # 扣交易成本
                     all_trades[signal_name][position][hold_days].append(ret)
+                
+                # 2. 动态止损（按量学官方）
+                sell_idx_dynamic = check_dynamic_sell(df, buy_idx, support_price)
+                if sell_idx_dynamic < n:
+                    sp_dynamic = df.iloc[sell_idx_dynamic]['close']
+                    if bp > 0:
+                        ret_dynamic = (sp_dynamic - bp) / bp * 100 - TOTAL_COST * 100
+                        dynamic_trades[signal_name][position].append(ret_dynamic)
     
     # 输出结果
     print("\n" + "=" * 70)
-    print("四维循环看盘法 - 历史回测结果（位置分档版）")
+    print("四维循环看盘法 - 历史回测结果（最终完整版）")
     print("=" * 70)
     print(f"\n总股票数：{len(all_stocks)}只")
-    print(f"持有周期：{HOLD_PERIODS}个交易日\n")
+    print(f"交易成本：已扣除{TOTAL_COST*100:.2f}%\n")
     
     positions = ["低位", "中位", "高位"]
     
+    # 固定持有期结果
     for hold_days in HOLD_PERIODS:
-        print(f"\n=== 持有{hold_days}天 ===")
+        print(f"\n=== 固定持有{hold_days}天 ===")
         
         for pos in positions:
             print(f"\n--- {pos} ---")
@@ -850,6 +892,35 @@ def main():
                 
                 print(f"{signal_name:<20} {count:>8} {avg_ret:>10.2f} {median_ret:>10.2f} {win_rate:>8.1f} {conclusion:>10}")
     
+    # 动态止损结果
+    print("\n" + "=" * 70)
+    print("\n=== 动态止损版（跌破关键位就卖） ===")
+    
+    for pos in positions:
+        print(f"\n--- {pos} ---")
+        print(f"{'信号':<20} {'样本数':>8} {'平均收益%':>10} {'中位数%':>10} {'胜率%':>8} {'结论':>10}")
+        print("-" * 70)
+        
+        sorted_signals = sorted(dynamic_trades.keys(), key=lambda x: len(dynamic_trades[x][pos]), reverse=True)
+        
+        for signal_name in sorted_signals:
+            returns = dynamic_trades[signal_name][pos]
+            count = len(returns)
+            if count < 5:
+                continue
+            avg_ret = np.mean(returns)
+            median_ret = np.median(returns)
+            win_rate = sum(1 for r in returns if r > 0) / count * 100
+            
+            if win_rate > 55 and avg_ret > 0:
+                conclusion = "✅ 有效"
+            elif win_rate > 50:
+                conclusion = "⚠️ 一般"
+            else:
+                conclusion = "❌ 无效"
+            
+            print(f"{signal_name:<20} {count:>8} {avg_ret:>10.2f} {median_ret:>10.2f} {win_rate:>8.1f} {conclusion:>10}")
+    
     print("\n" + "=" * 70)
     print("结论说明：")
     print("- ✅ 胜率>55% 且 平均收益>0：信号有效，有统计意义")
@@ -861,16 +932,18 @@ def main():
     output_dir = Path(__file__).parent.parent / "data" / "analysis"
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    summary_file = output_dir / "backtest_4d_position_summary.txt"
+    summary_file = output_dir / "backtest_4d_final_summary.txt"
     with open(summary_file, 'w', encoding='utf-8') as f:
-        f.write("四维循环看盘法 - 位置分档版历史回测结果\n")
+        f.write("四维循环看盘法 - 最终完整版历史回测结果\n")
         f.write(f"股票数：{len(all_stocks)}只\n")
-        f.write(f"持有周期：{HOLD_PERIODS}个交易日\n")
+        f.write(f"交易成本：已扣除{TOTAL_COST*100:.2f}%\n")
         f.write(f"位置分档：低位<30% / 中位30%-70% / 高位>70%\n\n")
+        
+        f.write("=== 固定持有期结果 ===\n")
         for hold_days in HOLD_PERIODS:
-            f.write(f"\n=== 持有{hold_days}天 ===\n")
+            f.write(f"\n--- 持有{hold_days}天 ---\n")
             for pos in positions:
-                f.write(f"\n--- {pos} ---\n")
+                f.write(f"\n{pos}:\n")
                 sorted_signals = sorted(all_trades.keys(), key=lambda x: len(all_trades[x][pos][hold_days]), reverse=True)
                 for signal_name in sorted_signals:
                     returns = all_trades[signal_name][pos][hold_days]
@@ -881,6 +954,20 @@ def main():
                     median_ret = np.median(returns)
                     win_rate = sum(1 for r in returns if r > 0) / count * 100
                     f.write(f"{signal_name}: 样本{count}个, 平均{avg_ret:.2f}%, 中位{median_ret:.2f}%, 胜率{win_rate:.1f}%\n")
+        
+        f.write("\n\n=== 动态止损版结果 ===\n")
+        for pos in positions:
+            f.write(f"\n{pos}:\n")
+            sorted_signals = sorted(dynamic_trades.keys(), key=lambda x: len(dynamic_trades[x][pos]), reverse=True)
+            for signal_name in sorted_signals:
+                returns = dynamic_trades[signal_name][pos]
+                count = len(returns)
+                if count < 5:
+                    continue
+                avg_ret = np.mean(returns)
+                median_ret = np.median(returns)
+                win_rate = sum(1 for r in returns if r > 0) / count * 100
+                f.write(f"{signal_name}: 样本{count}个, 平均{avg_ret:.2f}%, 中位{median_ret:.2f}%, 胜率{win_rate:.1f}%\n")
     
     print(f"\n已保存统计结果: {summary_file}")
 
