@@ -118,38 +118,41 @@
         <div class="header">
             <h1>四维循环看盘报告</h1>
             <div class="date">2026-09-18</div>
-            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">王牌柱官方版 + ATR自适应 + 涨停板区分主板/创业板</div>
+            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">量能自适应版 · 核心定义保留官方 · 辅助判断用分位数</div>
         </div>
         
         <div class="signal-guide">
-            <h2>信号说明</h2>
+            <h2>参数说明（全部参数化，方便调整）</h2>
             
             <div class="signal-item">
-                <h3>王牌柱官方定义（股海明灯官网）</h3>
-                <p><strong>三原则：</strong></p>
-                <p>① 收盘价三日不破底：后三日收盘价平均 ≥ 基柱开盘价</p>
-                <p>② 量柱群三日不过头：后三日量逐步缩小，最后一天量 < 基柱量</p>
-                <p>③ 基柱是阳线+量柱比前一天高（不要求倍量！）</p>
-                <p><strong>将军柱 vs 黄金柱：</strong></p>
-                <p>将军柱：后三日收盘价平均 < 基柱收盘价</p>
-                <p>黄金柱：后三日收盘价平均 > 基柱收盘价</p>
-                <p>元帅柱：黄金柱 + 基柱跳空高开</p>
-                <p class="source">来源：股海明灯官网《王子老师语录十》+《王牌柱定义专帖》</p>
+                <h3>【核心定义·保留官方】</h3>
+                <p>倍量柱：今天量/昨天量 ≥ 1.8（官方最低90%）</p>
+                <p>高量柱：前20天最高</p>
+                <p>低量柱：前20天最低</p>
+                <p>梯量柱：连续3天递增</p>
+                <p>缩量柱：连续3天递减</p>
+                <p>平量柱：和前5天平均差不超过15%</p>
+                <p class="source">来源：股海明灯官网</p>
             </div>
             
             <div class="signal-item">
-                <h3>涨停板区分</h3>
-                <p>主板（60/00开头）：涨幅 ≥ 9.8%</p>
-                <p>创业板/科创板（30/68开头）：涨幅 ≥ 19.8%</p>
+                <h3>【辅助判断·分位数自适应】</h3>
+                <p>大量/放量：过去20日量的80%分位以上</p>
+                <p>小量/缩量：过去20日量的20%分位以下</p>
+                <p>王牌柱基柱：基柱量在过去20日的60%分位以上</p>
+                <p>倍量伸缩：放量到80%分位 + 缩量到20%分位</p>
+                <p class="source">来源：量化行业通用做法</p>
             </div>
             
             <div class="signal-item">
-                <h3>ATR自适应机制</h3>
-                <p>价格类参数随ATR自动调整，量能类参数随分位数自动调整</p>
+                <h3>【王牌柱官方定义】</h3>
+                <p>三原则：①三日收盘不破底 ②量柱三日不过头 ③基柱是相对高量</p>
+                <p>搜索优先级：元帅柱 > 黄金柱 > 将军柱</p>
+                <p class="source">来源：股海明灯官网《王子老师语录十》</p>
             </div>
             
             <div class="signal-item">
-                <h3>最高原则</h3>
+                <h3>【最高原则】</h3>
                 <p><strong>所有参数、阈值都要适配当前最新市场环境</strong></p>
                 <p><strong>代码不要写死，能用参数阈值的就用参数阈值</strong></p>
                 <p><strong>不构成任何交易建议，只做客观描述</strong></p>
@@ -232,11 +235,11 @@
                     <div class="grid-2">
                         <div class="grid-item">
                             <div class="label">大阴实顶的量</div>
-                            <div class="value">平量</div>
+                            <div class="value">小量</div>
                         </div>
                         <div class="grid-item">
                             <div class="label">今日量柱形态</div>
-                            <div class="value">高量柱</div>
+                            <div class="value">倍量柱</div>
                         </div>
                     </div>
                 </div>
@@ -298,18 +301,18 @@
             </div>
             
             <div class="step-section">
-                <div class="step-title">王牌柱体系（官方版）</div>
+                <div class="step-title">王牌柱体系（官方版·优先级搜索·基柱自适应）</div>
                 <div class="step-content">
                     <div class="grid-2">
                         
-            <div class="grid-item" style="border:2px solid #60a5fa;">
-                <div class="label">将军柱</div>
-                <div class="value" style="color:#60a5fa;">2026-08-27</div>
+            <div class="grid-item" style="border:2px solid #fbbf24;">
+                <div class="label">⭐ 黄金柱</div>
+                <div class="value" style="color:#fbbf24;">2026-08-07</div>
             </div>
             
                         <div class="grid-item">
                             <div class="label">黄金线（基柱最低价）</div>
-                            <div class="value">73.95</div>
+                            <div class="value">73.97</div>
                         </div>
                         
             <div class="grid-item" style="border:2px solid #a78bfa;">
@@ -381,9 +384,9 @@
             </div>
             <div style="margin-bottom: 12px; padding: 10px; background: #0f172a; border-radius: 8px; border-left: 3px solid #fbbf24;">
                 <div style="font-weight: bold; color: #fbbf24; margin-bottom: 6px; font-size: 13px;">【第二步】从上往下看——量的真假判断</div>
-                            <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">大阴实顶那天的成交量：平量。</p>
-                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>市场机理</strong>：那天的量和平时差不多，是正常调整。</p>
-                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>推导</strong>：大阴实顶那天是<strong>平量</strong>，说明那次下跌是正常调整。</p>
+                            <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">大阴实顶那天的成交量：小量。</p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>市场机理</strong>：那天虽然价格跌了，但成交很清淡，没人接盘的「假跌」。</p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>推导</strong>：大阴实顶那天是<strong>小量</strong>，说明那次下跌是无量空跌。</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>量学依据</strong>：量是因，价是果。</p>
             </div>
             <div style="margin-bottom: 12px; padding: 10px; background: #0f172a; border-radius: 8px; border-left: 3px solid #fbbf24;">
@@ -410,7 +413,7 @@
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 精准线75.44元（7个点）：当前在<strong>下方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 20日高量柱安全线73.00元：当前在<strong>下方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 平衡线78.56元：当前在<strong>下方</strong></p>
-                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 将军柱黄金线73.95元：当前在<strong>下方</strong></p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 黄金柱黄金线73.97元：当前在<strong>下方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 凹口线76.70元：当前在<strong>下方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>市场机理</strong>：峰顶线=上次卖方赢了的位置，现在变成压力位；谷底线=上次买方赢了的位置，现在变成支撑位。</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>量学依据</strong>：量线是多空双方的「记忆」。</p>
@@ -419,8 +422,9 @@
                 <div style="font-weight: bold; color: #fbbf24; margin-bottom: 6px; font-size: 13px;">【综合结论】逻辑闭环</div>
                             <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">把以上五步串起来：</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">1. 买方还没能收复大阴实顶，卖方仍在这个区间占优</p>
-                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">2. 今天+7.75%，买方占优</p>
-                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">3. 当前在近120日中位</p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">2. 大阴实顶那天是小量，说明那次下跌是无量空跌</p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">3. 今天+7.75%，买方占优</p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">4. 当前在近120日中位</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>最终判断</strong>：当前价格在中位，买方占优，近3日涨跌+9.18%，近5日涨跌+7.76%。</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>注意</strong>：以上是基于量学理论的客观描述，不构成任何交易建议。</p>
             </div>
@@ -503,11 +507,11 @@
                     <div class="grid-2">
                         <div class="grid-item">
                             <div class="label">大阴实顶的量</div>
-                            <div class="value">大量</div>
+                            <div class="value">平量</div>
                         </div>
                         <div class="grid-item">
                             <div class="label">今日量柱形态</div>
-                            <div class="value">高量柱</div>
+                            <div class="value">倍量柱</div>
                         </div>
                     </div>
                 </div>
@@ -564,23 +568,23 @@
             <div class="step-section">
                 <div class="step-title">📊 今日信号（25种涨停基因全）</div>
                 <div class="step-content">
-                    <span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">阳胜进</span><span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">小倍阳（矮将军）</span><span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">极阴次阳</span><span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">地量群</span><span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">黄金十字架</span>
+                    <span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">阳胜进</span><span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">极阴次阳</span><span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">地量群</span><span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">黄金十字架</span>
                 </div>
             </div>
             
             <div class="step-section">
-                <div class="step-title">王牌柱体系（官方版）</div>
+                <div class="step-title">王牌柱体系（官方版·优先级搜索·基柱自适应）</div>
                 <div class="step-content">
                     <div class="grid-2">
                         
-            <div class="grid-item" style="border:2px solid #60a5fa;">
-                <div class="label">将军柱</div>
-                <div class="value" style="color:#60a5fa;">2026-08-27</div>
+            <div class="grid-item">
+                <div class="label">王牌柱</div>
+                <div class="value value-none">无</div>
             </div>
             
                         <div class="grid-item">
                             <div class="label">黄金线（基柱最低价）</div>
-                            <div class="value">61.14</div>
+                            <div class="value">无</div>
                         </div>
                         
             <div class="grid-item" style="border:2px solid #a78bfa;">
@@ -652,9 +656,9 @@
             </div>
             <div style="margin-bottom: 12px; padding: 10px; background: #0f172a; border-radius: 8px; border-left: 3px solid #fbbf24;">
                 <div style="font-weight: bold; color: #fbbf24; margin-bottom: 6px; font-size: 13px;">【第二步】从上往下看——量的真假判断</div>
-                            <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">大阴实顶那天的成交量：大量。</p>
-                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>市场机理</strong>：那天多空双方真刀真枪干了一架，卖方放量砸盘。</p>
-                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>推导</strong>：大阴实顶那天是<strong>大量</strong>，说明上方的抛压是真实的。</p>
+                            <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">大阴实顶那天的成交量：平量。</p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>市场机理</strong>：那天的量和平时差不多，是正常调整。</p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>推导</strong>：大阴实顶那天是<strong>平量</strong>，说明那次下跌是正常调整。</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>量学依据</strong>：量是因，价是果。</p>
             </div>
             <div style="margin-bottom: 12px; padding: 10px; background: #0f172a; border-radius: 8px; border-left: 3px solid #fbbf24;">
@@ -681,7 +685,6 @@
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 精准线61.26元（12个点）：当前在<strong>上方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 20日高量柱安全线62.23元：当前在<strong>下方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 平衡线69.00元：当前在<strong>下方</strong></p>
-                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 将军柱黄金线61.14元：当前在<strong>上方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 凹口线61.21元：当前在<strong>上方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>市场机理</strong>：峰顶线=上次卖方赢了的位置，现在变成压力位；谷底线=上次买方赢了的位置，现在变成支撑位。</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>量学依据</strong>：量线是多空双方的「记忆」。</p>
@@ -690,9 +693,8 @@
                 <div style="font-weight: bold; color: #fbbf24; margin-bottom: 6px; font-size: 13px;">【综合结论】逻辑闭环</div>
                             <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">把以上五步串起来：</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">1. 买方还没能收复大阴实顶，卖方仍在这个区间占优</p>
-                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">2. 大阴实顶那天是大量，说明那次下跌是真出货</p>
-                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">3. 今天+5.26%，买方占优</p>
-                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">4. 当前在近120日中位</p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">2. 今天+5.26%，买方占优</p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">3. 当前在近120日中位</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>最终判断</strong>：当前价格在中位，买方占优，近3日涨跌+7.10%，近5日涨跌+5.83%。</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>注意</strong>：以上是基于量学理论的客观描述，不构成任何交易建议。</p>
             </div>
@@ -841,18 +843,18 @@
             </div>
             
             <div class="step-section">
-                <div class="step-title">王牌柱体系（官方版）</div>
+                <div class="step-title">王牌柱体系（官方版·优先级搜索·基柱自适应）</div>
                 <div class="step-content">
                     <div class="grid-2">
                         
             <div class="grid-item" style="border:2px solid #60a5fa;">
                 <div class="label">将军柱</div>
-                <div class="value" style="color:#60a5fa;">2026-08-31</div>
+                <div class="value" style="color:#60a5fa;">2026-08-27</div>
             </div>
             
                         <div class="grid-item">
                             <div class="label">黄金线（基柱最低价）</div>
-                            <div class="value">46.00</div>
+                            <div class="value">45.68</div>
                         </div>
                         
             <div class="grid-item" style="border:2px solid #a78bfa;">
@@ -952,7 +954,7 @@
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 精准线46.83元（11个点）：当前在<strong>上方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 20日高量柱安全线48.48元：当前在<strong>下方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 平衡线46.84元：当前在<strong>上方</strong></p>
-                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 将军柱黄金线46.00元：当前在<strong>上方</strong></p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 将军柱黄金线45.68元：当前在<strong>上方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 凹口线43.30元：当前在<strong>上方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>市场机理</strong>：峰顶线=上次卖方赢了的位置，现在变成压力位；谷底线=上次买方赢了的位置，现在变成支撑位。</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>量学依据</strong>：量线是多空双方的「记忆」。</p>
@@ -1045,7 +1047,7 @@
                     <div class="grid-2">
                         <div class="grid-item">
                             <div class="label">大阴实顶的量</div>
-                            <div class="value">平量</div>
+                            <div class="value">大量</div>
                         </div>
                         <div class="grid-item">
                             <div class="label">今日量柱形态</div>
@@ -1111,18 +1113,18 @@
             </div>
             
             <div class="step-section">
-                <div class="step-title">王牌柱体系（官方版）</div>
+                <div class="step-title">王牌柱体系（官方版·优先级搜索·基柱自适应）</div>
                 <div class="step-content">
                     <div class="grid-2">
                         
-            <div class="grid-item" style="border:2px solid #60a5fa;">
-                <div class="label">将军柱</div>
-                <div class="value" style="color:#60a5fa;">2026-09-10</div>
+            <div class="grid-item" style="border:2px solid #fbbf24;">
+                <div class="label">👑 元帅柱</div>
+                <div class="value" style="color:#fbbf24;">2026-08-13</div>
             </div>
             
                         <div class="grid-item">
                             <div class="label">黄金线（基柱最低价）</div>
-                            <div class="value">252.57</div>
+                            <div class="value">249.60</div>
                         </div>
                         
             <div class="grid-item" style="border:2px solid #a78bfa;">
@@ -1194,9 +1196,9 @@
             </div>
             <div style="margin-bottom: 12px; padding: 10px; background: #0f172a; border-radius: 8px; border-left: 3px solid #fbbf24;">
                 <div style="font-weight: bold; color: #fbbf24; margin-bottom: 6px; font-size: 13px;">【第二步】从上往下看——量的真假判断</div>
-                            <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">大阴实顶那天的成交量：平量。</p>
-                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>市场机理</strong>：那天的量和平时差不多，是正常调整。</p>
-                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>推导</strong>：大阴实顶那天是<strong>平量</strong>，说明那次下跌是正常调整。</p>
+                            <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">大阴实顶那天的成交量：大量。</p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>市场机理</strong>：那天多空双方真刀真枪干了一架，卖方放量砸盘。</p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>推导</strong>：大阴实顶那天是<strong>大量</strong>，说明上方的抛压是真实的。</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>量学依据</strong>：量是因，价是果。</p>
             </div>
             <div style="margin-bottom: 12px; padding: 10px; background: #0f172a; border-radius: 8px; border-left: 3px solid #fbbf24;">
@@ -1221,7 +1223,7 @@
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 20日峰顶线276.49元（2026-09-10）：当前在<strong>上方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 精准线255.66元（9个点）：当前在<strong>上方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 20日高量柱安全线268.38元：当前在<strong>上方</strong></p>
-                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 将军柱黄金线252.57元：当前在<strong>上方</strong></p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 元帅柱黄金线249.60元：当前在<strong>上方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 凹口线202.62元：当前在<strong>上方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>市场机理</strong>：峰顶线=上次卖方赢了的位置，现在变成压力位；谷底线=上次买方赢了的位置，现在变成支撑位。</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>量学依据</strong>：量线是多空双方的「记忆」。</p>
@@ -1231,8 +1233,9 @@
                             <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">把以上五步串起来：</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">1. 买方已经收复了大阴实顶，说明买方在这个区间占优</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">2. 从大阴实顶到今天，阳线多于阴线，说明买方在逐步推进</p>
-                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">3. 今天+2.52%，买方占优</p>
-                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">4. 当前在近120日中位</p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">3. 大阴实顶那天是大量，说明那次下跌是真出货</p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">4. 今天+2.52%，买方占优</p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">5. 当前在近120日中位</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>最终判断</strong>：当前价格在中位，买方占优，近3日涨跌+10.81%，近5日涨跌+8.87%。</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>注意</strong>：以上是基于量学理论的客观描述，不构成任何交易建议。</p>
             </div>
@@ -1319,7 +1322,7 @@
                         </div>
                         <div class="grid-item">
                             <div class="label">今日量柱形态</div>
-                            <div class="value">普通量柱</div>
+                            <div class="value">倍量柱</div>
                         </div>
                     </div>
                 </div>
@@ -1376,23 +1379,23 @@
             <div class="step-section">
                 <div class="step-title">📊 今日信号（25种涨停基因全）</div>
                 <div class="step-content">
-                    <span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">长腿踩线（精准线）</span><span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">假阴真阳</span><span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">地量群</span><span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">回踩精准线</span><span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">双剑霸天地</span>
+                    <span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">长腿踩线（精准线）</span><span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">假阴真阳</span><span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">地量群</span><span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">回踩精准线</span><span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">双剑霸天地</span><span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">倍量伸缩</span>
                 </div>
             </div>
             
             <div class="step-section">
-                <div class="step-title">王牌柱体系（官方版）</div>
+                <div class="step-title">王牌柱体系（官方版·优先级搜索·基柱自适应）</div>
                 <div class="step-content">
                     <div class="grid-2">
                         
-            <div class="grid-item" style="border:2px solid #60a5fa;">
-                <div class="label">将军柱</div>
-                <div class="value" style="color:#60a5fa;">2026-09-07</div>
+            <div class="grid-item" style="border:2px solid #fbbf24;">
+                <div class="label">👑 元帅柱</div>
+                <div class="value" style="color:#fbbf24;">2026-08-27</div>
             </div>
             
                         <div class="grid-item">
                             <div class="label">黄金线（基柱最低价）</div>
-                            <div class="value">64.60</div>
+                            <div class="value">62.00</div>
                         </div>
                         
             <div class="grid-item" style="border:2px solid #a78bfa;">
@@ -1491,7 +1494,7 @@
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 20日峰顶线66.88元（2026-09-07）：当前在<strong>下方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 精准线62.33元（12个点）：当前在<strong>上方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 20日高量柱安全线66.57元：当前在<strong>下方</strong></p>
-                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 将军柱黄金线64.60元：当前在<strong>下方</strong></p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 元帅柱黄金线62.00元：当前在<strong>上方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 凹口线62.85元：当前在<strong>下方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>市场机理</strong>：峰顶线=上次卖方赢了的位置，现在变成压力位；谷底线=上次买方赢了的位置，现在变成支撑位。</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>量学依据</strong>：量线是多空双方的「记忆」。</p>
@@ -1584,7 +1587,7 @@
                     <div class="grid-2">
                         <div class="grid-item">
                             <div class="label">大阴实顶的量</div>
-                            <div class="value">平量</div>
+                            <div class="value">大量</div>
                         </div>
                         <div class="grid-item">
                             <div class="label">今日量柱形态</div>
@@ -1645,23 +1648,23 @@
             <div class="step-section">
                 <div class="step-title">📊 今日信号（25种涨停基因全）</div>
                 <div class="step-content">
-                    <span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">长腿（未踩线）</span><span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">地量群</span><span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">价升量缩</span><span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">双剑霸天地</span><span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">三元连动</span>
+                    <span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">长腿（未踩线）</span><span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">地量群</span><span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">价升量缩</span><span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">双剑霸天地</span><span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">三元连动</span><span style="display:inline-block; background:#fbbf24; color:#000; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px;">倍量伸缩</span>
                 </div>
             </div>
             
             <div class="step-section">
-                <div class="step-title">王牌柱体系（官方版）</div>
+                <div class="step-title">王牌柱体系（官方版·优先级搜索·基柱自适应）</div>
                 <div class="step-content">
                     <div class="grid-2">
                         
-            <div class="grid-item" style="border:2px solid #60a5fa;">
-                <div class="label">将军柱</div>
-                <div class="value" style="color:#60a5fa;">2026-09-10</div>
+            <div class="grid-item" style="border:2px solid #fbbf24;">
+                <div class="label">⭐ 黄金柱</div>
+                <div class="value" style="color:#fbbf24;">2026-08-07</div>
             </div>
             
                         <div class="grid-item">
                             <div class="label">黄金线（基柱最低价）</div>
-                            <div class="value">24.80</div>
+                            <div class="value">27.10</div>
                         </div>
                         
             <div class="grid-item" style="border:2px solid #a78bfa;">
@@ -1733,9 +1736,9 @@
             </div>
             <div style="margin-bottom: 12px; padding: 10px; background: #0f172a; border-radius: 8px; border-left: 3px solid #fbbf24;">
                 <div style="font-weight: bold; color: #fbbf24; margin-bottom: 6px; font-size: 13px;">【第二步】从上往下看——量的真假判断</div>
-                            <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">大阴实顶那天的成交量：平量。</p>
-                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>市场机理</strong>：那天的量和平时差不多，是正常调整。</p>
-                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>推导</strong>：大阴实顶那天是<strong>平量</strong>，说明那次下跌是正常调整。</p>
+                            <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">大阴实顶那天的成交量：大量。</p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>市场机理</strong>：那天多空双方真刀真枪干了一架，卖方放量砸盘。</p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>推导</strong>：大阴实顶那天是<strong>大量</strong>，说明上方的抛压是真实的。</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>量学依据</strong>：量是因，价是果。</p>
             </div>
             <div style="margin-bottom: 12px; padding: 10px; background: #0f172a; border-radius: 8px; border-left: 3px solid #fbbf24;">
@@ -1761,7 +1764,7 @@
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 20日谷底线24.66元（2026-09-16）：当前在<strong>上方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 精准线27.26元（7个点）：当前在<strong>下方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 20日高量柱安全线28.10元：当前在<strong>下方</strong></p>
-                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 将军柱黄金线24.80元：当前在<strong>上方</strong></p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 黄金柱黄金线27.10元：当前在<strong>下方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 凹口线28.86元：当前在<strong>下方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>市场机理</strong>：峰顶线=上次卖方赢了的位置，现在变成压力位；谷底线=上次买方赢了的位置，现在变成支撑位。</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>量学依据</strong>：量线是多空双方的「记忆」。</p>
@@ -1770,8 +1773,9 @@
                 <div style="font-weight: bold; color: #fbbf24; margin-bottom: 6px; font-size: 13px;">【综合结论】逻辑闭环</div>
                             <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">把以上五步串起来：</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">1. 买方已经收复了大阴实顶，说明买方在这个区间占优</p>
-                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">2. 今天+2.16%，买方占优</p>
-                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">3. 当前在近120日低位</p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">2. 大阴实顶那天是大量，说明那次下跌是真出货</p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">3. 今天+2.16%，买方占优</p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">4. 当前在近120日低位</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>最终判断</strong>：当前价格在低位，买方占优，近3日涨跌+8.13%，近5日涨跌+0.19%。</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>注意</strong>：以上是基于量学理论的客观描述，不构成任何交易建议。</p>
             </div>
@@ -1854,7 +1858,7 @@
                     <div class="grid-2">
                         <div class="grid-item">
                             <div class="label">大阴实顶的量</div>
-                            <div class="value">平量</div>
+                            <div class="value">大量</div>
                         </div>
                         <div class="grid-item">
                             <div class="label">今日量柱形态</div>
@@ -1920,18 +1924,18 @@
             </div>
             
             <div class="step-section">
-                <div class="step-title">王牌柱体系（官方版）</div>
+                <div class="step-title">王牌柱体系（官方版·优先级搜索·基柱自适应）</div>
                 <div class="step-content">
                     <div class="grid-2">
                         
-            <div class="grid-item" style="border:2px solid #60a5fa;">
-                <div class="label">将军柱</div>
-                <div class="value" style="color:#60a5fa;">2026-09-07</div>
+            <div class="grid-item" style="border:2px solid #fbbf24;">
+                <div class="label">⭐ 黄金柱</div>
+                <div class="value" style="color:#fbbf24;">2026-08-06</div>
             </div>
             
                         <div class="grid-item">
                             <div class="label">黄金线（基柱最低价）</div>
-                            <div class="value">223.20</div>
+                            <div class="value">227.00</div>
                         </div>
                         
             <div class="grid-item" style="border:2px solid #a78bfa;">
@@ -2003,9 +2007,9 @@
             </div>
             <div style="margin-bottom: 12px; padding: 10px; background: #0f172a; border-radius: 8px; border-left: 3px solid #fbbf24;">
                 <div style="font-weight: bold; color: #fbbf24; margin-bottom: 6px; font-size: 13px;">【第二步】从上往下看——量的真假判断</div>
-                            <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">大阴实顶那天的成交量：平量。</p>
-                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>市场机理</strong>：那天的量和平时差不多，是正常调整。</p>
-                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>推导</strong>：大阴实顶那天是<strong>平量</strong>，说明那次下跌是正常调整。</p>
+                            <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">大阴实顶那天的成交量：大量。</p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>市场机理</strong>：那天多空双方真刀真枪干了一架，卖方放量砸盘。</p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>推导</strong>：大阴实顶那天是<strong>大量</strong>，说明上方的抛压是真实的。</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>量学依据</strong>：量是因，价是果。</p>
             </div>
             <div style="margin-bottom: 12px; padding: 10px; background: #0f172a; border-radius: 8px; border-left: 3px solid #fbbf24;">
@@ -2030,7 +2034,7 @@
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 20日峰顶线264.94元（2026-08-27）：当前在<strong>下方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 精准线343.13元（8个点）：当前在<strong>下方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 20日高量柱安全线255.68元：当前在<strong>下方</strong></p>
-                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 将军柱黄金线223.20元：当前在<strong>上方</strong></p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 黄金柱黄金线227.00元：当前在<strong>上方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 凹口线277.44元：当前在<strong>下方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>市场机理</strong>：峰顶线=上次卖方赢了的位置，现在变成压力位；谷底线=上次买方赢了的位置，现在变成支撑位。</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>量学依据</strong>：量线是多空双方的「记忆」。</p>
@@ -2039,8 +2043,9 @@
                 <div style="font-weight: bold; color: #fbbf24; margin-bottom: 6px; font-size: 13px;">【综合结论】逻辑闭环</div>
                             <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">把以上五步串起来：</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">1. 买方已经收复了大阴实顶，说明买方在这个区间占优</p>
-                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">2. 今天+1.86%，卖方占优</p>
-                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">3. 当前在近120日低位</p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">2. 大阴实顶那天是大量，说明那次下跌是真出货</p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">3. 今天+1.86%，卖方占优</p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">4. 当前在近120日低位</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>最终判断</strong>：当前价格在低位，卖方占优，近3日涨跌+0.44%，近5日涨跌-0.85%。</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>注意</strong>：以上是基于量学理论的客观描述，不构成任何交易建议。</p>
             </div>
@@ -2189,18 +2194,18 @@
             </div>
             
             <div class="step-section">
-                <div class="step-title">王牌柱体系（官方版）</div>
+                <div class="step-title">王牌柱体系（官方版·优先级搜索·基柱自适应）</div>
                 <div class="step-content">
                     <div class="grid-2">
                         
             <div class="grid-item" style="border:2px solid #60a5fa;">
                 <div class="label">将军柱</div>
-                <div class="value" style="color:#60a5fa;">2026-09-14</div>
+                <div class="value" style="color:#60a5fa;">2026-08-27</div>
             </div>
             
                         <div class="grid-item">
                             <div class="label">黄金线（基柱最低价）</div>
-                            <div class="value">82.53</div>
+                            <div class="value">89.26</div>
                         </div>
                         
             <div class="grid-item" style="border:2px solid #a78bfa;">
@@ -2267,7 +2272,7 @@
                 <div style="font-weight: bold; color: #fbbf24; margin-bottom: 6px; font-size: 13px;">【第一步】从右向左看——多空力量对比</div>
                             <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">从大阴实顶到今天：阳线6根、阴线12根，阴阳比0.50。</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>市场机理</strong>：每根K线都是多空一天的战斗结果。</p>
-                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>推导</strong>：阴阳比0.50，阴线明显多于阳线，说明卖方赢得更频繁。</p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>推导</strong>：阴阳比0.50，阴线明显多于阴线，说明卖方赢得更频繁。</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>量学依据</strong>：价柱的阴阳数量对比，是多空力量最直观的体现。</p>
             </div>
             <div style="margin-bottom: 12px; padding: 10px; background: #0f172a; border-radius: 8px; border-left: 3px solid #fbbf24;">
@@ -2301,7 +2306,7 @@
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 精准线98.85元（10个点）：当前在<strong>下方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 20日高量柱安全线98.74元：当前在<strong>下方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 平衡线98.74元：当前在<strong>下方</strong></p>
-                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 将军柱黄金线82.53元：当前在<strong>上方</strong></p>
+                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 将军柱黄金线89.26元：当前在<strong>下方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">• 凹口线106.50元：当前在<strong>下方</strong></p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>市场机理</strong>：峰顶线=上次卖方赢了的位置，现在变成压力位；谷底线=上次买方赢了的位置，现在变成支撑位。</p>
                 <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;"><strong>量学依据</strong>：量线是多空双方的「记忆」。</p>
