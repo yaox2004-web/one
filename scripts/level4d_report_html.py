@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-四维循环看盘法报告 - HTML版（含高量柱安全线/风险线）
+四维循环看盘法报告 - HTML版（含高量柱安全线/风险线日期）
 =================================================
 设计思路（为什么这样写）：
   按照四维循环看盘法步骤生成报告！
   ①从右向左找位置 ②从上往下看量柱 ③从左往右比量能 ④从下往上看量价
   ⑤和历史对比 ⑥全景总结
-  加高量柱的安全线和风险线！
+  加高量柱的安全线和风险线，并显示是哪一天的！
 
 量学理论来源：
   - 股海明灯（量学官网论坛）
@@ -328,13 +328,13 @@ def generate_html(stocks_data, today_str):
         mid_high_str = f"{stock['mid_high']:.2f}" if stock['mid_high'] else '-'
         mid_low_str = f"{stock['mid_low']:.2f}" if stock['mid_low'] else '-'
         
-        # 高量柱安全线/风险线字符串
-        safe_20_str = f"{stock['safe_20']:.2f}" if stock['safe_20'] else '-'
-        risk_20_str = f"{stock['risk_20']:.2f}" if stock['risk_20'] else '-'
-        safe_60_str = f"{stock['safe_60']:.2f}" if stock['safe_60'] else '-'
-        risk_60_str = f"{stock['risk_60']:.2f}" if stock['risk_60'] else '-'
-        safe_120_str = f"{stock['safe_120']:.2f}" if stock['safe_120'] else '-'
-        risk_120_str = f"{stock['risk_120']:.2f}" if stock['risk_120'] else '-'
+        # 高量柱安全线/风险线字符串（带日期）
+        safe_20_str = f"{stock['safe_20']:.2f}（{stock['date_20']}）" if stock['safe_20'] else '-'
+        risk_20_str = f"{stock['risk_20']:.2f}（{stock['date_20']}）" if stock['risk_20'] else '-'
+        safe_60_str = f"{stock['safe_60']:.2f}（{stock['date_60']}）" if stock['safe_60'] else '-'
+        risk_60_str = f"{stock['risk_60']:.2f}（{stock['date_60']}）" if stock['risk_60'] else '-'
+        safe_120_str = f"{stock['safe_120']:.2f}（{stock['date_120']}）" if stock['safe_120'] else '-'
+        risk_120_str = f"{stock['risk_120']:.2f}（{stock['date_120']}）" if stock['risk_120'] else '-'
         
         item_html = f"""
         <div class="stock-card">
@@ -580,7 +580,7 @@ def generate_html(stocks_data, today_str):
             font-size: 13px; 
         }}
         .grid-item .label {{ color: #94a3b8; font-size: 11px; }}
-        .grid-item .value {{ font-weight: bold; color: #e2e8f0; }}
+        .grid-item .value {{ font-weight: bold; color: #e2e8f0; font-size: 12px; }}
         
         .summary-box {{
             background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
@@ -596,7 +596,7 @@ def generate_html(stocks_data, today_str):
         <div class="header">
             <h1>四维循环看盘报告</h1>
             <div class="date">{today_str}</div>
-            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">四维循环看盘 + 高量柱安全线/风险线</div>
+            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">四维循环看盘 + 高量柱安全线/风险线（带日期）</div>
         </div>
         
         {''.join(items)}
@@ -613,7 +613,7 @@ def generate_html(stocks_data, today_str):
 # ============================================================
 def main():
     print("=" * 60)
-    print("四维循环看盘报告 - HTML版（含高量柱安全线/风险线）")
+    print("四维循环看盘报告 - HTML版（含高量柱安全线/风险线日期）")
     print("=" * 60)
     
     stocks_data = []
