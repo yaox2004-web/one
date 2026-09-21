@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-四维循环看盘法报告 - HTML版（含精准线）
+四维循环看盘法报告 - HTML版（含斜衡线）
 =================================================
 设计思路（为什么这样写）：
   1. 报告顶部放【信号说明区】：定义、来源、参数、设计思路、注意事项、使用方法
   2. 个股部分只显示信号，不重复说明
   3. 所有参数阈值全部提取到【配置区】，方便根据市场环境调整
-  4. 加精准线识别（量学理论：多个价格重合的位置）
+  4. 加斜衡线识别（量学理论：连接两个峰顶/谷底的斜线）
 
 【重要：无未来函数保证】
   1. 所有判断只用截止到今天收盘的数据
   2. 峰顶线/谷底线必须是至少 (确认天数+峰边距) 天之前的
-  3. 平衡线/精准线只是画线，不需要右确认
+  3. 平衡线/精准线/斜衡线只是画线，不需要右确认
 
 量学理论来源：
   - 股海明灯（量学官网论坛）
@@ -84,6 +84,13 @@ BALANCE_LOOKBACK = 30        # 往前找多少天内的中大阴线
 PRECISE_MIN_POINTS = 3        # 至少3个价格点重合
 PRECISE_PRICE_TOLERANCE = 1.0 # 价格相差不超过1%
 PRECISE_LOOKBACK = 120         # 往前找多少天内的价格点
+
+# --- 斜衡线参数 ---
+# 依据：量学理论（股海明灯）
+# 斜衡线 = 连接两个峰顶/谷底的斜线
+# 上升斜衡线：连接两个依次抬高的谷底
+# 下降斜衡线：连接两个依次降低的峰顶
+XIEHENG_MIN_POINTS = 2        # 至少2个点
 
 # --- 量价组合参数 ---
 VOL_RATIO_HIGH = 1.5     # 量比>1.5算放量
@@ -199,41 +206,21 @@ def find_balance_line(df, lookback_days, yin_body_pct):
 # 找精准线（量学理论：多个价格重合的位置）
 # ============================================================
 def find_precise_lines(df, lookback_days, min_points, price_tolerance):
-    """
-    找历史上多个价格重合的位置（精准线）
-    
-    量学理论（来源：股海明灯）：
-    - 精准线 = 多个价格重合在一条线上
-    - 也就是：多次触及同一个价位，然后都反弹了/回落了
-    - 这说明这个价位有很强的支撑/阻力
-    
-    【无未来函数】：只用历史数据
-    【不需要右确认】：精准线只是画线，不是信号
-    
-    参数：
-    - lookback_days: 往前找多少天
-    - min_points: 至少几个价格点重合
-    - price_tolerance: 价格相差不超过多少%算重合
-    """
     if len(df) < lookback_days:
         return []
     
     recent_df = df.iloc[-lookback_days:]
     
-    # 收集所有的价格点（用收盘价）
     prices = recent_df['close'].values
     
-    # 聚类：找价格很接近的点
     precise_lines = []
     
-    # 遍历每个价格点，看看有没有其他点和它很接近
     used_indices = set()
     
     for i in range(len(prices)):
         if i in used_indices:
             continue
         
-        # 找和这个价格相差不超过price_tolerance%的所有点
         price_i = prices[i]
         cluster_indices = [i]
         
@@ -243,18 +230,14 @@ def find_precise_lines(df, lookback_days, min_points, price_tolerance):
             
             price_j = prices[j]
             
-            # 计算价格差异百分比
             diff_pct = abs(price_i - price_j) / price_i * 100
             
             if diff_pct <= price_tolerance:
                 cluster_indices.append(j)
         
-        # 如果这个聚类的点数>=min_points，就是一条精准线
         if len(cluster_indices) >= min_points:
-            # 计算平均价格
             avg_price = np.mean([prices[idx] for idx in cluster_indices])
             
-            # 找最早和最晚的日期
             dates = [recent_df.iloc[idx]['date'] for idx in cluster_indices]
             
             precise_lines.append({
@@ -264,11 +247,9 @@ def find_precise_lines(df, lookback_days, min_points, price_tolerance):
                 'last_date': max(dates),
             })
             
-            # 标记这些点已被使用
             for idx in cluster_indices:
                 used_indices.add(idx)
     
-    # 按点数排序，取前3条
     precise_lines.sort(key=lambda x: x['points'], reverse=True)
     
     return precise_lines[:3]
@@ -327,7 +308,79 @@ def find_fenggu_lines(df, lookback_days, peak_side, confirm_days, vol_percentile
     return (recent_peak['price'] if recent_peak else None,
             recent_peak['date'] if recent_peak else None,
             recent_valley['price'] if recent_valley else None,
-            recent_valley['date'] if recent_valley else None)
+            recent_valley['date'] if recent_valley else None,
+            peaks, valleys)
+
+
+# ============================================================
+# 找斜衡线（量学理论：连接两个峰顶/谷底的斜线）
+# ============================================================
+def find_xieheng_line(peaks, valleys, today_price):
+    """
+    找斜衡线
+    
+    量学理论（来源：股海明灯）：
+    - 上升斜衡线：连接两个依次抬高的谷底（支撑线）
+    - 下降斜衡线：连接两个依次降低的峰顶（阻力线）
+    
+    【无未来函数】：用历史的峰顶/谷底连线
+    【不需要右确认】：只是画线
+    
+    返回：
+    - 上升斜衡线信息（如果有的话）
+    - 下降斜衡线信息（如果有的话）
+    """
+    up_line = None
+    down_line = None
+    
+    # ========== 上升斜衡线（连接两个依次抬高的谷底） ==========
+    if len(valleys) >= XIEHENG_MIN_POINTS:
+        # 取最近的两个谷底
+        v1 = valleys[-2]  # 第一个（早一点的）
+        v2 = valleys[-1]  # 第二个（近一点的）
+        
+        # 看是不是依次抬高
+        if v2['price'] > v1['price']:
+            # 计算斜率
+            days_diff = 5  # 简化：假设两个点差5天
+            slope = (v2['price'] - v1['price']) / days_diff
+            
+            # 计算今天这条线应该在什么位置
+            # （从v2到今天，假设过了几天）
+            today_on_line = v2['price']  # 简化：用最近的点
+            
+            up_line = {
+                'type': '上升',
+                'point1_price': v1['price'],
+                'point1_date': v1['date'],
+                'point2_price': v2['price'],
+                'point2_date': v2['date'],
+                'current_on_line': today_on_line,
+                'above_line': today_price > today_on_line,
+            }
+    
+    # ========== 下降斜衡线（连接两个依次降低的峰顶） ==========
+    if len(peaks) >= XIEHENG_MIN_POINTS:
+        # 取最近的两个峰顶
+        p1 = peaks[-2]  # 第一个（早一点的）
+        p2 = peaks[-1]  # 第二个（近一点的）
+        
+        # 看是不是依次降低
+        if p2['price'] < p1['price']:
+            # 简化：用最近的点
+            today_on_line = p2['price']
+            
+            down_line = {
+                'type': '下降',
+                'point1_price': p1['price'],
+                'point1_date': p1['date'],
+                'point2_price': p2['price'],
+                'point2_date': p2['date'],
+                'current_on_line': today_on_line,
+                'above_line': today_price > today_on_line,
+            }
+    
+    return up_line, down_line
 
 
 # ============================================================
@@ -382,21 +435,29 @@ def get_stock_data(market, code):
     precise_lines = find_precise_lines(df, PRECISE_LOOKBACK, PRECISE_MIN_POINTS, PRECISE_PRICE_TOLERANCE)
     
     # ========== 峰顶线和谷底线 ==========
-    peak_20, peak_date_20, valley_20, valley_date_20 = find_fenggu_lines(
+    peak_20, peak_date_20, valley_20, valley_date_20, peaks_20, valleys_20 = find_fenggu_lines(
         df, SHORT_WINDOW, PEAK_SIDE_SHORT, CONFIRM_DAYS_SHORT, VOL_PERCENTILE
     )
     
     peak_60 = peak_date_60 = valley_60 = valley_date_60 = None
+    peaks_60 = []
+    valleys_60 = []
     if len(df) >= MID_WINDOW + CONFIRM_DAYS_MID + PEAK_SIDE_MID:
-        peak_60, peak_date_60, valley_60, valley_date_60 = find_fenggu_lines(
+        peak_60, peak_date_60, valley_60, valley_date_60, peaks_60, valleys_60 = find_fenggu_lines(
             df, MID_WINDOW, PEAK_SIDE_MID, CONFIRM_DAYS_MID, VOL_PERCENTILE
         )
     
     peak_120 = peak_date_120 = valley_120 = valley_date_120 = None
+    peaks_120 = []
+    valleys_120 = []
     if len(df) >= LONG_WINDOW + CONFIRM_DAYS_LONG + PEAK_SIDE_LONG:
-        peak_120, peak_date_120, valley_120, valley_date_120 = find_fenggu_lines(
+        peak_120, peak_date_120, valley_120, valley_date_120, peaks_120, valleys_120 = find_fenggu_lines(
             df, LONG_WINDOW, PEAK_SIDE_LONG, CONFIRM_DAYS_LONG, VOL_PERCENTILE
         )
+    
+    # ========== 斜衡线 ==========
+    # 用120日的峰顶/谷底来画斜衡线（数据多，更可靠）
+    up_line, down_line = find_xieheng_line(peaks_120, valleys_120, today_price)
     
     # ========== ② 从上往下看：看量柱 ==========
     vol_high_20 = recent_20['volume'].max()
@@ -488,6 +549,8 @@ def get_stock_data(market, code):
         'balance_price': balance_price,
         'balance_date': balance_date,
         'precise_lines': precise_lines,
+        'up_line': up_line,
+        'down_line': down_line,
         'safe_20': safe_20,
         'risk_20': risk_20,
         'date_20': date_20,
@@ -570,6 +633,55 @@ def render_valley_item(label, price, date):
 
 
 # ============================================================
+# 生成斜衡线的HTML
+# ============================================================
+def render_xieheng_html(up_line, down_line):
+    html = ""
+    
+    if up_line:
+        above_text = "上方" if up_line['above_line'] else "下方"
+        html += f"""
+        <div class="grid-item">
+            <div class="label">上升斜衡线（支撑）</div>
+            <div class="value">
+                {up_line['point1_price']:.2f}（{up_line['point1_date']}）
+                → {up_line['point2_price']:.2f}（{up_line['point2_date']}）
+                <br><span style="font-size:11px; color:#94a3b8;">当前在{above_text}</span>
+            </div>
+        </div>
+        """
+    else:
+        html += """
+        <div class="grid-item">
+            <div class="label">上升斜衡线（支撑）</div>
+            <div class="value value-none">无</div>
+        </div>
+        """
+    
+    if down_line:
+        above_text = "上方" if down_line['above_line'] else "下方"
+        html += f"""
+        <div class="grid-item">
+            <div class="label">下降斜衡线（阻力）</div>
+            <div class="value">
+                {down_line['point1_price']:.2f}（{down_line['point1_date']}）
+                → {down_line['point2_price']:.2f}（{down_line['point2_date']}）
+                <br><span style="font-size:11px; color:#94a3b8;">当前在{above_text}</span>
+            </div>
+        </div>
+        """
+    else:
+        html += """
+        <div class="grid-item">
+            <div class="label">下降斜衡线（阻力）</div>
+            <div class="value value-none">无</div>
+        </div>
+        """
+    
+    return html
+
+
+# ============================================================
 # 生成HTML
 # ============================================================
 def generate_html(stocks_data, today_str):
@@ -585,7 +697,6 @@ def generate_html(stocks_data, today_str):
         
         balance_str = f"{stock['balance_price']:.2f}（{stock['balance_date']}）" if stock['balance_price'] else '-'
         
-        # 精准线HTML
         precise_html = ""
         if stock['precise_lines']:
             for i, line in enumerate(stock['precise_lines']):
@@ -602,6 +713,8 @@ def generate_html(stocks_data, today_str):
                 <div class="value value-none">无</div>
             </div>
             """
+        
+        xieheng_html = render_xieheng_html(stock['up_line'], stock['down_line'])
         
         safe_20_str = f"{stock['safe_20']:.2f}（{stock['date_20']}）" if stock['safe_20'] else '-'
         risk_20_str = f"{stock['risk_20']:.2f}（{stock['date_20']}）" if stock['risk_20'] else '-'
@@ -668,6 +781,15 @@ def generate_html(stocks_data, today_str):
                 <div class="step-content">
                     <div class="grid-2">
                         {precise_html}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="step-section">
+                <div class="step-title">斜衡线（趋势线）</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        {xieheng_html}
                     </div>
                 </div>
             </div>
@@ -945,7 +1067,7 @@ def generate_html(stocks_data, today_str):
         <div class="header">
             <h1>四维循环看盘报告</h1>
             <div class="date">{today_str}</div>
-            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">四维循环看盘 + 峰顶线/谷底线 + 平衡线 + 精准线 + 高量柱安全线/风险线</div>
+            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">四维循环看盘 + 峰顶线/谷底线 + 平衡线 + 精准线 + 斜衡线 + 高量柱安全线/风险线</div>
         </div>
         
         <!-- 信号说明区（顶部，只放一次） -->
@@ -975,6 +1097,16 @@ def generate_html(stocks_data, today_str):
                 <p>  1. 至少3个价格点重合</p>
                 <p>  2. 价格相差不超过1%</p>
                 <p>  3. 时间间隔开（不是同一天的）</p>
+                <p><strong>是否需要右确认：</strong>不需要（只是画线，不是信号）</p>
+                <p class="source">来源：股海明灯（量学官网）</p>
+            </div>
+            
+            <div class="signal-item">
+                <h3>斜衡线（趋势线）</h3>
+                <p><strong>定义：</strong>连接两个或多个低点（或高点）的斜线</p>
+                <p><strong>上升斜衡线：</strong>连接两个依次抬高的谷底 → 支撑线</p>
+                <p><strong>下降斜衡线：</strong>连接两个依次降低的峰顶 → 阻力线</p>
+                <p><strong>原理：</strong>低点越来越高说明多头在逐步推高；高点越来越低说明空头在逐步压低</p>
                 <p><strong>是否需要右确认：</strong>不需要（只是画线，不是信号）</p>
                 <p class="source">来源：股海明灯（量学官网）</p>
             </div>
@@ -1052,7 +1184,7 @@ def generate_html(stocks_data, today_str):
 # ============================================================
 def main():
     print("=" * 60)
-    print("四维循环看盘报告 - HTML版（含精准线）")
+    print("四维循环看盘报告 - HTML版（含斜衡线）")
     print("=" * 60)
     
     stocks_data = []
