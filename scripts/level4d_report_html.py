@@ -1,31 +1,23 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-四维循环看盘法报告 - HTML版（修复未来函数）
+四维循环看盘法报告 - HTML版（参数全配置版）
 =================================================
 设计思路（为什么这样写）：
   按照四维循环看盘法步骤生成报告！
-  加高量柱的安全线和风险线（带日期）
-  加峰顶线/谷底线识别（多空双方博弈过的）
+  所有参数阈值全部提取到【配置区】，方便根据市场环境调整！
 
 【重要：无未来函数保证】
   1. 所有判断只用截止到今天收盘的数据
-  2. 峰顶线/谷底线必须是至少 (确认天数+5天) 之前的
-  3. 局部高点判断用的前后5天，都是历史数据
-  4. 右确认用的后N天，也都是历史数据（因为已经过去了）
-
-峰顶线/谷底识别逻辑（适配量化时代）：
-  1. 局部极值：前后各5天内最高/最低
-  2. 有量配合：近N天前30%以上
-  3. 右确认：
-     - 短期(20日)：3天确认
-     - 中期(60日)：5天确认
-     - 长期(120日)：10天确认
+  2. 峰顶线/谷底线必须是至少 (确认天数+峰边距) 天之前的
+  3. 局部极值判断用的左右各N根K线，都是历史数据
+  4. 右确认用的后N天，也都是历史数据（已经过去了）
 
 量学理论来源：
   - 股海明灯（量学官网论坛）
   - 《量柱擒涨停》黑马王子著
   - 《量线捉涨停》黑马王子著
+  - 比尔·威廉姆斯分形指标（Fractals）标准：5根K线
 """
 
 import json
@@ -34,11 +26,14 @@ import numpy as np
 from pathlib import Path
 
 # ============================================================
-# 配置
+# 【配置区】所有参数阈值都在这里，方便调整！
 # ============================================================
+
+# --- 文件路径配置 ---
 DATA_DIR = Path(__file__).parent.parent / "data" / "kline"
 OUTPUT_DIR = Path(__file__).parent.parent / "data" / "analysis"
 
+# --- 持仓股配置 ---
 HOLDINGS = [
     ("sh", "600584"),  # 长电科技
     ("sz", "002156"),  # 通富微电
@@ -49,6 +44,42 @@ HOLDINGS = [
     ("sz", "300476"),  # 胜宏科技
     ("sh", "603516"),  # 淳中科技
 ]
+
+# --- 周期配置 ---
+SHORT_WINDOW = 20    # 短期窗口（交易日）
+MID_WINDOW = 60      # 中期窗口（交易日）
+LONG_WINDOW = 120    # 长期窗口（交易日）
+
+# --- 峰顶线/谷底线识别参数（适配量化时代） ---
+# 依据：比尔·威廉姆斯分形指标标准 + 量学理论 + 量化时代调整
+
+# 峰边距：局部极值左右各几根K线
+PEAK_SIDE_SHORT = 2    # 短期(20日)：左右各2根 → 共5根（标准分形）
+PEAK_SIDE_MID = 2      # 中期(60日)：左右各2根 → 共5根（标准分形）
+PEAK_SIDE_LONG = 3     # 长期(120日)：左右各3根 → 共7根（更严格）
+
+# 右确认天数：之后多少天没突破才算确认
+CONFIRM_DAYS_SHORT = 3  # 短期：3天确认
+CONFIRM_DAYS_MID = 5    # 中期：5天确认
+CONFIRM_DAYS_LONG = 10  # 长期：10天确认
+
+# 量能要求：前百分之多少以上才算有量
+VOL_PERCENTILE = 0.7    # 前30%以上（= 70%分位数）
+
+# --- 高量柱安全线/风险线参数 ---
+BODY_RATIO_THRESHOLD = 0.6  # 实体占比超过60%取实体顶底，否则取K线最高最低
+
+# --- 量价组合参数 ---
+VOL_RATIO_HIGH = 1.5     # 量比>1.5算放量
+VOL_RATIO_LOW = 0.7      # 量比<0.7算缩量
+
+# --- 位置分位参数 ---
+POSITION_HIGH = 70        # 位置>70%算高位
+POSITION_LOW = 30         # 位置<30%算低位
+
+# --- 量能位置参数 ---
+VOL_POS_HIGH = 80         # 量能位置>80%算天量
+VOL_POS_LOW = 20          # 量能位置<20%算地量
 
 
 # ============================================================
@@ -115,7 +146,8 @@ def find_gaoliang_lines(recent_df):
     
     body_ratio = body_size / total_range
     
-    if body_ratio > 0.6:
+    # 【参数】实体占比超过阈值取实体顶底，否则取K线最高最低
+    if body_ratio > BODY_RATIO_THRESHOLD:
         safe_line = max(open_price, close_price)
         risk_line = min(open_price, close_price)
         line_type = "实体"
@@ -130,49 +162,54 @@ def find_gaoliang_lines(recent_df):
 # ============================================================
 # 找峰顶线和谷底线（多空双方博弈过的）
 # ============================================================
-def find_fenggu_lines(df, lookback_days, confirm_days):
+def find_fenggu_lines(df, lookback_days, peak_side, confirm_days, vol_percentile):
     """
     找最近lookback_days内的峰顶线和谷底线
     
     【无未来函数保证】：
     - 只看截止到今天的数据
-    - 峰顶线/谷底线必须是至少 (confirm_days + 5) 天之前的
-    - 局部高点判断用的前后5天，都是历史数据
+    - 峰顶线/谷底线必须是至少 (confirm_days + peak_side) 天之前的
+    - 局部极值判断用的左右各peak_side根K线，都是历史数据
     - 右确认用的后confirm_days天，也都是历史数据（已经过去了）
     
     识别条件：
-    1. 局部极值：前后各5天内最高/最低
-    2. 有量配合：近lookback_days天前30%以上
+    1. 局部极值：左右各peak_side根K线内最高/最低
+    2. 有量配合：近lookback_days天前(1-vol_percentile)*100%以上
     3. 右确认：之后confirm_days天都没突破/跌破
+    
+    参数：
+    - lookback_days: 回看多少天
+    - peak_side: 峰边距（左右各几根K线）
+    - confirm_days: 右确认天数
+    - vol_percentile: 量能分位要求（如0.7表示前30%以上）
     """
-    # 至少需要：lookback_days + confirm_days + 5 天数据
-    # 因为：要找lookback_days内的峰顶线，还要留confirm_days天做右确认，还要留5天做局部高点判断
-    min_required = lookback_days + confirm_days + 5
+    # 至少需要：lookback_days + confirm_days + peak_side 天数据
+    min_required = lookback_days + confirm_days + peak_side
     if len(df) < min_required:
         return None, None, None, None
     
     recent_df = df.iloc[-lookback_days:]
     
-    # 计算量能分位（前30%以上）
-    vol_threshold = recent_df['volume'].quantile(0.7)
+    # 计算量能分位
+    vol_threshold = recent_df['volume'].quantile(vol_percentile)
     
     peaks = []  # 峰顶线
     valleys = []  # 谷底线
     
     # 【关键】：i的范围要保证：
-    # 1. i-5 >= 0（前面有5天）
-    # 2. i+5 <= len(recent_df)（后面有5天，用来判断局部高点）
+    # 1. i-peak_side >= 0（前面有peak_side根）
+    # 2. i+peak_side <= len(recent_df)（后面有peak_side根，用来判断局部极值）
     # 3. i+confirm_days <= len(recent_df)（后面有confirm_days天，用来右确认）
     # 4. 这些都是历史数据，没有未来函数！
     
-    start = 5  # 前面至少5天
-    end = len(recent_df) - max(5, confirm_days)  # 后面至少max(5, confirm_days)天
+    start = peak_side  # 前面至少peak_side根
+    end = len(recent_df) - max(peak_side, confirm_days)  # 后面至少max(peak_side, confirm_days)天
     
     for i in range(start, end):
         row = recent_df.iloc[i]
         
-        # 检查局部高点（前后各5天内最高）
-        window = recent_df.iloc[i-5:i+6]
+        # 检查局部高点（左右各peak_side根内最高）
+        window = recent_df.iloc[i-peak_side:i+peak_side+1]
         is_local_high = row['high'] == window['high'].max()
         is_local_low = row['low'] == window['low'].min()
         
@@ -229,17 +266,17 @@ def get_stock_data(market, code):
     pct_chg = (today['close'] - yesterday['close']) / yesterday['close'] * 100
     
     # ========== ① 从右向左看：找位置 ==========
-    recent_20 = df.iloc[-20:]
+    recent_20 = df.iloc[-SHORT_WINDOW:]
     recent_high = recent_20['high'].max()
     recent_low = recent_20['low'].min()
     
-    recent_60 = df.iloc[-60:] if len(df) > 60 else None
+    recent_60 = df.iloc[-MID_WINDOW:] if len(df) > MID_WINDOW else None
     mid_high = mid_low = None
     if recent_60 is not None:
         mid_high = recent_60['high'].max()
         mid_low = recent_60['low'].min()
     
-    recent_120 = df.iloc[-120:] if len(df) > 120 else None
+    recent_120 = df.iloc[-LONG_WINDOW:] if len(df) > LONG_WINDOW else None
     long_high = long_low = None
     if recent_120 is not None:
         long_high = recent_120['high'].max()
@@ -257,19 +294,22 @@ def get_stock_data(market, code):
         safe_120, risk_120, type_120, date_120 = find_gaoliang_lines(recent_120)
     
     # ========== 峰顶线和谷底线（多空博弈过的） ==========
-    # 短期(20日)：3天确认
-    # 【无未来函数】：只用历史数据
-    peak_20, peak_date_20, valley_20, valley_date_20 = find_fenggu_lines(df, 20, 3)
+    # 【参数全配置】：所有参数都从配置区取
+    peak_20, peak_date_20, valley_20, valley_date_20 = find_fenggu_lines(
+        df, SHORT_WINDOW, PEAK_SIDE_SHORT, CONFIRM_DAYS_SHORT, VOL_PERCENTILE
+    )
     
-    # 中期(60日)：5天确认
     peak_60 = peak_date_60 = valley_60 = valley_date_60 = None
-    if len(df) >= 70:
-        peak_60, peak_date_60, valley_60, valley_date_60 = find_fenggu_lines(df, 60, 5)
+    if len(df) >= MID_WINDOW + CONFIRM_DAYS_MID + PEAK_SIDE_MID:
+        peak_60, peak_date_60, valley_60, valley_date_60 = find_fenggu_lines(
+            df, MID_WINDOW, PEAK_SIDE_MID, CONFIRM_DAYS_MID, VOL_PERCENTILE
+        )
     
-    # 长期(120日)：10天确认
     peak_120 = peak_date_120 = valley_120 = valley_date_120 = None
-    if len(df) >= 135:
-        peak_120, peak_date_120, valley_120, valley_date_120 = find_fenggu_lines(df, 120, 10)
+    if len(df) >= LONG_WINDOW + CONFIRM_DAYS_LONG + PEAK_SIDE_LONG:
+        peak_120, peak_date_120, valley_120, valley_date_120 = find_fenggu_lines(
+            df, LONG_WINDOW, PEAK_SIDE_LONG, CONFIRM_DAYS_LONG, VOL_PERCENTILE
+        )
     
     # ========== ② 从上往下看：看量柱 ==========
     vol_high_20 = recent_20['volume'].max()
@@ -297,13 +337,14 @@ def get_stock_data(market, code):
     # ========== ④ 从下往上看：看量价 ==========
     is_yang = today['close'] > today['open']
     
-    if is_yang and vol_ratio_yesterday > 1.5:
+    # 【参数】量价组合判断用配置区的阈值
+    if is_yang and vol_ratio_yesterday > VOL_RATIO_HIGH:
         vol_price = "放量涨"
-    elif is_yang and vol_ratio_yesterday < 0.7:
+    elif is_yang and vol_ratio_yesterday < VOL_RATIO_LOW:
         vol_price = "缩量涨"
-    elif not is_yang and vol_ratio_yesterday > 1.5:
+    elif not is_yang and vol_ratio_yesterday > VOL_RATIO_HIGH:
         vol_price = "放量跌"
-    elif not is_yang and vol_ratio_yesterday < 0.7:
+    elif not is_yang and vol_ratio_yesterday < VOL_RATIO_LOW:
         vol_price = "缩量跌"
     else:
         vol_price = "平量整理"
@@ -323,16 +364,19 @@ def get_stock_data(market, code):
     
     # ========== ⑥ 全景总结 ==========
     pos_120 = (today_price - long_low) / (long_high - long_low) * 100 if long_high else 50
-    if pos_120 > 70:
+    
+    # 【参数】位置分位判断用配置区的阈值
+    if pos_120 > POSITION_HIGH:
         pos_status = "高位"
-    elif pos_120 < 30:
+    elif pos_120 < POSITION_LOW:
         pos_status = "低位"
     else:
         pos_status = "中位"
     
-    if vol_pos_20 > 80:
+    # 【参数】量能位置判断用配置区的阈值
+    if vol_pos_20 > VOL_POS_HIGH:
         vol_status = "天量"
-    elif vol_pos_20 < 20:
+    elif vol_pos_20 < VOL_POS_LOW:
         vol_status = "地量"
     else:
         vol_status = "正常"
@@ -734,7 +778,7 @@ def generate_html(stocks_data, today_str):
         <div class="header">
             <h1>四维循环看盘报告</h1>
             <div class="date">{today_str}</div>
-            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">四维循环看盘 + 峰顶线/谷底线 + 高量柱安全线/风险线（无未来函数）</div>
+            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">四维循环看盘 + 峰顶线/谷底线 + 高量柱安全线/风险线（参数全配置版）</div>
         </div>
         
         {''.join(items)}
@@ -751,7 +795,7 @@ def generate_html(stocks_data, today_str):
 # ============================================================
 def main():
     print("=" * 60)
-    print("四维循环看盘报告 - HTML版（无未来函数）")
+    print("四维循环看盘报告 - HTML版（参数全配置版）")
     print("=" * 60)
     
     stocks_data = []
