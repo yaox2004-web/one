@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-四维循环看盘法报告 - HTML版（峰顶谷底缺失分开说明）
+四维循环看盘法报告 - HTML版（含寻顶寻底逻辑说明）
 =================================================
 设计思路（为什么这样写）：
   按照四维循环看盘法步骤生成报告！
   所有参数阈值全部提取到【配置区】，方便根据市场环境调整！
   没有峰顶线/谷底线的时候，分开说明原因和逻辑！
+  加上寻顶寻底对应的强弱判断逻辑！
 
 【重要：无未来函数保证】
   1. 所有判断只用截止到今天收盘的数据
@@ -463,15 +464,15 @@ def render_peak_item(label, price, date):
     """
     生成峰顶线的HTML
     如果有，显示价格和日期
-    如果没有，说明原因和逻辑（没有峰顶 = 空军还没组织起有效反击）
+    如果没有，说明原因和逻辑（没有峰顶 = 空军还没组织起有效反击 = 偏强）
     """
     if price is not None and date is not None:
         value = f"{price:.2f}（{date}）"
         value_class = "value"
     else:
-        # 没有峰顶线 = 空军还没组织起有效反击，还在寻顶
-        value = "无（寻顶中）"
-        value_class = "value value-none"
+        # 没有峰顶线 = 空军还没组织起有效反击，还在寻顶 = 偏强
+        value = "无（寻顶中·偏强）"
+        value_class = "value value-none value-strong"
     
     return f"""
     <div class="grid-item">
@@ -485,15 +486,15 @@ def render_valley_item(label, price, date):
     """
     生成谷底线的HTML
     如果有，显示价格和日期
-    如果没有，说明原因和逻辑（没有谷底 = 多军还没组织起有效防守）
+    如果没有，说明原因和逻辑（没有谷底 = 多军还没组织起有效防守 = 偏弱）
     """
     if price is not None and date is not None:
         value = f"{price:.2f}（{date}）"
         value_class = "value"
     else:
-        # 没有谷底线 = 多军还没组织起有效防守，还在寻底
-        value = "无（寻底中）"
-        value_class = "value value-none"
+        # 没有谷底线 = 多军还没组织起有效防守，还在寻底 = 偏弱
+        value = "无（寻底中·偏弱）"
+        value_class = "value value-none value-weak"
     
     return f"""
     <div class="grid-item">
@@ -525,7 +526,7 @@ def generate_html(stocks_data, today_str):
         safe_120_str = f"{stock['safe_120']:.2f}（{stock['date_120']}）" if stock['safe_120'] else '-'
         risk_120_str = f"{stock['risk_120']:.2f}（{stock['date_120']}）" if stock['risk_120'] else '-'
         
-        # 峰顶线/谷底线（分开说明）
+        # 峰顶线/谷底线（分开说明，含强弱判断）
         peak_20_html = render_peak_item("20日峰顶线", stock['peak_20'], stock['peak_date_20'])
         valley_20_html = render_valley_item("20日谷底线", stock['valley_20'], stock['valley_date_20'])
         peak_60_html = render_peak_item("60日峰顶线", stock['peak_60'], stock['peak_date_60'])
@@ -582,8 +583,9 @@ def generate_html(stocks_data, today_str):
                     </div>
                     <div class="note-text" style="margin-top:8px; font-size:11px; color:#94a3b8;">
                         注：<br>
-                        "无（寻顶中）" = 没有经过右确认的峰顶，说明空军还没组织起有效反击<br>
-                        "无（寻底中）" = 没有经过右确认的谷底，说明多军还没组织起有效防守
+                        "无（寻顶中·偏强）" = 没有经过右确认的峰顶，空军还没组织起有效反击，说明偏强<br>
+                        "无（寻底中·偏弱）" = 没有经过右确认的谷底，多军还没组织起有效防守，说明偏弱<br>
+                        （以上为客观描述，不构成投资建议）
                     </div>
                 </div>
             </div>
@@ -799,6 +801,8 @@ def generate_html(stocks_data, today_str):
         .grid-item .label {{ color: #94a3b8; font-size: 11px; }}
         .grid-item .value {{ font-weight: bold; color: #e2e8f0; font-size: 12px; }}
         .grid-item .value-none {{ color: #94a3b8; font-weight: normal; font-size: 11px; }}
+        .grid-item .value-strong {{ color: #ef4444; font-weight: normal; font-size: 11px; }}
+        .grid-item .value-weak {{ color: #22c55e; font-weight: normal; font-size: 11px; }}
         
         .summary-box {{
             background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
@@ -831,7 +835,7 @@ def generate_html(stocks_data, today_str):
 # ============================================================
 def main():
     print("=" * 60)
-    print("四维循环看盘报告 - HTML版（峰顶谷底缺失分开说明）")
+    print("四维循环看盘报告 - HTML版（含寻顶寻底强弱判断）")
     print("=" * 60)
     
     stocks_data = []
