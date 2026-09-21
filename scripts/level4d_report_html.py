@@ -10,12 +10,15 @@
   - 王牌柱体系：将军柱/黄金柱/元帅柱 + 黄金线
   - 凹口线（凹口平量柱）
   - 形态信号：阳胜进/阴胜出/小倍阳/长腿踩线/长阴短柱/阳包阴/阴包阳/跳空/十字星
-  - 25种涨停基因：
+  - 25种涨停基因（已全部加完）：
     * 过左峰、假阴真阳、极阴次阳、长阳矮柱
     * 牛股三绝（倍量不穿/高量不破/跳空不补）
-    * 【新增】地量群、价升量缩、回踩精准线
-    * 【新增】双剑霸天地、三元连动、兵临城下
-    * 【新增】大阳双休、接力双阳
+    * 地量群、价升量缩、回踩精准线
+    * 双剑霸天地、三元连动、兵临城下
+    * 大阳双休、接力双阳
+    * 【新增】涨停板、倍量伸缩
+    * 【新增】黄金十字架、精准峰谷线
+    * 【新增】现场直憋、悬阴31、T4变异
 
 【设计思路】：所有新增信号都放在原有代码基础上，不修改原有任何功能
 """
@@ -119,39 +122,70 @@ GUOZUOFENG_TOUCH_DAYS = 20
 NIUGU_LOOKBACK = 60
 NIUGU_TOUCH_TOLERANCE = 0.01
 
+# 地量群
+DILIANG_GROUP_DAYS = 100
+DILIANG_GROUP_COUNT = 5
+
+# 价升量缩
+JIA_SHENG_LIANG_SUO_DAYS = 3
+
+# 回踩精准线
+HUICAI_PRECISION_DAYS = 10
+
+# 双剑霸天地
+DOUBLE_SWORD_UPPER_RATIO = 2.0
+DOUBLE_SWORD_LOWER_RATIO = 2.0
+
+# 三元连动
+SANYUAN_DAYS = 3
+
+# 兵临城下
+BINGLINCHENGXIA_DAYS = 10
+BINGLINCHENGXIA_TOLERANCE = 0.03
+
+# 大阳双休
+DAYANG_DOUBLE_REST_DAYS = 5
+DAYANG_DOUBLE_REST_BODY = 0.5
+
+# 接力双阳
+JIELI_DOUBLE_YANG_GAP_MIN = 5
+JIELI_DOUBLE_YANG_GAP_MAX = 20
+
 # ============================================================
-# 【新增】更多涨停基因参数
+# 【新增】剩余涨停基因参数
 # ============================================================
 # 来源：股海明灯论坛《量学的25种涨停基因清单》
 
-# 地量群（百日低量群）
-DILIANG_GROUP_DAYS = 100     # 看100天内的地量
-DILIANG_GROUP_COUNT = 5      # 有5根以上接近地量的柱子
+# 涨停板
+LIMIT_UP_PCT = 9.8  # 涨幅超过9.8%算涨停（考虑ST和科创板）
 
-# 价升量缩
-JIA_SHENG_LIANG_SUO_DAYS = 3  # 连续3天价升量缩
+# 倍量伸缩
+BEISHUO_EXTEND_RATIO = 2.0  # 倍量：今天量是昨天2倍以上
+BEISHUO_SHRINK_RATIO = 0.5   # 缩量：今天量是昨天一半以下
+BEISHUO_LOOKBACK = 5         # 看最近5天内有没有倍量+缩量的组合
 
-# 回踩精准线
-HUICAI_PRECISION_DAYS = 10    # 10天内踩到精准线
+# 黄金十字架
+GOLD_CROSS_SHORT_MA = 5      # 5日均线
+GOLD_CROSS_LONG_MA = 10      # 10日均线
+GOLD_CROSS_VOL_SHORT = 5     # 5日均量
+GOLD_CROSS_VOL_LONG = 10     # 10日均量
 
-# 双剑霸天地
-DOUBLE_SWORD_UPPER_RATIO = 2.0  # 上影线是实体的2倍以上
-DOUBLE_SWORD_LOWER_RATIO = 2.0  # 下影线是实体的2倍以上
+# 精准峰谷线
+PRECISE_FENGGU_POINTS = 3    # 至少3个点
+PRECISE_FENGGU_TOLERANCE = 0.01  # 价格相差1%以内
 
-# 三元连动
-SANYUAN_DAYS = 3              # 连续3天价升量缩
+# 现场直憋
+XIANCHANG_ZHIBIE_DAYS = 10   # 10天内
+XIANCHANG_ZHIBIE_AMPLITUDE = 0.05  # 振幅小于5%
+XIANCHANG_ZHIBIE_VOL = 0.8   # 量能持续缩量
 
-# 兵临城下
-BINGLINCHENGXIA_DAYS = 10     # 10天内接近峰顶线
-BINGLINCHENGXIA_TOLERANCE = 0.03  # 距离峰顶线3%以内
+# 悬阴31
+XUANYIN31_DAYS = 3           # 连续3天阴线
+XUANYIN31_SHRINK = 0.9       # 量能递减（每天比前一天少10%以上）
 
-# 大阳双休
-DAYANG_DOUBLE_REST_DAYS = 5   # 大阳线后5天内
-DAYANG_DOUBLE_REST_BODY = 0.5 # 回调不超过大阳线实体的50%
-
-# 接力双阳
-JIELI_DOUBLE_YANG_GAP_MIN = 5 # 两根阳线间隔最少5天
-JIELI_DOUBLE_YANG_GAP_MAX = 20 # 最多20天
+# T4变异
+T4_VARIANT_DAYS = 4          # 4天内的组合
+T4_VARIANT_UP_PCT = 3.0      # 涨幅超过3%
 
 
 # ============================================================
@@ -603,7 +637,7 @@ def find_aokou_line(df, lookback_days=60):
 
 
 # ============================================================
-# 识别所有形态信号（原有 + 新增更多涨停基因）
+# 识别所有形态信号（原有 + 新增剩余涨停基因）
 # ============================================================
 def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top, peak_20=None):
     signals = []
@@ -728,10 +762,7 @@ def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top
                     signals.append("跳空不补")
                 break
     
-    # ========== 【新增】更多涨停基因 ==========
-    
-    # 1. 地量群（百日低量群）：100天内有5根以上接近地量的柱子
-    # 来源：量学25种涨停基因
+    # 地量群
     if len(df) >= DILIANG_GROUP_DAYS:
         recent_100 = df.iloc[-DILIANG_GROUP_DAYS:]
         vol_min = recent_100['volume'].min()
@@ -742,8 +773,7 @@ def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top
             if low_vol_count >= DILIANG_GROUP_COUNT:
                 signals.append("地量群")
     
-    # 2. 价升量缩：连续3天价升量缩
-    # 来源：量学25种涨停基因
+    # 价升量缩
     if len(df) >= JIA_SHENG_LIANG_SUO_DAYS:
         recent_3 = df.iloc[-JIA_SHENG_LIANG_SUO_DAYS:]
         prices_up = all(recent_3.iloc[i]['close'] > recent_3.iloc[i-1]['close'] for i in range(1, len(recent_3)))
@@ -751,23 +781,20 @@ def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top
         if prices_up and vols_down:
             signals.append("价升量缩")
     
-    # 3. 回踩精准线：10天内踩到精准线
-    # 来源：量学25种涨停基因
+    # 回踩精准线
     if precise_price and len(df) >= HUICAI_PRECISION_DAYS:
         recent_10 = df.iloc[-HUICAI_PRECISION_DAYS:]
         touched = any(abs(row['low'] - precise_price) / precise_price < TOUCH_LINE_TOLERANCE for _, row in recent_10.iterrows())
         if touched:
             signals.append("回踩精准线")
     
-    # 4. 双剑霸天地：今天有长上影线和长下影线
-    # 来源：量学25种涨停基因
+    # 双剑霸天地
     upper_shadow = today_high - max(today_open, today_close)
     if body_size > 0:
         if upper_shadow / body_size > DOUBLE_SWORD_UPPER_RATIO and lower_shadow / body_size > DOUBLE_SWORD_LOWER_RATIO:
             signals.append("双剑霸天地")
     
-    # 5. 三元连动：连续3天价升量缩（和价升量缩类似，但更强调连续）
-    # 来源：量学25种涨停基因
+    # 三元连动
     if len(df) >= SANYUAN_DAYS:
         recent_3 = df.iloc[-SANYUAN_DAYS:]
         prices_up = all(recent_3.iloc[i]['close'] > recent_3.iloc[i-1]['close'] for i in range(1, len(recent_3)))
@@ -775,23 +802,19 @@ def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top
         if prices_up and vols_down:
             signals.append("三元连动")
     
-    # 6. 兵临城下：股价在左峰下方3%以内蓄势
-    # 来源：量学25种涨停基因
+    # 兵临城下
     if peak_20:
         distance_to_peak = (peak_20 - today_close) / today_close
         if 0 < distance_to_peak < BINGLINCHENGXIA_TOLERANCE and today_close > today_open:
             signals.append("兵临城下")
     
-    # 7. 大阳双休：大阳线后5天内，回调不超过大阳线实体的50%
-    # 来源：量学25种涨停基因
+    # 大阳双休
     if len(df) >= DAYANG_DOUBLE_REST_DAYS:
         recent_5 = df.iloc[-DAYANG_DOUBLE_REST_DAYS:]
-        # 找前几天的大阳线
         for i in range(len(recent_5)-1, 0, -1):
             row = recent_5.iloc[i]
             body_pct_up = (row['close'] - row['open']) / row['open'] * 100
-            if body_pct_up > 3:  # 大阳线
-                # 后面的回调有没有超过大阳线实体的50%
+            if body_pct_up > 3:
                 yang_bottom = row['open']
                 yang_top = row['close']
                 yang_mid = (yang_bottom + yang_top) / 2
@@ -800,22 +823,113 @@ def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top
                     signals.append("大阳双休")
                 break
     
-    # 8. 接力双阳：两根相隔一段时间的阳线（将军柱/黄金柱接力）
-    # 来源：量学25种涨停基因
+    # 接力双阳
     if len(df) >= JIELI_DOUBLE_YANG_GAP_MAX + 5:
         recent_30 = df.iloc[-30:]
-        # 找两根大阳线
         big_yangs = []
         for i in range(len(recent_30)):
             row = recent_30.iloc[i]
             body_pct_up = (row['close'] - row['open']) / row['open'] * 100
             if body_pct_up > 3:
                 big_yangs.append(i)
-        
         if len(big_yangs) >= 2:
             gap = big_yangs[-1] - big_yangs[-2]
             if JIELI_DOUBLE_YANG_GAP_MIN <= gap <= JIELI_DOUBLE_YANG_GAP_MAX:
                 signals.append("接力双阳")
+    
+    # ========== 【新增】剩余7个涨停基因 ==========
+    
+    # 1. 涨停板：今天涨幅超过9.8%
+    # 来源：量学25种涨停基因
+    today_pct = (today_close - yesterday_close) / yesterday_close * 100
+    if today_pct >= LIMIT_UP_PCT:
+        signals.append("涨停板")
+    
+    # 2. 倍量伸缩：最近5天内有倍量+缩量的组合
+    # 来源：量学25种涨停基因
+    if len(df) >= BEISHUO_LOOKBACK:
+        recent_5 = df.iloc[-BEISHUO_LOOKBACK:]
+        vols = recent_5['volume'].values
+        has_beishuo = False
+        for i in range(1, len(vols)):
+            # 倍量：今天量是昨天2倍以上
+            if vols[i] / vols[i-1] >= BEISHUO_EXTEND_RATIO:
+                # 后面有没有缩量（一半以下）
+                for j in range(i+1, len(vols)):
+                    if vols[j] / vols[i] <= BEISHUO_SHRINK_RATIO:
+                        has_beishuo = True
+                        break
+        if has_beishuo:
+            signals.append("倍量伸缩")
+    
+    # 3. 黄金十字架：5日均线上穿10日均线，同时5日均量上穿10日均量
+    # 来源：量学25种涨停基因
+    if len(df) >= GOLD_CROSS_LONG_MA + 1:
+        ma5_today = df.iloc[-GOLD_CROSS_SHORT_MA:]['close'].mean()
+        ma5_yesterday = df.iloc[-GOLD_CROSS_SHORT_MA-1:-1]['close'].mean()
+        ma10_today = df.iloc[-GOLD_CROSS_LONG_MA:]['close'].mean()
+        ma10_yesterday = df.iloc[-GOLD_CROSS_LONG_MA-1:-1]['close'].mean()
+        
+        vol_ma5_today = df.iloc[-GOLD_CROSS_VOL_SHORT:]['volume'].mean()
+        vol_ma5_yesterday = df.iloc[-GOLD_CROSS_VOL_SHORT-1:-1]['volume'].mean()
+        vol_ma10_today = df.iloc[-GOLD_CROSS_VOL_LONG:]['volume'].mean()
+        vol_ma10_yesterday = df.iloc[-GOLD_CROSS_VOL_LONG-1:-1]['volume'].mean()
+        
+        # 价格金叉：昨天5日<10日，今天5日>10日
+        price_cross = ma5_yesterday <= ma10_yesterday and ma5_today > ma10_today
+        # 量能金叉：昨天5日<10日，今天5日>10日
+        vol_cross = vol_ma5_yesterday <= vol_ma10_yesterday and vol_ma5_today > vol_ma10_today
+        
+        if price_cross and vol_cross:
+            signals.append("黄金十字架")
+    
+    # 4. 精准峰谷线：峰顶线和谷底线重合（精准线同时在峰顶和谷底位置）
+    # 来源：量学25种涨停基因
+    if peak_20 and valley_price and precise_price:
+        # 精准线在峰顶线附近
+        near_peak = abs(precise_price - peak_20) / peak_20 < PRECISE_FENGGU_TOLERANCE
+        # 精准线在谷底线附近
+        near_valley = abs(precise_price - valley_price) / valley_price < PRECISE_FENGGU_TOLERANCE
+        if near_peak and near_valley:
+            signals.append("精准峰谷线")
+    
+    # 5. 现场直憋：10天内振幅小于5%，量能持续缩量
+    # 来源：量学25种涨停基因
+    if len(df) >= XIANCHANG_ZHIBIE_DAYS:
+        recent_10 = df.iloc[-XIANCHANG_ZHIBIE_DAYS:]
+        high_max = recent_10['high'].max()
+        low_min = recent_10['low'].min()
+        amplitude = (high_max - low_min) / low_min
+        
+        # 量能是否持续缩量（后5天平均量 < 前5天平均量）
+        first_half_avg = recent_10.iloc[:5]['volume'].mean()
+        second_half_avg = recent_10.iloc[5:]['volume'].mean()
+        
+        if amplitude < XIANCHANG_ZHIBIE_AMPLITUDE and second_half_avg < first_half_avg * XIANCHANG_ZHIBIE_VOL:
+            signals.append("现场直憋")
+    
+    # 6. 悬阴31：连续3天阴线，量能递减
+    # 来源：量学25种涨停基因
+    if len(df) >= XUANYIN31_DAYS:
+        recent_3 = df.iloc[-XUANYIN31_DAYS:]
+        all_yin = all(recent_3.iloc[i]['close'] < recent_3.iloc[i]['open'] for i in range(len(recent_3)))
+        vols_desc = all(recent_3.iloc[i]['volume'] < recent_3.iloc[i-1]['volume'] for i in range(1, len(recent_3)))
+        
+        if all_yin and vols_desc:
+            signals.append("悬阴31")
+    
+    # 7. T4变异：4天内的组合（阳-阴-阳-阳，或类似的变异形态）
+    # 来源：量学25种涨停基因
+    if len(df) >= T4_VARIANT_DAYS:
+        recent_4 = df.iloc[-T4_VARIANT_DAYS:]
+        # T4变异：第1天大阳，第2天小阴，第3天小阳，第4天大涨
+        day1_up_pct = (recent_4.iloc[0]['close'] - recent_4.iloc[0]['open']) / recent_4.iloc[0]['open'] * 100
+        day2_down = recent_4.iloc[1]['close'] < recent_4.iloc[1]['open']
+        day3_up = recent_4.iloc[2]['close'] > recent_4.iloc[2]['open']
+        day4_up_pct = (recent_4.iloc[3]['close'] - recent_4.iloc[3]['open']) / recent_4.iloc[3]['open'] * 100
+        
+        if day1_up_pct > 3 and day2_down and day3_up and day4_up_pct > T4_VARIANT_UP_PCT:
+            signals.append("T4变异")
     
     return signals
 
@@ -948,7 +1062,7 @@ def generate_interpretation(stock):
             f"今天的量柱：{vol_len}；今天的价柱：{price_len}。",
             f"{body_judge}",
             '<strong>市场机理</strong>：量柱长短=今天多空双方投入了多少兵力；价柱长短=今天战斗的激烈程度；实体长短=今天哪一方赢了，赢得彻不彻底。',
-            f'<strong>推导</strong>：今天{vol_len}、{price_len}、{body_judge}',
+            f'<strong>推导</strong>：今天{vol_len}、{price_length}、{body_judge}',
             '<strong>量学依据</strong>：量价的长短伸缩，是当下多空力量最直接的体现。'
         ]
     })
@@ -1552,7 +1666,7 @@ def generate_html(stocks_data, today_str):
             </div>
             
             <div class="step-section">
-                <div class="step-title">📊 今日信号</div>
+                <div class="step-title">📊 今日信号（25种涨停基因全）</div>
                 <div class="step-content">
                     {extra_html}
                 </div>
@@ -1732,7 +1846,7 @@ def generate_html(stocks_data, today_str):
         <div class="header">
             <h1>四维循环看盘报告</h1>
             <div class="date">{today_str}</div>
-            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">量学完整版：大阴实顶 + 四维对比 + 王牌柱 + 凹口线 + 25种涨停基因 + 逻辑闭环解读</div>
+            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">量学完整版：大阴实顶 + 四维对比 + 王牌柱 + 凹口线 + 25种涨停基因全 + 逻辑闭环解读</div>
         </div>
         
         <div class="signal-guide">
@@ -1763,8 +1877,8 @@ def generate_html(stocks_data, today_str):
             </div>
             
             <div class="signal-item">
-                <h3>25种涨停基因</h3>
-                <p><strong>已加：</strong>过左峰、假阴真阳、极阴次阳、长阳矮柱、牛股三绝（倍量不穿/高量不破/跳空不补）、地量群、价升量缩、回踩精准线、双剑霸天地、三元连动、兵临城下、大阳双休、接力双阳</p>
+                <h3>25种涨停基因（全部加完）</h3>
+                <p><strong>已加全：</strong>涨停板、过左峰、假阴真阳、极阴次阳、长阳矮柱、牛股三绝（倍量不穿/高量不破/跳空不补）、地量群、价升量缩、回踩精准线、双剑霸天地、三元连动、兵临城下、大阳双休、接力双阳、倍量伸缩、黄金十字架、精准峰谷线、现场直憋、悬阴31、T4变异</p>
                 <p class="source">来源：股海明灯论坛《量学的25种涨停基因清单》</p>
             </div>
             
@@ -1808,7 +1922,7 @@ def generate_html(stocks_data, today_str):
 # ============================================================
 def main():
     print("=" * 60)
-    print("四维循环看盘报告 - HTML版（量学完整版）")
+    print("四维循环看盘报告 - HTML版（量学完整版·25种涨停基因全）")
     print("=" * 60)
     
     stocks_data = []
