@@ -25,6 +25,42 @@
         .header h1 { font-size: 24px; color: #fbbf24; margin-bottom: 8px; }
         .header .date { opacity: 0.8; font-size: 14px; }
         
+        .signal-guide {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #334155;
+        }
+        .signal-guide h2 {
+            font-size: 18px;
+            color: #fbbf24;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #334155;
+        }
+        .signal-item {
+            margin-bottom: 12px;
+            padding: 10px;
+            background: #0f172a;
+            border-radius: 8px;
+        }
+        .signal-item h3 {
+            font-size: 14px;
+            color: #60a5fa;
+            margin-bottom: 6px;
+        }
+        .signal-item p {
+            font-size: 12px;
+            color: #cbd5e1;
+            margin-bottom: 4px;
+        }
+        .signal-item .source {
+            font-size: 11px;
+            color: #94a3b8;
+            font-style: italic;
+        }
+        
         .stock-card { 
             background: #1e293b; 
             border-radius: 12px; 
@@ -65,6 +101,7 @@
         .step-content p { margin-bottom: 4px; }
         
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .grid-1 { display: grid; grid-template-columns: 1fr; gap: 8px; }
         .grid-item { 
             background: #0f172a; 
             padding: 8px; 
@@ -91,7 +128,85 @@
         <div class="header">
             <h1>四维循环看盘报告</h1>
             <div class="date">2026-09-18</div>
-            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">四维循环看盘 + 峰顶线/谷底线 + 高量柱安全线/风险线</div>
+            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">四维循环看盘 + 峰顶线/谷底线 + 平衡线 + 高量柱安全线/风险线</div>
+        </div>
+        
+        <!-- 信号说明区（顶部，只放一次） -->
+        <div class="signal-guide">
+            <h2>信号说明</h2>
+            
+            <div class="signal-item">
+                <h3>① 从右向左看：找位置</h3>
+                <p><strong>定义：</strong>从今天往左边看，找最近的高点和低点</p>
+                <p><strong>目的：</strong>看当前价格在什么位置</p>
+                <p><strong>使用方法：</strong>看当前价格离高点远还是低点远</p>
+            </div>
+            
+            <div class="signal-item">
+                <h3>平衡线（大阴实顶）</h3>
+                <p><strong>定义：</strong>股票下跌后，由其左侧中大阴线实体顶部向右侧画出的水平线</p>
+                <p><strong>原理：</strong>左侧大阴线顶部"实点"是多空双方上次休战的"警戒点"，下次争夺的"起动点"</p>
+                <p><strong>是否需要右确认：</strong>不需要（只是画线，不是信号）</p>
+                <p class="source">来源：股海明灯（量学官网）</p>
+            </div>
+            
+            <div class="signal-item">
+                <h3>峰顶线/谷底线（博弈过的）</h3>
+                <p><strong>定义：</strong>多空双方激烈博弈过的位置</p>
+                <p><strong>识别条件：</strong></p>
+                <p>  1. 局部极值：左右各N根K线内最高/最低（峰边距）</p>
+                <p>  2. 有量配合：近N天前30%以上</p>
+                <p>  3. 右确认：之后N天都没突破/跌破</p>
+                <p><strong>参数：</strong></p>
+                <p>  短期(20日)：左右各2根，3天确认</p>
+                <p>  中期(60日)：左右各2根，5天确认</p>
+                <p>  长期(120日)：左右各3根，10天确认</p>
+                <p><strong>无未来函数：</strong>所有判断只用截止到今天收盘的数据</p>
+                <p><strong>缺失说明：</strong></p>
+                <p>  - 无（寻顶中·偏强）= 空军还没组织起有效反击</p>
+                <p>  - 无（寻底中·偏弱）= 多军还没组织起有效防守</p>
+                <p class="source">来源：比尔·威廉姆斯分形指标 + 量学理论（股海明灯）</p>
+            </div>
+            
+            <div class="signal-item">
+                <h3>高量柱安全线/风险线</h3>
+                <p><strong>定义：</strong>高量柱对应的支撑/阻力线</p>
+                <p><strong>安全线：</strong>高量柱K线的顶部（支撑）</p>
+                <p><strong>风险线：</strong>高量柱K线的底部（阻力）</p>
+                <p><strong>取实取虚：</strong>实体占比>60%取实体顶底，否则取K线最高最低</p>
+                <p><strong>是否需要右确认：</strong>不需要（高量柱已经发生了）</p>
+                <p class="source">来源：量学理论（股海明灯）</p>
+            </div>
+            
+            <div class="signal-item">
+                <h3>② 从上往下看：看量柱</h3>
+                <p><strong>定义：</strong>从这个价柱对应的量柱往下看</p>
+                <p><strong>目的：</strong>看这个位置的量能大小</p>
+            </div>
+            
+            <div class="signal-item">
+                <h3>③ 从左往右看：比量能</h3>
+                <p><strong>定义：</strong>把左侧找到的量柱和今天的量柱对比</p>
+                <p><strong>目的：</strong>看量能是放大还是缩小</p>
+            </div>
+            
+            <div class="signal-item">
+                <h3>④ 从下往上看：看量价</h3>
+                <p><strong>定义：</strong>从今天的量柱往上看价柱</p>
+                <p><strong>目的：</strong>看量价配合关系</p>
+            </div>
+            
+            <div class="signal-item">
+                <h3>⑤ 和历史对比</h3>
+                <p><strong>定义：</strong>和左侧短中长期目标对比</p>
+                <p><strong>目的：</strong>看当前位置离历史高低点多远</p>
+            </div>
+            
+            <div class="signal-item">
+                <h3>⑥ 全景总结</h3>
+                <p><strong>定义：</strong>客观总结当前状态</p>
+                <p><strong>原则：</strong>客观描述，不做主观判断</p>
+            </div>
         </div>
         
         
@@ -104,7 +219,6 @@
                 <div class="stock-price price-up">73.00元 (+7.75%)</div>
             </div>
             
-            <!-- ① 从右向左看 -->
             <div class="step-section">
                 <div class="step-title">① 从右向左看：找位置</div>
                 <div class="step-content">
@@ -129,7 +243,18 @@
                 </div>
             </div>
             
-            <!-- 峰顶线/谷底线（多空博弈过的） -->
+            <div class="step-section">
+                <div class="step-title">平衡线（大阴实顶）</div>
+                <div class="step-content">
+                    <div class="grid-1">
+                        <div class="grid-item">
+                            <div class="label">最近平衡线（近30日）</div>
+                            <div class="value">71.39（2026-09-04）</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <div class="step-section">
                 <div class="step-title">峰顶线/谷底线（博弈过的）</div>
                 <div class="step-content">
@@ -171,16 +296,9 @@
     </div>
     
                     </div>
-                    <div class="note-text" style="margin-top:8px; font-size:11px; color:#94a3b8;">
-                        注：<br>
-                        "无（寻顶中·偏强）" = 没有经过右确认的峰顶，空军还没组织起有效反击，说明偏强<br>
-                        "无（寻底中·偏弱）" = 没有经过右确认的谷底，多军还没组织起有效防守，说明偏弱<br>
-                        （以上为客观描述，不构成投资建议）
-                    </div>
                 </div>
             </div>
             
-            <!-- 高量柱安全线/风险线 -->
             <div class="step-section">
                 <div class="step-title">高量柱安全线/风险线</div>
                 <div class="step-content">
@@ -213,7 +331,6 @@
                 </div>
             </div>
             
-            <!-- ② 从上往下看 -->
             <div class="step-section">
                 <div class="step-title">② 从上往下看：看量柱</div>
                 <div class="step-content">
@@ -238,7 +355,6 @@
                 </div>
             </div>
             
-            <!-- ③ 从左往右看 -->
             <div class="step-section">
                 <div class="step-title">③ 从左往右看：比量能</div>
                 <div class="step-content">
@@ -263,7 +379,6 @@
                 </div>
             </div>
             
-            <!-- ④ 从下往上看 -->
             <div class="step-section">
                 <div class="step-title">④ 从下往上看：看量价</div>
                 <div class="step-content">
@@ -280,7 +395,6 @@
                 </div>
             </div>
             
-            <!-- ⑤ 和历史对比 -->
             <div class="step-section">
                 <div class="step-title">⑤ 和历史对比</div>
                 <div class="step-content">
@@ -299,7 +413,6 @@
                 </div>
             </div>
             
-            <!-- ⑥ 全景总结 -->
             <div class="step-section">
                 <div class="step-title">⑥ 全景总结</div>
                 <div class="summary-box">
@@ -322,7 +435,6 @@
                 <div class="stock-price price-up">61.38元 (+5.26%)</div>
             </div>
             
-            <!-- ① 从右向左看 -->
             <div class="step-section">
                 <div class="step-title">① 从右向左看：找位置</div>
                 <div class="step-content">
@@ -347,7 +459,18 @@
                 </div>
             </div>
             
-            <!-- 峰顶线/谷底线（多空博弈过的） -->
+            <div class="step-section">
+                <div class="step-title">平衡线（大阴实顶）</div>
+                <div class="step-content">
+                    <div class="grid-1">
+                        <div class="grid-item">
+                            <div class="label">最近平衡线（近30日）</div>
+                            <div class="value">59.97（2026-09-04）</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <div class="step-section">
                 <div class="step-title">峰顶线/谷底线（博弈过的）</div>
                 <div class="step-content">
@@ -389,16 +512,9 @@
     </div>
     
                     </div>
-                    <div class="note-text" style="margin-top:8px; font-size:11px; color:#94a3b8;">
-                        注：<br>
-                        "无（寻顶中·偏强）" = 没有经过右确认的峰顶，空军还没组织起有效反击，说明偏强<br>
-                        "无（寻底中·偏弱）" = 没有经过右确认的谷底，多军还没组织起有效防守，说明偏弱<br>
-                        （以上为客观描述，不构成投资建议）
-                    </div>
                 </div>
             </div>
             
-            <!-- 高量柱安全线/风险线 -->
             <div class="step-section">
                 <div class="step-title">高量柱安全线/风险线</div>
                 <div class="step-content">
@@ -431,7 +547,6 @@
                 </div>
             </div>
             
-            <!-- ② 从上往下看 -->
             <div class="step-section">
                 <div class="step-title">② 从上往下看：看量柱</div>
                 <div class="step-content">
@@ -456,7 +571,6 @@
                 </div>
             </div>
             
-            <!-- ③ 从左往右看 -->
             <div class="step-section">
                 <div class="step-title">③ 从左往右看：比量能</div>
                 <div class="step-content">
@@ -481,7 +595,6 @@
                 </div>
             </div>
             
-            <!-- ④ 从下往上看 -->
             <div class="step-section">
                 <div class="step-title">④ 从下往上看：看量价</div>
                 <div class="step-content">
@@ -498,7 +611,6 @@
                 </div>
             </div>
             
-            <!-- ⑤ 和历史对比 -->
             <div class="step-section">
                 <div class="step-title">⑤ 和历史对比</div>
                 <div class="step-content">
@@ -517,7 +629,6 @@
                 </div>
             </div>
             
-            <!-- ⑥ 全景总结 -->
             <div class="step-section">
                 <div class="step-title">⑥ 全景总结</div>
                 <div class="summary-box">
@@ -540,7 +651,6 @@
                 <div class="stock-price price-up">47.36元 (+3.11%)</div>
             </div>
             
-            <!-- ① 从右向左看 -->
             <div class="step-section">
                 <div class="step-title">① 从右向左看：找位置</div>
                 <div class="step-content">
@@ -565,7 +675,18 @@
                 </div>
             </div>
             
-            <!-- 峰顶线/谷底线（多空博弈过的） -->
+            <div class="step-section">
+                <div class="step-title">平衡线（大阴实顶）</div>
+                <div class="step-content">
+                    <div class="grid-1">
+                        <div class="grid-item">
+                            <div class="label">最近平衡线（近30日）</div>
+                            <div class="value">46.84（2026-09-04）</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <div class="step-section">
                 <div class="step-title">峰顶线/谷底线（博弈过的）</div>
                 <div class="step-content">
@@ -607,16 +728,9 @@
     </div>
     
                     </div>
-                    <div class="note-text" style="margin-top:8px; font-size:11px; color:#94a3b8;">
-                        注：<br>
-                        "无（寻顶中·偏强）" = 没有经过右确认的峰顶，空军还没组织起有效反击，说明偏强<br>
-                        "无（寻底中·偏弱）" = 没有经过右确认的谷底，多军还没组织起有效防守，说明偏弱<br>
-                        （以上为客观描述，不构成投资建议）
-                    </div>
                 </div>
             </div>
             
-            <!-- 高量柱安全线/风险线 -->
             <div class="step-section">
                 <div class="step-title">高量柱安全线/风险线</div>
                 <div class="step-content">
@@ -649,7 +763,6 @@
                 </div>
             </div>
             
-            <!-- ② 从上往下看 -->
             <div class="step-section">
                 <div class="step-title">② 从上往下看：看量柱</div>
                 <div class="step-content">
@@ -674,7 +787,6 @@
                 </div>
             </div>
             
-            <!-- ③ 从左往右看 -->
             <div class="step-section">
                 <div class="step-title">③ 从左往右看：比量能</div>
                 <div class="step-content">
@@ -699,7 +811,6 @@
                 </div>
             </div>
             
-            <!-- ④ 从下往上看 -->
             <div class="step-section">
                 <div class="step-title">④ 从下往上看：看量价</div>
                 <div class="step-content">
@@ -716,7 +827,6 @@
                 </div>
             </div>
             
-            <!-- ⑤ 和历史对比 -->
             <div class="step-section">
                 <div class="step-title">⑤ 和历史对比</div>
                 <div class="step-content">
@@ -735,7 +845,6 @@
                 </div>
             </div>
             
-            <!-- ⑥ 全景总结 -->
             <div class="step-section">
                 <div class="step-title">⑥ 全景总结</div>
                 <div class="summary-box">
@@ -758,7 +867,6 @@
                 <div class="stock-price price-up">284.66元 (+2.52%)</div>
             </div>
             
-            <!-- ① 从右向左看 -->
             <div class="step-section">
                 <div class="step-title">① 从右向左看：找位置</div>
                 <div class="step-content">
@@ -783,7 +891,18 @@
                 </div>
             </div>
             
-            <!-- 峰顶线/谷底线（多空博弈过的） -->
+            <div class="step-section">
+                <div class="step-title">平衡线（大阴实顶）</div>
+                <div class="step-content">
+                    <div class="grid-1">
+                        <div class="grid-item">
+                            <div class="label">最近平衡线（近30日）</div>
+                            <div class="value">269.50（2026-09-09）</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <div class="step-section">
                 <div class="step-title">峰顶线/谷底线（博弈过的）</div>
                 <div class="step-content">
@@ -825,16 +944,9 @@
     </div>
     
                     </div>
-                    <div class="note-text" style="margin-top:8px; font-size:11px; color:#94a3b8;">
-                        注：<br>
-                        "无（寻顶中·偏强）" = 没有经过右确认的峰顶，空军还没组织起有效反击，说明偏强<br>
-                        "无（寻底中·偏弱）" = 没有经过右确认的谷底，多军还没组织起有效防守，说明偏弱<br>
-                        （以上为客观描述，不构成投资建议）
-                    </div>
                 </div>
             </div>
             
-            <!-- 高量柱安全线/风险线 -->
             <div class="step-section">
                 <div class="step-title">高量柱安全线/风险线</div>
                 <div class="step-content">
@@ -867,7 +979,6 @@
                 </div>
             </div>
             
-            <!-- ② 从上往下看 -->
             <div class="step-section">
                 <div class="step-title">② 从上往下看：看量柱</div>
                 <div class="step-content">
@@ -892,7 +1003,6 @@
                 </div>
             </div>
             
-            <!-- ③ 从左往右看 -->
             <div class="step-section">
                 <div class="step-title">③ 从左往右看：比量能</div>
                 <div class="step-content">
@@ -917,7 +1027,6 @@
                 </div>
             </div>
             
-            <!-- ④ 从下往上看 -->
             <div class="step-section">
                 <div class="step-title">④ 从下往上看：看量价</div>
                 <div class="step-content">
@@ -934,7 +1043,6 @@
                 </div>
             </div>
             
-            <!-- ⑤ 和历史对比 -->
             <div class="step-section">
                 <div class="step-title">⑤ 和历史对比</div>
                 <div class="step-content">
@@ -953,7 +1061,6 @@
                 </div>
             </div>
             
-            <!-- ⑥ 全景总结 -->
             <div class="step-section">
                 <div class="step-title">⑥ 全景总结</div>
                 <div class="summary-box">
@@ -976,7 +1083,6 @@
                 <div class="stock-price price-up">62.71元 (+2.35%)</div>
             </div>
             
-            <!-- ① 从右向左看 -->
             <div class="step-section">
                 <div class="step-title">① 从右向左看：找位置</div>
                 <div class="step-content">
@@ -1001,7 +1107,18 @@
                 </div>
             </div>
             
-            <!-- 峰顶线/谷底线（多空博弈过的） -->
+            <div class="step-section">
+                <div class="step-title">平衡线（大阴实顶）</div>
+                <div class="step-content">
+                    <div class="grid-1">
+                        <div class="grid-item">
+                            <div class="label">最近平衡线（近30日）</div>
+                            <div class="value">62.70（2026-08-24）</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <div class="step-section">
                 <div class="step-title">峰顶线/谷底线（博弈过的）</div>
                 <div class="step-content">
@@ -1043,16 +1160,9 @@
     </div>
     
                     </div>
-                    <div class="note-text" style="margin-top:8px; font-size:11px; color:#94a3b8;">
-                        注：<br>
-                        "无（寻顶中·偏强）" = 没有经过右确认的峰顶，空军还没组织起有效反击，说明偏强<br>
-                        "无（寻底中·偏弱）" = 没有经过右确认的谷底，多军还没组织起有效防守，说明偏弱<br>
-                        （以上为客观描述，不构成投资建议）
-                    </div>
                 </div>
             </div>
             
-            <!-- 高量柱安全线/风险线 -->
             <div class="step-section">
                 <div class="step-title">高量柱安全线/风险线</div>
                 <div class="step-content">
@@ -1085,7 +1195,6 @@
                 </div>
             </div>
             
-            <!-- ② 从上往下看 -->
             <div class="step-section">
                 <div class="step-title">② 从上往下看：看量柱</div>
                 <div class="step-content">
@@ -1110,7 +1219,6 @@
                 </div>
             </div>
             
-            <!-- ③ 从左往右看 -->
             <div class="step-section">
                 <div class="step-title">③ 从左往右看：比量能</div>
                 <div class="step-content">
@@ -1135,7 +1243,6 @@
                 </div>
             </div>
             
-            <!-- ④ 从下往上看 -->
             <div class="step-section">
                 <div class="step-title">④ 从下往上看：看量价</div>
                 <div class="step-content">
@@ -1152,7 +1259,6 @@
                 </div>
             </div>
             
-            <!-- ⑤ 和历史对比 -->
             <div class="step-section">
                 <div class="step-title">⑤ 和历史对比</div>
                 <div class="step-content">
@@ -1171,7 +1277,6 @@
                 </div>
             </div>
             
-            <!-- ⑥ 全景总结 -->
             <div class="step-section">
                 <div class="step-title">⑥ 全景总结</div>
                 <div class="summary-box">
@@ -1194,7 +1299,6 @@
                 <div class="stock-price price-up">26.99元 (+2.16%)</div>
             </div>
             
-            <!-- ① 从右向左看 -->
             <div class="step-section">
                 <div class="step-title">① 从右向左看：找位置</div>
                 <div class="step-content">
@@ -1219,7 +1323,18 @@
                 </div>
             </div>
             
-            <!-- 峰顶线/谷底线（多空博弈过的） -->
+            <div class="step-section">
+                <div class="step-title">平衡线（大阴实顶）</div>
+                <div class="step-content">
+                    <div class="grid-1">
+                        <div class="grid-item">
+                            <div class="label">最近平衡线（近30日）</div>
+                            <div class="value">25.76（2026-09-15）</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <div class="step-section">
                 <div class="step-title">峰顶线/谷底线（博弈过的）</div>
                 <div class="step-content">
@@ -1261,16 +1376,9 @@
     </div>
     
                     </div>
-                    <div class="note-text" style="margin-top:8px; font-size:11px; color:#94a3b8;">
-                        注：<br>
-                        "无（寻顶中·偏强）" = 没有经过右确认的峰顶，空军还没组织起有效反击，说明偏强<br>
-                        "无（寻底中·偏弱）" = 没有经过右确认的谷底，多军还没组织起有效防守，说明偏弱<br>
-                        （以上为客观描述，不构成投资建议）
-                    </div>
                 </div>
             </div>
             
-            <!-- 高量柱安全线/风险线 -->
             <div class="step-section">
                 <div class="step-title">高量柱安全线/风险线</div>
                 <div class="step-content">
@@ -1303,7 +1411,6 @@
                 </div>
             </div>
             
-            <!-- ② 从上往下看 -->
             <div class="step-section">
                 <div class="step-title">② 从上往下看：看量柱</div>
                 <div class="step-content">
@@ -1328,7 +1435,6 @@
                 </div>
             </div>
             
-            <!-- ③ 从左往右看 -->
             <div class="step-section">
                 <div class="step-title">③ 从左往右看：比量能</div>
                 <div class="step-content">
@@ -1353,7 +1459,6 @@
                 </div>
             </div>
             
-            <!-- ④ 从下往上看 -->
             <div class="step-section">
                 <div class="step-title">④ 从下往上看：看量价</div>
                 <div class="step-content">
@@ -1370,7 +1475,6 @@
                 </div>
             </div>
             
-            <!-- ⑤ 和历史对比 -->
             <div class="step-section">
                 <div class="step-title">⑤ 和历史对比</div>
                 <div class="step-content">
@@ -1389,7 +1493,6 @@
                 </div>
             </div>
             
-            <!-- ⑥ 全景总结 -->
             <div class="step-section">
                 <div class="step-title">⑥ 全景总结</div>
                 <div class="summary-box">
@@ -1412,7 +1515,6 @@
                 <div class="stock-price price-up">227.05元 (+1.86%)</div>
             </div>
             
-            <!-- ① 从右向左看 -->
             <div class="step-section">
                 <div class="step-title">① 从右向左看：找位置</div>
                 <div class="step-content">
@@ -1437,7 +1539,18 @@
                 </div>
             </div>
             
-            <!-- 峰顶线/谷底线（多空博弈过的） -->
+            <div class="step-section">
+                <div class="step-title">平衡线（大阴实顶）</div>
+                <div class="step-content">
+                    <div class="grid-1">
+                        <div class="grid-item">
+                            <div class="label">最近平衡线（近30日）</div>
+                            <div class="value">241.01（2026-09-01）</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <div class="step-section">
                 <div class="step-title">峰顶线/谷底线（博弈过的）</div>
                 <div class="step-content">
@@ -1479,16 +1592,9 @@
     </div>
     
                     </div>
-                    <div class="note-text" style="margin-top:8px; font-size:11px; color:#94a3b8;">
-                        注：<br>
-                        "无（寻顶中·偏强）" = 没有经过右确认的峰顶，空军还没组织起有效反击，说明偏强<br>
-                        "无（寻底中·偏弱）" = 没有经过右确认的谷底，多军还没组织起有效防守，说明偏弱<br>
-                        （以上为客观描述，不构成投资建议）
-                    </div>
                 </div>
             </div>
             
-            <!-- 高量柱安全线/风险线 -->
             <div class="step-section">
                 <div class="step-title">高量柱安全线/风险线</div>
                 <div class="step-content">
@@ -1521,7 +1627,6 @@
                 </div>
             </div>
             
-            <!-- ② 从上往下看 -->
             <div class="step-section">
                 <div class="step-title">② 从上往下看：看量柱</div>
                 <div class="step-content">
@@ -1546,7 +1651,6 @@
                 </div>
             </div>
             
-            <!-- ③ 从左往右看 -->
             <div class="step-section">
                 <div class="step-title">③ 从左往右看：比量能</div>
                 <div class="step-content">
@@ -1571,7 +1675,6 @@
                 </div>
             </div>
             
-            <!-- ④ 从下往上看 -->
             <div class="step-section">
                 <div class="step-title">④ 从下往上看：看量价</div>
                 <div class="step-content">
@@ -1588,7 +1691,6 @@
                 </div>
             </div>
             
-            <!-- ⑤ 和历史对比 -->
             <div class="step-section">
                 <div class="step-title">⑤ 和历史对比</div>
                 <div class="step-content">
@@ -1607,7 +1709,6 @@
                 </div>
             </div>
             
-            <!-- ⑥ 全景总结 -->
             <div class="step-section">
                 <div class="step-title">⑥ 全景总结</div>
                 <div class="summary-box">
@@ -1630,7 +1731,6 @@
                 <div class="stock-price price-up">86.88元 (+1.52%)</div>
             </div>
             
-            <!-- ① 从右向左看 -->
             <div class="step-section">
                 <div class="step-title">① 从右向左看：找位置</div>
                 <div class="step-content">
@@ -1655,7 +1755,18 @@
                 </div>
             </div>
             
-            <!-- 峰顶线/谷底线（多空博弈过的） -->
+            <div class="step-section">
+                <div class="step-title">平衡线（大阴实顶）</div>
+                <div class="step-content">
+                    <div class="grid-1">
+                        <div class="grid-item">
+                            <div class="label">最近平衡线（近30日）</div>
+                            <div class="value">93.50（2026-09-08）</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <div class="step-section">
                 <div class="step-title">峰顶线/谷底线（博弈过的）</div>
                 <div class="step-content">
@@ -1697,16 +1808,9 @@
     </div>
     
                     </div>
-                    <div class="note-text" style="margin-top:8px; font-size:11px; color:#94a3b8;">
-                        注：<br>
-                        "无（寻顶中·偏强）" = 没有经过右确认的峰顶，空军还没组织起有效反击，说明偏强<br>
-                        "无（寻底中·偏弱）" = 没有经过右确认的谷底，多军还没组织起有效防守，说明偏弱<br>
-                        （以上为客观描述，不构成投资建议）
-                    </div>
                 </div>
             </div>
             
-            <!-- 高量柱安全线/风险线 -->
             <div class="step-section">
                 <div class="step-title">高量柱安全线/风险线</div>
                 <div class="step-content">
@@ -1739,7 +1843,6 @@
                 </div>
             </div>
             
-            <!-- ② 从上往下看 -->
             <div class="step-section">
                 <div class="step-title">② 从上往下看：看量柱</div>
                 <div class="step-content">
@@ -1764,7 +1867,6 @@
                 </div>
             </div>
             
-            <!-- ③ 从左往右看 -->
             <div class="step-section">
                 <div class="step-title">③ 从左往右看：比量能</div>
                 <div class="step-content">
@@ -1789,7 +1891,6 @@
                 </div>
             </div>
             
-            <!-- ④ 从下往上看 -->
             <div class="step-section">
                 <div class="step-title">④ 从下往上看：看量价</div>
                 <div class="step-content">
@@ -1806,7 +1907,6 @@
                 </div>
             </div>
             
-            <!-- ⑤ 和历史对比 -->
             <div class="step-section">
                 <div class="step-title">⑤ 和历史对比</div>
                 <div class="step-content">
@@ -1825,7 +1925,6 @@
                 </div>
             </div>
             
-            <!-- ⑥ 全景总结 -->
             <div class="step-section">
                 <div class="step-title">⑥ 全景总结</div>
                 <div class="summary-box">
