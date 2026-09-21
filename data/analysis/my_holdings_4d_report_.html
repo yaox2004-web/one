@@ -118,16 +118,25 @@
         <div class="header">
             <h1>四维循环看盘报告</h1>
             <div class="date"></div>
-            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">量学完整版：大阴实顶 + 四维对比 + 王牌柱 + 凹口线 + 25种涨停基因全 + 逻辑闭环解读</div>
+            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">ATR自适应版：价格参数自动适配每只股票波动率</div>
         </div>
         
         <div class="signal-guide">
             <h2>信号说明</h2>
             
             <div class="signal-item">
+                <h3>ATR自适应机制</h3>
+                <p><strong>ATR（平均真实波幅）</strong>：衡量每只股票每天平均波动多大</p>
+                <p><strong>自动调整：</strong>波动率大的股票，阈值自动放宽；波动率小的股票，阈值自动收紧</p>
+                <p><strong>价格类：</strong>中大阴线、大阳线、振幅、兵临城下距离、跳空缺口、长腿影线 → 都用ATR×倍数自动算</p>
+                <p><strong>量能类：</strong>天量地量用分位数自动判断（90%/10%分位）</p>
+                <p><strong>时间类：</strong>保持固定（ATR调不了时间）</p>
+            </div>
+            
+            <div class="signal-item">
                 <h3>起点：大阴实顶</h3>
-                <p><strong>定义：</strong>从今天往左找最近的中大阴线，其实体顶部就是「大阴实顶」</p>
-                <p><strong>原理：</strong>大阴实顶是多空双方上次休战的「警戒点」，下次争夺的「起动点」</p>
+                <p><strong>定义：</strong>从今天往左找最近的中大阴线（1.5倍ATR），其实体顶部就是「大阴实顶」</p>
+                <p><strong>原理：</strong>大阴实顶是多空双方上次休战的「警戒点」</p>
                 <p class="source">来源：股海明灯（量学官网）</p>
             </div>
             
@@ -142,40 +151,17 @@
             
             <div class="signal-item">
                 <h3>王牌柱体系</h3>
-                <p><strong>将军柱</strong>：基柱（阳线+放量）+ 三日不破 + 量柱不抬头</p>
+                <p><strong>将军柱</strong>：基柱（阳线+放量2.5倍）+ 三日不破 + 量柱不抬头</p>
                 <p><strong>黄金柱</strong>：将军柱 + 价升 + 量缩</p>
                 <p><strong>元帅柱</strong>：黄金柱 + 基柱跳空高开</p>
                 <p class="source">来源：股海明灯《量柱擒涨停》黑马王子著 + 2026年化量化升级</p>
             </div>
             
             <div class="signal-item">
-                <h3>25种涨停基因（全部加完）</h3>
-                <p><strong>已加全：</strong>涨停板、过左峰、假阴真阳、极阴次阳、长阳矮柱、牛股三绝（倍量不穿/高量不破/跳空不补）、地量群、价升量缩、回踩精准线、双剑霸天地、三元连动、兵临城下、大阳双休、接力双阳、倍量伸缩、黄金十字架、精准峰谷线、现场直憋、悬阴31、T4变异</p>
-                <p class="source">来源：股海明灯论坛《量学的25种涨停基因清单》</p>
-            </div>
-            
-            <div class="signal-item">
-                <h3>凹口线</h3>
-                <p><strong>定义：</strong>两侧平量柱夹中间缩量柱，间隔3-13天</p>
-                <p><strong>原理：</strong>凹口淘金，中间缩量说明抛压耗尽，后面要涨</p>
-                <p class="source">来源：黑马王子《涨停密码》</p>
-            </div>
-            
-            <div class="signal-item">
-                <h3>量线体系</h3>
-                <p>平衡线、精准线、斜衡线、峰顶线、谷底线、高量柱安全线/风险线、黄金线</p>
-                <p class="source">来源：股海明灯《量线捉涨停》黑马王子著</p>
-            </div>
-            
-            <div class="signal-item">
-                <h3>形态信号</h3>
-                <p>阳胜进/阴胜出/小倍阳/长腿踩线/长阴短柱/阳包阴/阴包阳/跳空/十字星</p>
-            </div>
-            
-            <div class="signal-item">
                 <h3>最高原则</h3>
                 <p><strong>所有参数、阈值都要适配当前最新市场环境</strong></p>
                 <p><strong>代码不要写死，能用参数阈值的就用参数阈值</strong></p>
+                <p><strong>ATR自动调参：价格类随波动率自动变，量能类随分位数自动变</strong></p>
                 <p><strong>不构成任何交易建议，只做客观描述</strong></p>
             </div>
         </div>
