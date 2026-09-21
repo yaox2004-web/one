@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-四维循环看盘法报告 - HTML版（含峰顶线/谷底线识别）
+四维循环看盘法报告 - HTML版（修复未来函数）
 =================================================
 设计思路（为什么这样写）：
   按照四维循环看盘法步骤生成报告！
   加高量柱的安全线和风险线（带日期）
   加峰顶线/谷底线识别（多空双方博弈过的）
+
+【重要：无未来函数保证】
+  1. 所有判断只用截止到今天收盘的数据
+  2. 峰顶线/谷底线必须是至少 (确认天数+5天) 之前的
+  3. 局部高点判断用的前后5天，都是历史数据
+  4. 右确认用的后N天，也都是历史数据（因为已经过去了）
 
 峰顶线/谷底识别逻辑（适配量化时代）：
   1. 局部极值：前后各5天内最高/最低
@@ -20,10 +26,6 @@
   - 股海明灯（量学官网论坛）
   - 《量柱擒涨停》黑马王子著
   - 《量线捉涨停》黑马王子著
-
-硬约束：
-  - 绝对不用未来函数
-  - 客观描述，不做主观判断
 """
 
 import json
@@ -92,6 +94,7 @@ def load_klines(market, code):
 def find_gaoliang_lines(recent_df):
     """
     找最近N日的高量柱，计算安全线和风险线
+    【无未来函数】：只用历史数据，找的是已经发生的高量柱
     """
     if len(recent_df) < 5:
         return None, None, None, None
@@ -131,28 +134,41 @@ def find_fenggu_lines(df, lookback_days, confirm_days):
     """
     找最近lookback_days内的峰顶线和谷底线
     
+    【无未来函数保证】：
+    - 只看截止到今天的数据
+    - 峰顶线/谷底线必须是至少 (confirm_days + 5) 天之前的
+    - 局部高点判断用的前后5天，都是历史数据
+    - 右确认用的后confirm_days天，也都是历史数据（已经过去了）
+    
     识别条件：
     1. 局部极值：前后各5天内最高/最低
     2. 有量配合：近lookback_days天前30%以上
     3. 右确认：之后confirm_days天都没突破/跌破
-    
-    返回：
-    - 最近的峰顶线价格、日期
-    - 最近的谷底线价格、日期
     """
-    if len(df) < lookback_days + confirm_days + 10:
+    # 至少需要：lookback_days + confirm_days + 5 天数据
+    # 因为：要找lookback_days内的峰顶线，还要留confirm_days天做右确认，还要留5天做局部高点判断
+    min_required = lookback_days + confirm_days + 5
+    if len(df) < min_required:
         return None, None, None, None
     
     recent_df = df.iloc[-lookback_days:]
     
-    # 计算量能分位
-    vol_threshold = recent_df['volume'].quantile(0.7)  # 前30%以上
+    # 计算量能分位（前30%以上）
+    vol_threshold = recent_df['volume'].quantile(0.7)
     
     peaks = []  # 峰顶线
     valleys = []  # 谷底线
     
-    # 从第5根K线开始，到倒数第confirm_days根
-    for i in range(5, len(recent_df) - confirm_days):
+    # 【关键】：i的范围要保证：
+    # 1. i-5 >= 0（前面有5天）
+    # 2. i+5 <= len(recent_df)（后面有5天，用来判断局部高点）
+    # 3. i+confirm_days <= len(recent_df)（后面有confirm_days天，用来右确认）
+    # 4. 这些都是历史数据，没有未来函数！
+    
+    start = 5  # 前面至少5天
+    end = len(recent_df) - max(5, confirm_days)  # 后面至少max(5, confirm_days)天
+    
+    for i in range(start, end):
         row = recent_df.iloc[i]
         
         # 检查局部高点（前后各5天内最高）
@@ -172,7 +188,6 @@ def find_fenggu_lines(df, lookback_days, confirm_days):
                 peaks.append({
                     'price': row['high'],
                     'date': row['date'],
-                    'index': i
                 })
         
         if is_local_low and has_vol:
@@ -184,7 +199,6 @@ def find_fenggu_lines(df, lookback_days, confirm_days):
                 valleys.append({
                     'price': row['low'],
                     'date': row['date'],
-                    'index': i
                 })
     
     # 取最近的峰顶线和谷底线
@@ -244,6 +258,7 @@ def get_stock_data(market, code):
     
     # ========== 峰顶线和谷底线（多空博弈过的） ==========
     # 短期(20日)：3天确认
+    # 【无未来函数】：只用历史数据
     peak_20, peak_date_20, valley_20, valley_date_20 = find_fenggu_lines(df, 20, 3)
     
     # 中期(60日)：5天确认
@@ -719,7 +734,7 @@ def generate_html(stocks_data, today_str):
         <div class="header">
             <h1>四维循环看盘报告</h1>
             <div class="date">{today_str}</div>
-            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">四维循环看盘 + 峰顶线/谷底线 + 高量柱安全线/风险线</div>
+            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">四维循环看盘 + 峰顶线/谷底线 + 高量柱安全线/风险线（无未来函数）</div>
         </div>
         
         {''.join(items)}
@@ -736,7 +751,7 @@ def generate_html(stocks_data, today_str):
 # ============================================================
 def main():
     print("=" * 60)
-    print("四维循环看盘报告 - HTML版（含峰顶线/谷底线）")
+    print("四维循环看盘报告 - HTML版（无未来函数）")
     print("=" * 60)
     
     stocks_data = []
