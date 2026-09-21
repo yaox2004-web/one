@@ -64,11 +64,20 @@ def load_kline(code):
     symbol = code[2:]
     filepath = os.path.join(KLINE_DIR, market, f"{symbol}.json")
     
+    print(f"  尝试读取: {filepath}")
+    
     if not os.path.exists(filepath):
+        print(f"  文件不存在!")
         return None
     
     with open(filepath, 'r', encoding='utf-8') as f:
         data = json.load(f)
+    
+    print(f"  读取到 {len(data)} 条数据")
+    
+    if len(data) > 0:
+        print(f"  第一条数据字段: {list(data[0].keys())}")
+        print(f"  第一条数据: {data[0]}")
     
     # 按日期排序
     data.sort(key=lambda x: x['date'])
