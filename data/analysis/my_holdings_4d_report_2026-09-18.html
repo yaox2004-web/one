@@ -73,6 +73,14 @@
         }
         .grid-item .label { color: #94a3b8; font-size: 11px; }
         .grid-item .value { font-weight: bold; color: #e2e8f0; }
+        
+        .summary-box {
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+        .summary-box p { margin: 0; color: #fbbf24; font-size: 13px; line-height: 1.8; }
     </style>
 </head>
 <body>
@@ -80,9 +88,10 @@
         <div class="header">
             <h1>四维循环看盘报告</h1>
             <div class="date">2026-09-18</div>
-            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">从右向左找位置 + 从上往下看量柱 + 从左往右比量能 + 从下往上看量价</div>
+            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">从右向左找位置 + 从上往下看量柱 + 从左往右比量能 + 从下往上看量价 + 和历史对比 + 全景总结</div>
         </div>
-
+        
+        
         <div class="stock-card">
             <div class="stock-header">
                 <div>
@@ -106,12 +115,12 @@
                             <div class="value">65.50</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">20日位置</div>
-                            <div class="value">57.4%</div>
+                            <div class="label">60日高点</div>
+                            <div class="value">113.87</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">120日位置</div>
-                            <div class="value">46.2%（中位）</div>
+                            <div class="label">60日低点</div>
+                            <div class="value">60.84</div>
                         </div>
                     </div>
                 </div>
@@ -183,8 +192,40 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- ⑤ 和历史对比 -->
+            <div class="step-section">
+                <div class="step-title">⑤ 和历史对比</div>
+                <div class="step-content">
+                    <p><strong>短期(20日)：</strong>
+                        离高点 +7.62% | 
+                        离低点 +10.27%
+                    </p>
+                    <p><strong>中期(60日)：</strong>
+                        离高点 +55.99% | 
+                        离低点 +16.66%
+                    </p>
+                    <p><strong>长期(120日)：</strong>
+                        离高点 +55.99% | 
+                        离低点 +48.05%
+                    </p>
+                </div>
+            </div>
+            
+            <!-- ⑥ 全景总结 -->
+            <div class="step-section">
+                <div class="step-title">⑥ 全景总结</div>
+                <div class="summary-box">
+                    <p>
+                        今日+7.75%，天量，中位。<br>
+                        量价组合：放量涨，买方占优。<br>
+                        近3日涨跌：+9.18%，近5日涨跌：+7.76%。<br>
+                        无连续趋势。
+                    </p>
+                </div>
+            </div>
         </div>
-
+        
         <div class="stock-card">
             <div class="stock-header">
                 <div>
@@ -208,12 +249,12 @@
                             <div class="value">56.22</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">20日位置</div>
-                            <div class="value">53.3%</div>
+                            <div class="label">60日高点</div>
+                            <div class="value">84.70</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">120日位置</div>
-                            <div class="value">47.5%（中位）</div>
+                            <div class="label">60日低点</div>
+                            <div class="value">51.23</div>
                         </div>
                     </div>
                 </div>
@@ -285,8 +326,40 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- ⑤ 和历史对比 -->
+            <div class="step-section">
+                <div class="step-title">⑤ 和历史对比</div>
+                <div class="step-content">
+                    <p><strong>短期(20日)：</strong>
+                        离高点 +7.36% | 
+                        离低点 +8.41%
+                    </p>
+                    <p><strong>中期(60日)：</strong>
+                        离高点 +37.99% | 
+                        离低点 +16.54%
+                    </p>
+                    <p><strong>长期(120日)：</strong>
+                        离高点 +37.99% | 
+                        离低点 +34.31%
+                    </p>
+                </div>
+            </div>
+            
+            <!-- ⑥ 全景总结 -->
+            <div class="step-section">
+                <div class="step-title">⑥ 全景总结</div>
+                <div class="summary-box">
+                    <p>
+                        今日+5.26%，天量，中位。<br>
+                        量价组合：放量涨，买方占优。<br>
+                        近3日涨跌：+7.10%，近5日涨跌：+5.83%。<br>
+                        无连续趋势。
+                    </p>
+                </div>
+            </div>
         </div>
-
+        
         <div class="stock-card">
             <div class="stock-header">
                 <div>
@@ -310,12 +383,12 @@
                             <div class="value">42.04</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">20日位置</div>
-                            <div class="value">67.3%</div>
+                            <div class="label">60日高点</div>
+                            <div class="value">88.88</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">120日位置</div>
-                            <div class="value">27.6%（低位）</div>
+                            <div class="label">60日低点</div>
+                            <div class="value">36.44</div>
                         </div>
                     </div>
                 </div>
@@ -387,8 +460,40 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- ⑤ 和历史对比 -->
+            <div class="step-section">
+                <div class="step-title">⑤ 和历史对比</div>
+                <div class="step-content">
+                    <p><strong>短期(20日)：</strong>
+                        离高点 +5.45% | 
+                        离低点 +11.23%
+                    </p>
+                    <p><strong>中期(60日)：</strong>
+                        离高点 +87.67% | 
+                        离低点 +23.06%
+                    </p>
+                    <p><strong>长期(120日)：</strong>
+                        离高点 +87.67% | 
+                        离低点 +33.47%
+                    </p>
+                </div>
+            </div>
+            
+            <!-- ⑥ 全景总结 -->
+            <div class="step-section">
+                <div class="step-title">⑥ 全景总结</div>
+                <div class="summary-box">
+                    <p>
+                        今日+3.11%，正常，低位。<br>
+                        量价组合：放量涨，买方占优。<br>
+                        近3日涨跌：+5.13%，近5日涨跌：+8.00%。<br>
+                        无连续趋势。
+                    </p>
+                </div>
+            </div>
         </div>
-
+        
         <div class="stock-card">
             <div class="stock-header">
                 <div>
@@ -412,12 +517,12 @@
                             <div class="value">237.30</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">20日位置</div>
-                            <div class="value">86.5%</div>
+                            <div class="label">60日高点</div>
+                            <div class="value">313.49</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">120日位置</div>
-                            <div class="value">59.2%（中位）</div>
+                            <div class="label">60日低点</div>
+                            <div class="value">155.05</div>
                         </div>
                     </div>
                 </div>
@@ -489,8 +594,40 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- ⑤ 和历史对比 -->
+            <div class="step-section">
+                <div class="step-title">⑤ 和历史对比</div>
+                <div class="step-content">
+                    <p><strong>短期(20日)：</strong>
+                        离高点 +2.60% | 
+                        离低点 +16.64%
+                    </p>
+                    <p><strong>中期(60日)：</strong>
+                        离高点 +10.13% | 
+                        离低点 +45.53%
+                    </p>
+                    <p><strong>长期(120日)：</strong>
+                        离高点 +31.38% | 
+                        离低点 +45.53%
+                    </p>
+                </div>
+            </div>
+            
+            <!-- ⑥ 全景总结 -->
+            <div class="step-section">
+                <div class="step-title">⑥ 全景总结</div>
+                <div class="summary-box">
+                    <p>
+                        今日+2.52%，正常，中位。<br>
+                        量价组合：平量整理，买方占优。<br>
+                        近3日涨跌：+10.81%，近5日涨跌：+8.87%。<br>
+                        无连续趋势。
+                    </p>
+                </div>
+            </div>
         </div>
-
+        
         <div class="stock-card">
             <div class="stock-header">
                 <div>
@@ -514,12 +651,12 @@
                             <div class="value">58.75</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">20日位置</div>
-                            <div class="value">48.7%</div>
+                            <div class="label">60日高点</div>
+                            <div class="value">73.23</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">120日位置</div>
-                            <div class="value">41.0%（中位）</div>
+                            <div class="label">60日低点</div>
+                            <div class="value">52.57</div>
                         </div>
                     </div>
                 </div>
@@ -591,8 +728,40 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- ⑤ 和历史对比 -->
+            <div class="step-section">
+                <div class="step-title">⑤ 和历史对比</div>
+                <div class="step-content">
+                    <p><strong>短期(20日)：</strong>
+                        离高点 +6.65% | 
+                        离低点 +6.31%
+                    </p>
+                    <p><strong>中期(60日)：</strong>
+                        离高点 +16.78% | 
+                        离低点 +16.17%
+                    </p>
+                    <p><strong>长期(120日)：</strong>
+                        离高点 +34.43% | 
+                        离低点 +23.97%
+                    </p>
+                </div>
+            </div>
+            
+            <!-- ⑥ 全景总结 -->
+            <div class="step-section">
+                <div class="step-title">⑥ 全景总结</div>
+                <div class="summary-box">
+                    <p>
+                        今日+2.35%，正常，中位。<br>
+                        量价组合：放量跌，卖方占优。<br>
+                        近3日涨跌：+3.14%，近5日涨跌：-2.12%。<br>
+                        无连续趋势。
+                    </p>
+                </div>
+            </div>
         </div>
-
+        
         <div class="stock-card">
             <div class="stock-header">
                 <div>
@@ -616,12 +785,12 @@
                             <div class="value">24.48</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">20日位置</div>
-                            <div class="value">62.6%</div>
+                            <div class="label">60日高点</div>
+                            <div class="value">33.27</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">120日位置</div>
-                            <div class="value">21.5%（低位）</div>
+                            <div class="label">60日低点</div>
+                            <div class="value">21.40</div>
                         </div>
                     </div>
                 </div>
@@ -693,8 +862,40 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- ⑤ 和历史对比 -->
+            <div class="step-section">
+                <div class="step-title">⑤ 和历史对比</div>
+                <div class="step-content">
+                    <p><strong>短期(20日)：</strong>
+                        离高点 +5.56% | 
+                        离低点 +9.30%
+                    </p>
+                    <p><strong>中期(60日)：</strong>
+                        离高点 +23.27% | 
+                        离低点 +20.71%
+                    </p>
+                    <p><strong>长期(120日)：</strong>
+                        离高点 +75.84% | 
+                        离低点 +20.71%
+                    </p>
+                </div>
+            </div>
+            
+            <!-- ⑥ 全景总结 -->
+            <div class="step-section">
+                <div class="step-title">⑥ 全景总结</div>
+                <div class="summary-box">
+                    <p>
+                        今日+2.16%，正常，低位。<br>
+                        量价组合：平量整理，买方占优。<br>
+                        近3日涨跌：+8.13%，近5日涨跌：+0.19%。<br>
+                        连续缩量。
+                    </p>
+                </div>
+            </div>
         </div>
-
+        
         <div class="stock-card">
             <div class="stock-header">
                 <div>
@@ -718,12 +919,12 @@
                             <div class="value">217.44</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">20日位置</div>
-                            <div class="value">20.2%</div>
+                            <div class="label">60日高点</div>
+                            <div class="value">353.97</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">120日位置</div>
-                            <div class="value">21.9%（低位）</div>
+                            <div class="label">60日低点</div>
+                            <div class="value">177.88</div>
                         </div>
                     </div>
                 </div>
@@ -795,8 +996,40 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- ⑤ 和历史对比 -->
+            <div class="step-section">
+                <div class="step-title">⑤ 和历史对比</div>
+                <div class="step-content">
+                    <p><strong>短期(20日)：</strong>
+                        离高点 +16.69% | 
+                        离低点 +4.23%
+                    </p>
+                    <p><strong>中期(60日)：</strong>
+                        离高点 +55.90% | 
+                        离低点 +21.66%
+                    </p>
+                    <p><strong>长期(120日)：</strong>
+                        离高点 +77.32% | 
+                        离低点 +21.66%
+                    </p>
+                </div>
+            </div>
+            
+            <!-- ⑥ 全景总结 -->
+            <div class="step-section">
+                <div class="step-title">⑥ 全景总结</div>
+                <div class="summary-box">
+                    <p>
+                        今日+1.86%，正常，低位。<br>
+                        量价组合：平量整理，卖方占优。<br>
+                        近3日涨跌：+0.44%，近5日涨跌：-0.85%。<br>
+                        连续放量。
+                    </p>
+                </div>
+            </div>
         </div>
-
+        
         <div class="stock-card">
             <div class="stock-header">
                 <div>
@@ -820,12 +1053,12 @@
                             <div class="value">81.43</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">20日位置</div>
-                            <div class="value">26.4%</div>
+                            <div class="label">60日高点</div>
+                            <div class="value">142.03</div>
                         </div>
                         <div class="grid-item">
-                            <div class="label">120日位置</div>
-                            <div class="value">7.9%（低位）</div>
+                            <div class="label">60日低点</div>
+                            <div class="value">80.00</div>
                         </div>
                     </div>
                 </div>
@@ -897,8 +1130,40 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- ⑤ 和历史对比 -->
+            <div class="step-section">
+                <div class="step-title">⑤ 和历史对比</div>
+                <div class="step-content">
+                    <p><strong>短期(20日)：</strong>
+                        离高点 +17.51% | 
+                        离低点 +6.27%
+                    </p>
+                    <p><strong>中期(60日)：</strong>
+                        离高点 +63.48% | 
+                        离低点 +7.92%
+                    </p>
+                    <p><strong>长期(120日)：</strong>
+                        离高点 +92.66% | 
+                        离低点 +7.92%
+                    </p>
+                </div>
+            </div>
+            
+            <!-- ⑥ 全景总结 -->
+            <div class="step-section">
+                <div class="step-title">⑥ 全景总结</div>
+                <div class="summary-box">
+                    <p>
+                        今日+1.52%，地量，低位。<br>
+                        量价组合：平量整理，买方占优。<br>
+                        近3日涨跌：+2.33%，近5日涨跌：+3.99%。<br>
+                        连续放量。
+                    </p>
+                </div>
+            </div>
         </div>
-
+        
     </div>
 </body>
 </html>
