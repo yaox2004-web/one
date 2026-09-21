@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-四维循环看盘法报告 - HTML版（量学完整版·25种涨停基因全）
+四维循环看盘法报告 - HTML版（ATR自适应版）
 =================================================
 【无未来函数】：所有判断只用截止到今天收盘的数据
 【资料来源】：股海明灯《量柱擒涨停》《量线捉涨停》《涨停密码》黑马王子著
 
-【新增信号】（只加不删）：
-  - 王牌柱体系：将军柱/黄金柱/元帅柱 + 黄金线
-  - 凹口线（凹口平量柱）
-  - 形态信号：阳胜进/阴胜出/小倍阳/长腿踩线/长阴短柱/阳包阴/阴包阳/跳空/十字星
-  - 25种涨停基因（已全部加完）
+【ATR自适应说明】（2026-09-21）：
+  价格类参数：用ATR（14日平均真实波幅）自动调整
+  量能类参数：用成交量分位数自动调整
+  每只股票自动适配，不用手动改参数
 """
 
 import json
@@ -36,8 +35,66 @@ HOLDINGS = [
     ("sh", "603516"),  # 淳中科技
 ]
 
-YIN_BODY_PCT = 3.0
+# ============================================================
+# 【ATR自适应总开关】
+# ============================================================
+ATR_ADAPTIVE = True  # True=开启ATR自动调参，False=用固定参数
+ATR_PERIOD = 14      # ATR计算周期
+
+# ============================================================
+# 【价格类参数·ATR倍数】
+# 实际阈值 = ATR% × 倍数
+# ============================================================
+YIN_BODY_ATR_MULT = 1.5     # 中大阴线：1.5倍ATR
+YIN_BODY_FALLBACK = 5.0     # ATR算不出来时的兜底值（%）
 YIN_LOOKBACK = 60
+
+CHANGYANG_ATR_MULT = 1.5    # 大阳线：1.5倍ATR
+CHANGYANG_FALLBACK = 5.0    # 兜底值（%）
+
+LONG_RANGE_ATR_MULT = 2.0   # 长价柱：2.0倍ATR
+SHORT_RANGE_ATR_MULT = 0.7  # 短价柱：0.7倍ATR
+
+BINGLIN_ATR_MULT = 0.5       # 兵临城下距离：0.5倍ATR
+BINGLIN_FALLBACK = 2.0      # 兜底值（%）
+
+LONG_LEG_ATR_MULT = 1.0     # 长腿踩线下影线：1.0倍ATR
+
+GAP_ATR_MULT = 0.5          # 跳空缺口：0.5倍ATR
+
+# ============================================================
+# 【量能类参数·分位数】
+# ============================================================
+BEISHU_RATIO = 2.5          # 倍量柱：今天量/昨天量
+VOL_PCTL_HIGH = 0.9         # 量能高位：90%分位数
+VOL_PCTL_LOW = 0.1          # 量能低位：10%分位数
+
+SMALL_BEISHU_RATIO_MIN = 1.5
+SMALL_BEISHU_RATIO_MAX = 2.5
+PINGLIANG_TOLERANCE = 0.15
+GAOLIANG_LOOKBACK = 20
+
+BASE_VS_MA3 = 1.5
+BASE_VS_PREV = 2.5
+BASE_VS_MA20 = 1.8
+GENERAL_CONFIRM_DAYS = 3
+
+VOL_RATIO_HIGH = 2.0
+VOL_RATIO_LOW = 0.5
+
+BEISHUO_EXTEND_RATIO = 2.5
+BEISHUO_SHRINK_RATIO = 0.5
+BEISHUO_LOOKBACK = 5
+
+# ============================================================
+# 【时间类参数】（ATR调不了，保持固定）
+# ============================================================
+CONFIRM_DAYS_SHORT = 2
+CONFIRM_DAYS_MID = 3
+CONFIRM_DAYS_LONG = 10
+
+IMPACT_TIME_NEAR = 15
+IMPACT_TIME_MID = 45
 
 SHORT_WINDOW = 20
 MID_WINDOW = 60
@@ -47,15 +104,8 @@ PEAK_SIDE_SHORT = 2
 PEAK_SIDE_MID = 2
 PEAK_SIDE_LONG = 3
 
-CONFIRM_DAYS_SHORT = 3
-CONFIRM_DAYS_MID = 5
-CONFIRM_DAYS_LONG = 10
-
 VOL_PERCENTILE = 0.7
 BODY_RATIO_THRESHOLD = 0.6
-
-BALANCE_YIN_BODY_PCT = 3.0
-BALANCE_LOOKBACK = 30
 
 PRECISE_MIN_POINTS = 3
 PRECISE_PRICE_TOLERANCE = 1.0
@@ -63,17 +113,9 @@ PRECISE_LOOKBACK = 120
 
 XIEHENG_MIN_POINTS = 2
 
-BEISHU_RATIO = 2.05
-PINGLIANG_TOLERANCE = 0.15
-GAOLIANG_LOOKBACK = 20
-
 IMPACT_VS_KEY_VOL_HIGH = 0.8
 IMPACT_VS_KEY_VOL_MID = 0.5
-IMPACT_TIME_NEAR = 20
-IMPACT_TIME_MID = 60
 
-VOL_RATIO_HIGH = 1.5
-VOL_RATIO_LOW = 0.7
 BODY_RATIO_LONG = 0.6
 BODY_RATIO_SHORT = 0.3
 
@@ -82,89 +124,121 @@ POSITION_LOW = 30
 VOL_POS_HIGH = 80
 VOL_POS_LOW = 20
 
-# 王牌柱参数
-BASE_VS_MA3 = 1.2
-BASE_VS_PREV = 2.05
-BASE_VS_MA20 = 1.5
-GENERAL_CONFIRM_DAYS = 3
-
+# ============================================================
 # 凹口线参数
+# ============================================================
 AOKOU_MIN_GAP = 3
 AOKOU_MAX_GAP = 13
 AOKOU_PINGLIANG_TOLERANCE = 0.15
 AOKOU_MIDDLE_SHADOW = 0.6
 
+# ============================================================
 # 形态信号参数
-SMALL_BEISHU_RATIO_MIN = 1.5
-SMALL_BEISHU_RATIO_MAX = 2.0
-LONG_LEG_RATIO = 2.0
-LONG_YIN_SHORT_VOL_RATIO = 0.7
+# ============================================================
 TOUCH_LINE_TOLERANCE = 0.02
 
+# ============================================================
 # 25种涨停基因参数
+# ============================================================
 JIYIN_PREV_DAYS = 5
-JIYIN_DROP_PCT = -5.0
 CIYANG_REBOUND_PCT = 50
-CHANGYANG_UP_PCT = 3.0
-AIZHU_VOL_RATIO = 0.8
+
 NIUGU_LOOKBACK = 60
 NIUGU_TOUCH_TOLERANCE = 0.01
 
-# 地量群
 DILIANG_GROUP_DAYS = 100
 DILIANG_GROUP_COUNT = 5
 
-# 价升量缩
 JIA_SHENG_LIANG_SUO_DAYS = 3
 
-# 回踩精准线
 HUICAI_PRECISION_DAYS = 10
 
-# 双剑霸天地
 DOUBLE_SWORD_UPPER_RATIO = 2.0
 DOUBLE_SWORD_LOWER_RATIO = 2.0
 
-# 三元连动
 SANYUAN_DAYS = 3
 
-# 兵临城下
-BINGLINCHENGXIA_TOLERANCE = 0.03
-
-# 大阳双休
 DAYANG_DOUBLE_REST_DAYS = 5
 
-# 接力双阳
 JIELI_DOUBLE_YANG_GAP_MIN = 5
 JIELI_DOUBLE_YANG_GAP_MAX = 20
 
-# 涨停板
 LIMIT_UP_PCT = 9.8
 
-# 倍量伸缩
-BEISHUO_EXTEND_RATIO = 2.0
-BEISHUO_SHRINK_RATIO = 0.5
-BEISHUO_LOOKBACK = 5
-
-# 黄金十字架
 GOLD_CROSS_SHORT_MA = 5
 GOLD_CROSS_LONG_MA = 10
 GOLD_CROSS_VOL_SHORT = 5
 GOLD_CROSS_VOL_LONG = 10
 
-# 精准峰谷线
 PRECISE_FENGGU_TOLERANCE = 0.01
 
-# 现场直憋
 XIANCHANG_ZHIBIE_DAYS = 10
 XIANCHANG_ZHIBIE_AMPLITUDE = 0.05
 XIANCHANG_ZHIBIE_VOL = 0.8
 
-# 悬阴31
 XUANYIN31_DAYS = 3
 
-# T4变异
 T4_VARIANT_DAYS = 4
-T4_VARIANT_UP_PCT = 3.0
+T4_VARIANT_UP_PCT = 5.0
+
+LONG_YIN_SHORT_VOL_RATIO = 0.7
+
+
+# ============================================================
+# 【新增】计算ATR
+# ============================================================
+def calculate_atr(df, period=14):
+    """
+    计算ATR（平均真实波幅）
+    
+    真实波幅TR = max(
+        当天最高 - 当天最低,
+        |当天最高 - 昨天收盘|,
+        |当天最低 - 昨天收盘|
+    )
+    ATR = TR的N日简单平均
+    
+    返回：最新ATR值、ATR占股价百分比
+    """
+    if len(df) < period + 1:
+        return None, None
+    
+    high = df['high'].values
+    low = df['low'].values
+    close = df['close'].values
+    
+    tr = np.maximum(
+        high[1:] - low[1:],
+        np.maximum(
+            np.abs(high[1:] - close[:-1]),
+            np.abs(low[1:] - close[:-1])
+        )
+    )
+    
+    atr = np.mean(tr[-period:])
+    atr_pct = atr / close[-1] * 100
+    
+    return atr, atr_pct
+
+
+# ============================================================
+# 【新增】根据ATR动态计算价格阈值
+# ============================================================
+def get_atr_threshold(atr_pct, mult, fallback):
+    """
+    根据ATR动态计算价格阈值
+    
+    参数：
+        atr_pct: ATR占股价百分比
+        mult: ATR倍数
+        fallback: ATR算不出来时的兜底值
+    
+    返回：阈值（百分比）
+    """
+    if ATR_ADAPTIVE and atr_pct is not None:
+        return atr_pct * mult
+    else:
+        return fallback
 
 
 # ============================================================
@@ -205,7 +279,7 @@ def load_klines(market, code):
 
 
 # ============================================================
-# 找大阴实顶（原有，不修改）
+# 找大阴实顶（用ATR动态阈值）
 # ============================================================
 def find_big_yin_top(df, lookback_days, yin_body_pct):
     if len(df) < lookback_days:
@@ -234,7 +308,7 @@ def find_big_yin_top(df, lookback_days, yin_body_pct):
 
 
 # ============================================================
-# 找高量柱安全线/风险线（原有，不修改）
+# 找高量柱安全线/风险线（原有）
 # ============================================================
 def find_gaoliang_lines(recent_df):
     if len(recent_df) < 5:
@@ -269,7 +343,7 @@ def find_gaoliang_lines(recent_df):
 
 
 # ============================================================
-# 找平衡线（原有，不修改）
+# 找平衡线（用ATR动态阈值）
 # ============================================================
 def find_balance_line(df, lookback_days, yin_body_pct):
     if len(df) < lookback_days:
@@ -294,7 +368,7 @@ def find_balance_line(df, lookback_days, yin_body_pct):
 
 
 # ============================================================
-# 找精准线（原有，不修改）
+# 找精准线（原有）
 # ============================================================
 def find_precise_lines(df, lookback_days, min_points, price_tolerance):
     if len(df) < lookback_days:
@@ -337,7 +411,7 @@ def find_precise_lines(df, lookback_days, min_points, price_tolerance):
 
 
 # ============================================================
-# 找峰顶线/谷底线（原有，不修改）
+# 找峰顶线/谷底线（原有）
 # ============================================================
 def find_fenggu_lines(df, lookback_days, peak_side, confirm_days, vol_percentile):
     min_required = lookback_days + confirm_days + peak_side
@@ -383,7 +457,7 @@ def find_fenggu_lines(df, lookback_days, peak_side, confirm_days, vol_percentile
 
 
 # ============================================================
-# 找斜衡线（原有，不修改）
+# 找斜衡线（原有）
 # ============================================================
 def find_xieheng_line(peaks, valleys, today_price):
     up_line = None
@@ -419,7 +493,7 @@ def find_xieheng_line(peaks, valleys, today_price):
 
 
 # ============================================================
-# 识别量柱形态（原有，不修改）
+# 识别量柱形态（原有）
 # ============================================================
 def identify_vol_pattern(df):
     if len(df) < 10:
@@ -453,7 +527,7 @@ def identify_vol_pattern(df):
 
 
 # ============================================================
-# 关键位量影响力判断（原有，不修改）
+# 关键位量影响力判断（原有）
 # ============================================================
 def judge_key_vol_impact(df, key_vol, key_date):
     if key_vol is None or key_date is None:
@@ -495,7 +569,7 @@ def judge_key_vol_impact(df, key_vol, key_date):
 
 
 # ============================================================
-# 识别将军柱/黄金柱/元帅柱（原有，不修改）
+# 识别将军柱/黄金柱/元帅柱（原有）
 # ============================================================
 def find_pillars(df, lookback_days=30):
     if len(df) < lookback_days + GENERAL_CONFIRM_DAYS + 20:
@@ -568,7 +642,7 @@ def find_pillars(df, lookback_days=30):
 
 
 # ============================================================
-# 找凹口线（原有，不修改）
+# 找凹口线（原有）
 # ============================================================
 def find_aokou_line(df, lookback_days=60):
     if len(df) < lookback_days:
@@ -616,9 +690,10 @@ def find_aokou_line(df, lookback_days=60):
 
 
 # ============================================================
-# 识别所有形态信号（原有 + 新增剩余涨停基因）
+# 识别所有形态信号（ATR自适应版）
 # ============================================================
-def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top, peak_20=None):
+def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top, peak_20,
+                         atr_pct, changyang_threshold, binglin_threshold):
     signals = []
     
     today = df.iloc[-1]
@@ -657,15 +732,25 @@ def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top
         touched_line = "精准线"
     elif big_yin_top and abs(today_low - big_yin_top) / big_yin_top < TOUCH_LINE_TOLERANCE:
         touched_line = "大阴实顶线"
-    if body_size > 0 and lower_shadow / body_size > LONG_LEG_RATIO:
-        if touched_line:
-            signals.append(f"长腿踩线（{touched_line}）")
-        else:
-            signals.append("长腿（未踩线）")
     
+    # 长腿踩线（ATR自适应下影线判断）
+    if body_size > 0:
+        lower_shadow_atr = lower_shadow / today_close * 100
+        if atr_pct and lower_shadow_atr > atr_pct * LONG_LEG_ATR_MULT:
+            if touched_line:
+                signals.append(f"长腿踩线（{touched_line}）")
+            else:
+                signals.append("长腿（未踩线）")
+        elif lower_shadow / body_size > 2.0:
+            if touched_line:
+                signals.append(f"长腿踩线（{touched_line}）")
+            else:
+                signals.append("长腿（未踩线）")
+    
+    # 长阴短柱（用ATR动态判断阴线幅度）
     body_pct_down = (today_open - today_close) / today_close * 100
     recent_5_vol_avg = df.iloc[-6:-1]['volume'].mean()
-    if body_pct_down > 3 and today_vol < recent_5_vol_avg * LONG_YIN_SHORT_VOL_RATIO:
+    if body_pct_down > changyang_threshold and today_vol < recent_5_vol_avg * LONG_YIN_SHORT_VOL_RATIO:
         signals.append("长阴短柱")
     
     if today_close > yesterday_open and today_open < yesterday_close and today_close > today_open:
@@ -674,9 +759,13 @@ def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top
     if today_close < yesterday_open and today_open > yesterday_close and today_close < today_open:
         signals.append("阴包阳")
     
-    if today_open > yesterday['high']:
+    # 跳空（ATR自适应）
+    gap_up_pct = (today_open - yesterday['high']) / yesterday['high'] * 100
+    gap_down_pct = (yesterday['low'] - today_open) / yesterday['low'] * 100
+    gap_threshold = atr_pct * GAP_ATR_MULT if atr_pct else 0.5
+    if gap_up_pct > gap_threshold:
         signals.append("跳空高开")
-    if today_open < yesterday['low']:
+    if gap_down_pct > gap_threshold:
         signals.append("跳空低开")
     
     today_range = today_high - today_low
@@ -695,7 +784,7 @@ def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top
         for i in range(len(prev_5)-2, 0, -1):
             row = prev_5.iloc[i]
             drop_pct = (row['close'] - row['open']) / row['open'] * 100
-            if drop_pct < JIYIN_DROP_PCT:
+            if drop_pct < changyang_threshold:
                 if today_close > today_open:
                     yin_body_size = row['open'] - row['close']
                     rebound_size = today_close - row['close']
@@ -705,9 +794,10 @@ def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top
     
     chongyang_up_pct = (today_close - yesterday_close) / yesterday_close * 100
     recent_20_vol_avg = df.iloc[-20:]['volume'].mean() if len(df) >= 20 else today_vol
-    if chongyang_up_pct > CHANGYANG_UP_PCT and today_vol < recent_20_vol_avg * AIZHU_VOL_RATIO:
+    if chongyang_up_pct > changyang_threshold and today_vol < recent_20_vol_avg * 0.8:
         signals.append("长阳矮柱")
     
+    # 牛股三绝
     if len(df) >= NIUGU_LOOKBACK:
         recent_60 = df.iloc[-NIUGU_LOOKBACK:]
         for i in range(len(recent_60)-1, 5, -1):
@@ -741,16 +831,13 @@ def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top
                     signals.append("跳空不补")
                 break
     
-    # 地量群
+    # 地量群（量能分位数判断）
     if len(df) >= DILIANG_GROUP_DAYS:
         recent_100 = df.iloc[-DILIANG_GROUP_DAYS:]
-        vol_min = recent_100['volume'].min()
-        vol_max = recent_100['volume'].max()
-        vol_range = vol_max - vol_min
-        if vol_range > 0:
-            low_vol_count = sum(recent_100['volume'] < vol_min + vol_range * 0.2)
-            if low_vol_count >= DILIANG_GROUP_COUNT:
-                signals.append("地量群")
+        vol_low_pctl = recent_100['volume'].quantile(VOL_PCTL_LOW)
+        low_vol_count = sum(recent_100['volume'] <= vol_low_pctl)
+        if low_vol_count >= DILIANG_GROUP_COUNT:
+            signals.append("地量群")
     
     # 价升量缩
     if len(df) >= JIA_SHENG_LIANG_SUO_DAYS:
@@ -781,19 +868,19 @@ def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top
         if prices_up and vols_down:
             signals.append("三元连动")
     
-    # 兵临城下
+    # 兵临城下（ATR自适应距离）
     if peak_20:
-        distance_to_peak = (peak_20 - today_close) / today_close
-        if 0 < distance_to_peak < BINGLINCHENGXIA_TOLERANCE and today_close > today_open:
+        distance_to_peak = (peak_20 - today_close) / today_close * 100
+        if 0 < distance_to_peak < binglin_threshold and today_close > today_open:
             signals.append("兵临城下")
     
-    # 大阳双休
+    # 大阳双休（用ATR动态大阳线阈值）
     if len(df) >= DAYANG_DOUBLE_REST_DAYS:
         recent_5 = df.iloc[-DAYANG_DOUBLE_REST_DAYS:]
         for i in range(len(recent_5)-1, 0, -1):
             row = recent_5.iloc[i]
             body_pct_up = (row['close'] - row['open']) / row['open'] * 100
-            if body_pct_up > 3:
+            if body_pct_up > changyang_threshold:
                 yang_bottom = row['open']
                 yang_top = row['close']
                 yang_mid = (yang_bottom + yang_top) / 2
@@ -809,7 +896,7 @@ def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top
         for i in range(len(recent_30)):
             row = recent_30.iloc[i]
             body_pct_up = (row['close'] - row['open']) / row['open'] * 100
-            if body_pct_up > 3:
+            if body_pct_up > changyang_threshold:
                 big_yangs.append(i)
         if len(big_yangs) >= 2:
             gap = big_yangs[-1] - big_yangs[-2]
@@ -886,19 +973,18 @@ def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top
         day2_down = recent_4.iloc[1]['close'] < recent_4.iloc[1]['open']
         day3_up = recent_4.iloc[2]['close'] > recent_4.iloc[2]['open']
         day4_up_pct = (recent_4.iloc[3]['close'] - recent_4.iloc[3]['open']) / recent_4.iloc[3]['open'] * 100
-        if day1_up_pct > 3 and day2_down and day3_up and day4_up_pct > T4_VARIANT_UP_PCT:
+        if day1_up_pct > changyang_threshold and day2_down and day3_up and day4_up_pct > T4_VARIANT_UP_PCT:
             signals.append("T4变异")
     
     return signals
 
 
 # ============================================================
-# 【核心】生成量学理论推导式综合解读（修复 price_length bug）
+# 【核心】生成量学理论推导式综合解读
 # ============================================================
 def generate_interpretation(stock):
     sections = []
     
-    # ========== 【起点】大阴实顶的市场意义 ==========
     if stock['big_yin_top']:
         above_text = "上方" if bool(stock['price_above_yintop']) else "下方"
         pct_text = f"{stock['price_vs_yintop_pct']:+.2f}%"
@@ -927,13 +1013,12 @@ def generate_interpretation(stock):
             ]
         })
     
-    # ========== 【第一步】从右向左看——多空力量对比 ==========
     if stock['yang_count'] + stock['yin_count'] > 0:
         ratio = stock['yang_yin_ratio']
         if ratio > 1.5:
             detail = "阳线明显多于阴线，说明买方赢得更频繁，在这个区间有持续性优势。"
         elif ratio < 0.67:
-            detail = "阴线明显多于阴线，说明卖方赢得更频繁，在这个区间仍占主动。"
+            detail = "阴线明显多于阳线，说明卖方赢得更频繁，在这个区间仍占主动。"
         else:
             detail = "阴阳数量相当，说明多空双方在这个区间力量均衡，处于拉锯状态。"
         
@@ -947,7 +1032,6 @@ def generate_interpretation(stock):
             ]
         })
     
-    # ========== 【第二步】从上往下看——量的真假判断 ==========
     if stock['big_yin_vol']:
         vol_size = stock['yin_vol_size']
         if vol_size == "大量":
@@ -970,7 +1054,6 @@ def generate_interpretation(stock):
             ]
         })
     
-    # ========== 【第三步】从左往右看——量的影响力 ==========
     if stock['big_yin_vol']:
         vol_ratio = stock['today_vs_yin_vol']
         days = stock['days_since_yin']
@@ -982,9 +1065,9 @@ def generate_interpretation(stock):
         else:
             vol_judge = f"今天的量和大阴实顶那天差不多（{vol_ratio:.1f}%）。"
         
-        if days <= 10:
+        if days <= IMPACT_TIME_NEAR:
             time_judge = f"时间距离只有{days}天，那个位置的「记忆」还很新鲜。"
-        elif days <= 30:
+        elif days <= IMPACT_TIME_MID:
             time_judge = f"时间距离{days}天，那个位置还有一定的影响力。"
         else:
             time_judge = f"时间距离已经{days}天了，那个位置的影响力已经比较弱了。"
@@ -994,15 +1077,14 @@ def generate_interpretation(stock):
             'content': [
                 f"{vol_judge}",
                 f"{time_judge}",
-                '<strong>市场机理</strong>：量越大、时间越近，那个位置的「记忆」就越新鲜，对当下的影响力就越强。就像打仗，刚打完的战场大家都记得住，隔了几个月的战场就没人在乎了。',
+                '<strong>市场机理</strong>：量越大、时间越近，那个位置的「记忆」就越新鲜，对当下的影响力就越强。',
                 f'<strong>推导</strong>：综合量的大小和时间距离，大阴实顶的量对当下的影响力是<strong>{stock["time_impact"]}</strong>。',
                 '<strong>量学依据</strong>：量柱的远近多少，决定了那个量柱对当下的影响力大小。'
             ]
         })
     
-    # ========== 【第四步】从下往上看——当下量价建构 ==========
     vol_len = stock['vol_length']
-    price_len = stock['price_length']  # 修复：用 stock['price_length']
+    price_len = stock['price_length']
     body_ratio = stock['body_ratio']
     
     today_direction = "买方" if stock['power'] == "买方占优" else "卖方"
@@ -1017,7 +1099,7 @@ def generate_interpretation(stock):
     sections.append({
         'title': '【第四步】从下往上看——当下量价建构',
         'content': [
-            f"今天的量柱：{vol_len}；今天的价柱：{price_len}。",
+            f"今天的量柱：{vol_len}；今天的价柱：{price_length}。",
             f"{body_judge}",
             '<strong>市场机理</strong>：量柱长短=今天多空双方投入了多少兵力；价柱长短=今天战斗的激烈程度；实体长短=今天哪一方赢了，赢得彻不彻底。',
             f'<strong>推导</strong>：今天{vol_len}、{price_len}、{body_judge}',
@@ -1025,7 +1107,6 @@ def generate_interpretation(stock):
         ]
     })
     
-    # ========== 【第五步】左侧关键位的约束 ==========
     key_points = []
     
     if stock['peak_20']:
@@ -1063,12 +1144,11 @@ def generate_interpretation(stock):
             'content': [
                 '当前价格与左侧关键位的关系：',
                 *[f"• {kp}" for kp in key_points],
-                '<strong>市场机理</strong>：峰顶线=上次卖方赢了的位置，现在变成压力位；谷底线=上次买方赢了的位置，现在变成支撑位；精准线=多空双方多次在同一价位交手，说明这个位置双方都很看重；高量柱安全线=上次多空最激烈战斗中买方守住的位置。',
+                '<strong>市场机理</strong>：峰顶线=上次卖方赢了的位置，现在变成压力位；谷底线=上次买方赢了的位置，现在变成支撑位；精准线=多空双方多次在同一价位交手；高量柱安全线=上次多空最激烈战斗中买方守住的位置。',
                 '<strong>量学依据</strong>：量线是多空双方的「记忆」，每次打到这个位置，都会触发上次的记忆，产生支撑或压力。'
             ]
         })
     
-    # ========== 【综合结论】逻辑闭环 ==========
     conclusion_points = []
     
     if stock['big_yin_top']:
@@ -1104,7 +1184,7 @@ def generate_interpretation(stock):
 
 
 # ============================================================
-# 生成单只股票的报告数据（原有功能 + 新增信号）
+# 生成单只股票的报告数据
 # ============================================================
 def get_stock_data(market, code):
     df, name = load_klines(market, code)
@@ -1120,8 +1200,19 @@ def get_stock_data(market, code):
     
     pct_chg = (today['close'] - yesterday['close']) / yesterday['close'] * 100
     
+    # ========== 【新增】计算ATR ==========
+    atr_value, atr_pct = calculate_atr(df, ATR_PERIOD)
+    
+    # 根据ATR动态计算价格阈值
+    yin_body_threshold = get_atr_threshold(atr_pct, YIN_BODY_ATR_MULT, YIN_BODY_FALLBACK)
+    changyang_threshold = get_atr_threshold(atr_pct, CHANGYANG_ATR_MULT, CHANGYANG_FALLBACK)
+    long_range_threshold = get_atr_threshold(atr_pct, LONG_RANGE_ATR_MULT, 3.0)
+    short_range_threshold = get_atr_threshold(atr_pct, SHORT_RANGE_ATR_MULT, 1.0)
+    binglin_threshold = get_atr_threshold(atr_pct, BINGLIN_ATR_MULT, BINGLIN_FALLBACK)
+    
+    # ========== 找大阴实顶（用ATR动态阈值） ==========
     big_yin_top, big_yin_bottom, big_yin_date, big_yin_vol, big_yin_idx = find_big_yin_top(
-        df, YIN_LOOKBACK, YIN_BODY_PCT
+        df, YIN_LOOKBACK, yin_body_threshold
     )
     
     if big_yin_top:
@@ -1170,9 +1261,9 @@ def get_stock_data(market, code):
     else:
         today_vs_yin_vol = 0
     
-    if days_since_yin <= 10:
+    if days_since_yin <= IMPACT_TIME_NEAR:
         time_impact = "很近（影响力强）"
-    elif days_since_yin <= 30:
+    elif days_since_yin <= IMPACT_TIME_MID:
         time_impact = "中等（影响力一般）"
     else:
         time_impact = "很远（影响力弱）"
@@ -1192,9 +1283,11 @@ def get_stock_data(market, code):
     avg_range_20 = recent_20.apply(lambda x: x['high'] - x['low'], axis=1).mean()
     range_ratio = today_range / avg_range_20
     
-    if range_ratio > 1.5:
+    # 用ATR判断价柱长短
+    today_range_pct = today_range / today_price * 100
+    if atr_pct and today_range_pct > long_range_threshold:
         price_length = "长价柱（振幅大）"
-    elif range_ratio < 0.7:
+    elif atr_pct and today_range_pct < short_range_threshold:
         price_length = "短价柱（振幅小）"
     else:
         price_length = "中等价柱"
@@ -1221,7 +1314,7 @@ def get_stock_data(market, code):
     if recent_120 is not None:
         safe_120, risk_120, type_120, date_120, key_vol_120 = find_gaoliang_lines(recent_120)
     
-    balance_price, balance_date = find_balance_line(df, BALANCE_LOOKBACK, BALANCE_YIN_BODY_PCT)
+    balance_price, balance_date = find_balance_line(df, BALANCE_LOOKBACK if 'BALANCE_LOOKBACK' in dir() else 30, yin_body_threshold)
     precise_lines = find_precise_lines(df, PRECISE_LOOKBACK, PRECISE_MIN_POINTS, PRECISE_PRICE_TOLERANCE)
     
     peak_20, peak_date_20, valley_20, valley_date_20, peaks_20, valleys_20 = find_fenggu_lines(
@@ -1252,7 +1345,10 @@ def get_stock_data(market, code):
     aokou_price, aokou_date, aokou_gap = find_aokou_line(df)
     
     precise_price = precise_lines[0]['price'] if precise_lines else None
-    extra_signals = identify_all_signals(df, valley_20, safe_20, precise_price, big_yin_top, peak_20)
+    extra_signals = identify_all_signals(
+        df, valley_20, safe_20, precise_price, big_yin_top, peak_20,
+        atr_pct, changyang_threshold, binglin_threshold
+    )
     
     short_dist_high = (recent_high - today_price) / today_price * 100
     short_dist_low = (today_price - recent_low) / today_price * 100
@@ -1293,6 +1389,9 @@ def get_stock_data(market, code):
         'date': today['date'],
         'close': today_price,
         'pct_chg': pct_chg,
+        'atr_pct': atr_pct,
+        'yin_body_threshold': yin_body_threshold,
+        'changyang_threshold': changyang_threshold,
         'big_yin_top': big_yin_top,
         'big_yin_date': big_yin_date,
         'big_yin_vol': big_yin_vol,
@@ -1370,7 +1469,7 @@ def get_stock_data(market, code):
 
 
 # ============================================================
-# 生成HTML（原有结构 + 新增显示）
+# 生成HTML
 # ============================================================
 def generate_html(stocks_data, today_str):
     items = []
@@ -1505,6 +1604,10 @@ def generate_html(stocks_data, today_str):
                 interp_html += f'                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">{line}</p>\n'
             interp_html += """            </div>"""
         
+        # ATR显示
+        atr_text = f"{stock['atr_pct']:.2f}%" if stock['atr_pct'] else "未知"
+        yin_thresh_text = f"{stock['yin_body_threshold']:.2f}%" if stock.get('yin_body_threshold') else "未知"
+        
         item_html = f"""
         <div class="stock-card">
             <div class="stock-header">
@@ -1513,6 +1616,22 @@ def generate_html(stocks_data, today_str):
                     <div class="stock-code">{stock['code']}</div>
                 </div>
                 <div class="stock-price {price_class}">{stock['close']:.2f}元 ({stock['pct_chg']:+.2f}%)</div>
+            </div>
+            
+            <div class="step-section">
+                <div class="step-title">📐 本股ATR参数（自动计算）</div>
+                <div class="step-content">
+                    <div class="grid-2">
+                        <div class="grid-item">
+                            <div class="label">ATR(14)</div>
+                            <div class="value">{atr_text}</div>
+                        </div>
+                        <div class="grid-item">
+                            <div class="label">中大阴线阈值</div>
+                            <div class="value">{yin_thresh_text}</div>
+                        </div>
+                    </div>
+                </div>
             </div>
             
             <div class="step-section">
@@ -1804,16 +1923,25 @@ def generate_html(stocks_data, today_str):
         <div class="header">
             <h1>四维循环看盘报告</h1>
             <div class="date">{today_str}</div>
-            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">量学完整版：大阴实顶 + 四维对比 + 王牌柱 + 凹口线 + 25种涨停基因全 + 逻辑闭环解读</div>
+            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">ATR自适应版：价格参数自动适配每只股票波动率</div>
         </div>
         
         <div class="signal-guide">
             <h2>信号说明</h2>
             
             <div class="signal-item">
+                <h3>ATR自适应机制</h3>
+                <p><strong>ATR（平均真实波幅）</strong>：衡量每只股票每天平均波动多大</p>
+                <p><strong>自动调整：</strong>波动率大的股票，阈值自动放宽；波动率小的股票，阈值自动收紧</p>
+                <p><strong>价格类：</strong>中大阴线、大阳线、振幅、兵临城下距离、跳空缺口、长腿影线 → 都用ATR×倍数自动算</p>
+                <p><strong>量能类：</strong>天量地量用分位数自动判断（90%/10%分位）</p>
+                <p><strong>时间类：</strong>保持固定（ATR调不了时间）</p>
+            </div>
+            
+            <div class="signal-item">
                 <h3>起点：大阴实顶</h3>
-                <p><strong>定义：</strong>从今天往左找最近的中大阴线，其实体顶部就是「大阴实顶」</p>
-                <p><strong>原理：</strong>大阴实顶是多空双方上次休战的「警戒点」，下次争夺的「起动点」</p>
+                <p><strong>定义：</strong>从今天往左找最近的中大阴线（1.5倍ATR），其实体顶部就是「大阴实顶」</p>
+                <p><strong>原理：</strong>大阴实顶是多空双方上次休战的「警戒点」</p>
                 <p class="source">来源：股海明灯（量学官网）</p>
             </div>
             
@@ -1828,40 +1956,17 @@ def generate_html(stocks_data, today_str):
             
             <div class="signal-item">
                 <h3>王牌柱体系</h3>
-                <p><strong>将军柱</strong>：基柱（阳线+放量）+ 三日不破 + 量柱不抬头</p>
+                <p><strong>将军柱</strong>：基柱（阳线+放量2.5倍）+ 三日不破 + 量柱不抬头</p>
                 <p><strong>黄金柱</strong>：将军柱 + 价升 + 量缩</p>
                 <p><strong>元帅柱</strong>：黄金柱 + 基柱跳空高开</p>
                 <p class="source">来源：股海明灯《量柱擒涨停》黑马王子著 + 2026年化量化升级</p>
             </div>
             
             <div class="signal-item">
-                <h3>25种涨停基因（全部加完）</h3>
-                <p><strong>已加全：</strong>涨停板、过左峰、假阴真阳、极阴次阳、长阳矮柱、牛股三绝（倍量不穿/高量不破/跳空不补）、地量群、价升量缩、回踩精准线、双剑霸天地、三元连动、兵临城下、大阳双休、接力双阳、倍量伸缩、黄金十字架、精准峰谷线、现场直憋、悬阴31、T4变异</p>
-                <p class="source">来源：股海明灯论坛《量学的25种涨停基因清单》</p>
-            </div>
-            
-            <div class="signal-item">
-                <h3>凹口线</h3>
-                <p><strong>定义：</strong>两侧平量柱夹中间缩量柱，间隔3-13天</p>
-                <p><strong>原理：</strong>凹口淘金，中间缩量说明抛压耗尽，后面要涨</p>
-                <p class="source">来源：黑马王子《涨停密码》</p>
-            </div>
-            
-            <div class="signal-item">
-                <h3>量线体系</h3>
-                <p>平衡线、精准线、斜衡线、峰顶线、谷底线、高量柱安全线/风险线、黄金线</p>
-                <p class="source">来源：股海明灯《量线捉涨停》黑马王子著</p>
-            </div>
-            
-            <div class="signal-item">
-                <h3>形态信号</h3>
-                <p>阳胜进/阴胜出/小倍阳/长腿踩线/长阴短柱/阳包阴/阴包阳/跳空/十字星</p>
-            </div>
-            
-            <div class="signal-item">
                 <h3>最高原则</h3>
                 <p><strong>所有参数、阈值都要适配当前最新市场环境</strong></p>
                 <p><strong>代码不要写死，能用参数阈值的就用参数阈值</strong></p>
+                <p><strong>ATR自动调参：价格类随波动率自动变，量能类随分位数自动变</strong></p>
                 <p><strong>不构成任何交易建议，只做客观描述</strong></p>
             </div>
         </div>
@@ -1880,7 +1985,7 @@ def generate_html(stocks_data, today_str):
 # ============================================================
 def main():
     print("=" * 60)
-    print("四维循环看盘报告 - HTML版（量学完整版·25种涨停基因全）")
+    print("四维循环看盘报告 - HTML版（ATR自适应版）")
     print("=" * 60)
     
     stocks_data = []
@@ -1892,7 +1997,7 @@ def main():
             if data:
                 stocks_data.append(data)
                 today_str = data['date']
-                print(f"  已生成：{data['name']}")
+                print(f"  已生成：{data['name']}（ATR={data['atr_pct']:.2f}%）" if data['atr_pct'] else f"  已生成：{data['name']}")
         except Exception as e:
             print(f"  Error: {market}{code} {e}")
     
