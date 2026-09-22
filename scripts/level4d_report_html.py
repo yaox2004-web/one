@@ -593,29 +593,25 @@ def get_margin_info(code):
         sse_data = data.get('data', {}).get('sse', [])
         szse_data = data.get('data', {}).get('szse', [])
 
-        # 宽泛搜索标的证券代码
-        def find_code_field(record):
-            for key in record.keys():
-                if '证券代码' in key or 'code' in key.lower():
-                    val = str(record[key])
-                    if code_short in val:
-                        return True
-            return False
-
-        # 宽泛搜索融资余额字段
-        def find_balance_field(record):
-            for key in record.keys():
-                if '融资余额' in key or 'rzye' in key.lower():
-                    val = record[key]
-                    if isinstance(val, (int, float)) and val > 0:
-                        return val
-            return None
-
+        # 激进搜索：遍历所有记录，只要任何字段值包含股票代码就算找到
         for record in sse_data + szse_data:
-            if find_code_field(record):
-                balance = find_balance_field(record)
-                if balance:
-                    return balance, "融资余额"
+            found_code = False
+            for key, val in record.items():
+                if isinstance(val, str) and code_short in val:
+                    found_code = True
+                    break
+                elif isinstance(val, (int, float)) and str(val).startswith(code_short):
+                    found_code = True
+                    break
+
+            if found_code:
+                # 找最大的数值字段，就是融资余额
+                max_val = 0
+                for key, val in record.items():
+                    if isinstance(val, (int, float)) and val > max_val and val > 1e6:
+                        max_val = val
+                if max_val > 0:
+                    return max_val, "融资余额"
 
         return None, None
 
@@ -643,30 +639,25 @@ def get_north_info(code):
         rows = data.get('rows', [])
         code_short = code[2:] if code.startswith(('sh', 'sz')) else code
 
-        # 宽泛搜索证券代码
-        def find_code_field(row):
-            for key in row.keys():
-                if 'code' in key.lower() or '代码' in key:
-                    val = str(row[key])
-                    if code_short in val:
-                        return True
-            return False
-
-        # 宽泛搜索持股数量
-        def find_hold_field(row):
-            for key in row.keys():
-                key_lower = key.lower()
-                if 'hold' in key_lower or '持股' in key or '数量' in key:
-                    val = row[key]
-                    if isinstance(val, (int, float)) and val > 0:
-                        return val
-            return None
-
+        # 激进搜索：遍历所有行，只要任何字段值包含股票代码就算找到
         for row in rows:
-            if find_code_field(row):
-                hold = find_hold_field(row)
-                if hold:
-                    return hold, "北向持仓"
+            found_code = False
+            for key, val in row.items():
+                if isinstance(val, str) and code_short in val:
+                    found_code = True
+                    break
+                elif isinstance(val, (int, float)) and str(val).startswith(code_short):
+                    found_code = True
+                    break
+
+            if found_code:
+                # 找最大的数值字段，就是持股数量
+                max_val = 0
+                for key, val in row.items():
+                    if isinstance(val, (int, float)) and val > max_val and val > 1e4:
+                        max_val = val
+                if max_val > 0:
+                    return max_val, "北向持仓"
 
         return None, None
 
