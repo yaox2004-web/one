@@ -989,36 +989,36 @@ def get_main_force_intent(position, stock_trend, vol_pattern, pillar_type, vol_v
 
     # 1. 建仓：低位 + 倍量柱 + 真金白银 + 上升趋势
     if position == "低位" and vol_pattern == "倍量柱" and vol_verdict == "真金白银" and stock_trend == "上升趋势":
-        signals.append(("建仓中", "🟢", "低位+倍量+真金白银+上升=主力建仓！"))
+        signals.append(("建仓中", "#10b981", "低位+倍量+真金白银+上升=主力建仓！"))
 
     # 2. 洗盘：中位 + 黄金柱 + 上升趋势
     if position == "中位" and pillar_type == "黄金柱" and stock_trend == "上升趋势":
-        signals.append(("洗盘", "🟡", "中位+黄金柱+上升=主力洗盘！"))
+        signals.append(("洗盘", "#f59e0b", "中位+黄金柱+上升=主力洗盘！"))
 
     # 3. 拉升：中位 + 元帅柱 + 倍量
     if position == "中位" and pillar_type == "元帅柱" and vol_pattern == "倍量柱":
-        signals.append(("拉升", "🟢", "中位+元帅柱+倍量=主力拉升！"))
+        signals.append(("拉升", "#10b981", "中位+元帅柱+倍量=主力拉升！"))
 
     # 4. 出货：高位 + 倍量 + 量化对倒
     if position == "高位" and vol_pattern == "倍量柱" and vol_verdict == "量化对倒":
-        signals.append(("出货", "🔴", "高位+倍量+量化对倒=主力出货！"))
+        signals.append(("出货", "#ef4444", "高位+倍量+量化对倒=主力出货！"))
 
     # 5. 出逃：高位 + 长阴 + 放量
     if position == "高位" and price_pattern == "长阴" and vol_pattern in ["倍量柱", "高量柱"]:
-        signals.append(("出逃", "🔴", "高位+长阴+放量=主力出逃！"))
+        signals.append(("出逃", "#ef4444", "高位+长阴+放量=主力出逃！"))
 
     # 6. 吸筹：低位 + 地量群 + 真金白银
     if position == "低位" and vol_pattern == "地量群" and vol_verdict == "真金白银":
-        signals.append(("吸筹", "🟢", "低位+地量群+真金白银=主力吸筹！"))
+        signals.append(("吸筹", "#10b981", "低位+地量群+真金白银=主力吸筹！"))
 
     # 7. 诱多：中位 + 倍量 + 量化对倒
     if position in ["中位", "高位"] and vol_pattern == "倍量柱" and vol_verdict == "量化对倒":
-        signals.append(("诱多", "🟠", "倍量+量化对倒=主力诱多！"))
+        signals.append(("诱多", "#f97316", "倍量+量化对倒=主力诱多！"))
 
     if signals:
         return signals
     else:
-        return [("观望", "⚪", "暂无明显主力意图")]
+        return [("观望", "#94a3b8", "暂无明显主力意图")]
 
 
 # ============================================================
@@ -1699,6 +1699,165 @@ def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top
 def generate_interpretation(stock):
     sections = []
     
+    # ========== 【总结论】放最前面！一眼看懂！ ==========
+    main_intent = stock.get('main_intent', [])
+    if main_intent:
+        intent_lines = []
+        for intent, color, desc in main_intent:
+            intent_lines.append(f"🎯 {intent}：{desc}")
+        
+        advice_lines = []
+        for intent, color, desc in main_intent:
+            if "建仓" in intent or "吸筹" in intent:
+                advice_lines.append("✅ 操作建议：可以逢低买入！")
+            elif "洗盘" in intent:
+                advice_lines.append("✅ 操作建议：可以加仓！")
+            elif "拉升" in intent:
+                advice_lines.append("✅ 操作建议：持有！")
+            elif "出货" in intent or "出逃" in intent:
+                advice_lines.append("🔴 操作建议：卖出！")
+            elif "诱多" in intent:
+                advice_lines.append("⚠️ 操作建议：不要追高！")
+            else:
+                advice_lines.append("⏸️ 操作建议：观望！")
+        
+        sections.append({
+            'title': '【总结论】主力意图 + 操作建议',
+            'content': intent_lines + advice_lines + [
+                '<strong>怎么看的？</strong>：接下来我一步步给你拆解！'
+            ]
+        })
+    
+    # ========== 【第一步】天时：大盘环境 ==========
+    market = stock.get('market_regime', '未知')
+    vs_ma20 = stock.get('vs_ma20_pct', 0)
+    if market == "多头市场":
+        market_desc = f"上证指数在20日线上方{vs_ma20:+.1f}%，大盘走强！"
+        market_logic = "大盘好的时候，大部分股票都能涨！顺风局！"
+    elif market == "空头市场":
+        market_desc = f"上证指数在20日线下方{vs_ma20:+.1f}%，大盘走弱！"
+        market_logic = "大盘差的时候，大部分股票都难涨！逆风局！"
+    else:
+        market_desc = "大盘数据未知。"
+        market_logic = "无法判断大盘环境。"
+    
+    sections.append({
+        'title': '【第一步】天时：大盘环境怎么样？',
+        'content': [
+            f"📊 {market_desc}",
+            f"<strong>市场机理</strong>：{market_logic}",
+            "<strong>量学依据</strong>：大盘是水，个股是船！水涨船高，水落船低！"
+        ]
+    })
+    
+    # ========== 【第二步】地利：位置 + 趋势 ==========
+    position = stock.get('position', '未知')
+    position_pct = stock.get('position_pct', 0)
+    trend = stock.get('stock_trend', '未知')
+    
+    if position == "低位":
+        pos_desc = f"股价在近60天的低位区域（距离最低点{position_pct:.1f}%）"
+        pos_logic = "低位意味着风险小，上涨空间大！主力最喜欢在低位建仓！"
+    elif position == "中位":
+        pos_desc = f"股价在近60天的中间位置"
+        pos_logic = "中位比较尴尬，要看主力意图！"
+    else:
+        pos_desc = f"股价在近60天的高位区域（距离最高点{position_pct:.1f}%）"
+        pos_logic = "高位意味着风险大，下跌空间大！主力最喜欢在高位出货！"
+    
+    if trend == "上升趋势":
+        trend_desc = "均线多头排列，股价在均线上方！"
+        trend_logic = "上升趋势说明主力在往上做！"
+    else:
+        trend_desc = "均线空头排列，股价在均线下方！"
+        trend_logic = "下降趋势说明主力在往下做！"
+    
+    sections.append({
+        'title': '【第二步】地利：股价在什么位置？趋势怎么样？',
+        'content': [
+            f"📍 位置：{pos_desc}",
+            f"<strong>市场机理</strong>：{pos_logic}",
+            f"\n📈 趋势：{trend_desc}",
+            f"<strong>市场机理</strong>：{trend_logic}",
+            "<strong>量学依据</strong>：位置决定风险！趋势决定方向！"
+        ]
+    })
+    
+    # ========== 【第三步】人和：量柱 + 王牌柱 ==========
+    vol = stock.get('vol_pattern', '未知')
+    pillar = stock.get('pillar_type', '无')
+    
+    sections.append({
+        'title': '【第三步】人和：今天是什么量柱？有没有王牌柱？',
+        'content': [
+            f"📊 今日量柱：{vol}",
+            f"👑 王牌柱：{pillar}",
+            "<strong>市场机理</strong>：量柱是主力的脚印！王牌柱是主力留下的重要标记！",
+            "<strong>量学依据</strong>：有王牌柱的股票才有主力！没王牌柱的股票没人管！"
+        ]
+    })
+    
+    # ========== 【第四步】去伪：真假量柱 ==========
+    vol_verdict = stock.get('vol_verdict', '未知')
+    quant_pct = stock.get('quant_pct', 0)
+    cv = stock.get('vol_cv', 0)
+    corr = stock.get('vol_corr', 0)
+    tail = stock.get('vol_tail', 0)
+    
+    if vol_verdict == "真金白银":
+        vol_logic = "成交量忽大忽小，量价配合，是真金白银在交易！"
+    elif vol_verdict == "量化对倒":
+        vol_logic = "成交量太均匀，量价没关系，是量化机器在对倒！"
+    else:
+        vol_logic = "有一点量化，但不多！"
+    
+    sections.append({
+        'title': '【第四步】去伪：这个量柱是真的还是假的？',
+        'content': [
+            f"🤖 量能判断：{vol_verdict}（估算占比{quant_pct:.0f}%）",
+            f"📊 指标：CV={cv:.2f} · 量价相关={corr:.2f} · 尾盘占比={tail*100:.0f}%",
+            f"<strong>市场机理</strong>：{vol_logic}",
+            "<strong>量学依据</strong>：量化对倒出来的量柱是假的！真金白银的量柱才是真的！"
+        ]
+    })
+    
+    # ========== 【第五步】验证：量线 + 其他信号 ==========
+    ace_line = stock.get('ace_line', 0)
+    vs_ace = stock.get('vs_ace_pct', 0)
+    divergence = stock.get('divergence', '')
+    risks = stock.get('risks', [])
+    
+    extra_lines = []
+    if ace_line:
+        extra_lines.append(f"🛡️ 王牌线：{ace_line:.2f}元（当前{vs_ace:+.1f}%）")
+    if divergence:
+        extra_lines.append(f"⚠️ {divergence}")
+    for risk in risks:
+        extra_lines.append(f"⚠️ {risk}")
+    
+    if extra_lines:
+        sections.append({
+            'title': '【第五步】验证：其他信号确认',
+            'content': extra_lines + [
+                "<strong>量学依据</strong>：多一个信号确认，胜率就高一分！"
+            ]
+        })
+    
+    # ========== 【第六步】为什么得出这个结论？ ==========
+    if main_intent:
+        why_lines = []
+        for intent, color, desc in main_intent:
+            why_lines.append(f"为什么判断是<strong>{intent}</strong>？因为：{desc}")
+        
+        sections.append({
+            'title': '【第六步】为什么得出这个结论？',
+            'content': why_lines + [
+                "<strong>推理逻辑</strong>：天时（大盘）+ 地利（位置趋势）+ 人和（量柱王牌柱）+ 去伪（真假量柱）= 主力意图！",
+                "<strong>量学依据</strong>：四维循环看盘法，就是从这四个维度综合判断！"
+            ]
+        })
+    
+    # ========== 原来的大阴实顶分析 ==========
     if stock['big_yin_top']:
         above_text = "上方" if bool(stock['price_above_yintop']) else "下方"
         pct_text = f"{stock['price_vs_yintop_pct']:+.2f}%"
@@ -1707,7 +1866,7 @@ def generate_interpretation(stock):
         else:
             conclusion = "说明买方还没能收复那天卖方的失地，卖方在这个区间仍占优。"
         sections.append({
-            'title': '【起点】大阴实顶的市场意义',
+            'title': '【补充】大阴实顶的市场意义',
             'content': [
                 f"大阴实顶发生在{stock['days_since_yin']}天前（{stock['big_yin_date']}），价格{stock['big_yin_top']:.2f}元。",
                 '<strong>市场机理</strong>：这是多空双方上次「休战」的警戒点。',
@@ -1717,160 +1876,13 @@ def generate_interpretation(stock):
         })
     else:
         sections.append({
-            'title': '【起点】大阴实顶的市场意义',
+            'title': '【补充】大阴实顶的市场意义',
             'content': [
                 '近60日没有出现中大阴线。',
                 '<strong>市场机理</strong>：说明近期没有明显的多空大战分界线。',
                 '<strong>量学依据</strong>：没有大阴实顶，说明多空双方还没有进行过大规模决战。'
             ]
         })
-    
-    if stock['yang_count'] + stock['yin_count'] > 0:
-        ratio = stock['yang_yin_ratio']
-        if ratio > 1.5:
-            detail = "阳线明显多于阴线，说明买方赢得更频繁。"
-        elif ratio < 0.67:
-            detail = "阴线明显多于阴线，说明卖方赢得更频繁。"
-        else:
-            detail = "阴阳数量相当，说明多空双方力量均衡。"
-        sections.append({
-            'title': '【第一步】从右向左看——多空力量对比',
-            'content': [
-                f"从大阴实顶到今天：阳线{stock['yang_count']}根、阴线{stock['yin_count']}根，阴阳比{ratio:.2f}。",
-                '<strong>市场机理</strong>：每根K线都是多空一天的战斗结果。',
-                f'<strong>推导</strong>：阴阳比{ratio:.2f}，{detail}',
-                '<strong>量学依据</strong>：价柱的阴阳数量对比，是多空力量最直观的体现。'
-            ]
-        })
-    
-    if stock['big_yin_vol']:
-        vol_size = stock['yin_vol_size']
-        if vol_size == "大量":
-            mechanism = "那天多空双方真刀真枪干了一架，卖方放量砸盘。"
-            conclusion = "大阴实顶那天是<strong>大量</strong>，说明上方的抛压是真实的。"
-        elif vol_size == "小量":
-            mechanism = "那天虽然价格跌了，但成交很清淡，没人接盘的「假跌」。"
-            conclusion = "大阴实顶那天是<strong>小量</strong>，说明那次下跌是无量空跌。"
-        else:
-            mechanism = "那天的量和平时差不多，是正常调整。"
-            conclusion = "大阴实顶那天是<strong>平量</strong>，说明那次下跌是正常调整。"
-        sections.append({
-            'title': '【第二步】从上往下看——量的真假判断',
-            'content': [
-                f"大阴实顶那天的成交量：{vol_size}。",
-                f'<strong>市场机理</strong>：{mechanism}',
-                f'<strong>推导</strong>：{conclusion}',
-                '<strong>量学依据</strong>：量是因，价是果。'
-            ]
-        })
-    
-    if stock['big_yin_vol']:
-        vol_ratio = stock['today_vs_yin_vol']
-        days = stock['days_since_yin']
-        if vol_ratio > 100:
-            vol_judge = f"今天的量比大阴实顶那天还大（{vol_ratio:.1f}%）。"
-        elif vol_ratio < 50:
-            vol_judge = f"今天的量只有大阴实顶那天的{vol_ratio:.1f}%。"
-        else:
-            vol_judge = f"今天的量和大阴实顶那天差不多（{vol_ratio:.1f}%）。"
-        if days <= IMPACT_TIME_NEAR:
-            time_judge = f"时间距离只有{days}天，那个位置的「记忆」还很新鲜。"
-        elif days <= IMPACT_TIME_MID:
-            time_judge = f"时间距离{days}天，那个位置还有一定的影响力。"
-        else:
-            time_judge = f"时间距离已经{days}天了，那个位置的影响力已经比较弱了。"
-        sections.append({
-            'title': '【第三步】从左往右看——量的影响力',
-            'content': [
-                f"{vol_judge}",
-                f"{time_judge}",
-                '<strong>市场机理</strong>：量越大、时间越近，那个位置的「记忆」就越新鲜。',
-                f'<strong>推导</strong>：大阴实顶的量对当下的影响力是<strong>{stock["time_impact"]}</strong>。',
-                '<strong>量学依据</strong>：量柱的远近多少，决定了那个量柱对当下的影响力大小。'
-            ]
-        })
-    
-    vol_len = stock['vol_length']
-    price_len = stock['price_length']
-    body_ratio = stock['body_ratio']
-    today_direction = "买方" if stock['power'] == "买方占优" else "卖方"
-    if body_ratio > 60:
-        body_judge = f"实体占比{body_ratio:.1f}%，实体较长，说明{today_direction}今天赢了，而且赢得比较彻底。"
-    elif body_ratio < 30:
-        body_judge = f"实体占比{body_ratio:.1f}%，实体很短，说明今天多空打了个平手。"
-    else:
-        body_judge = f"实体占比{body_ratio:.1f}%，实体中等，说明{today_direction}今天赢了，但赢得不算彻底。"
-    sections.append({
-        'title': '【第四步】从下往上看——当下量价建构',
-        'content': [
-            f"今天的量柱：{vol_len}；今天的价柱：{price_len}。",
-            f"{body_judge}",
-            '<strong>市场机理</strong>：量柱长短=今天多空双方投入了多少兵力；价柱长短=今天战斗的激烈程度。',
-            f'<strong>推导</strong>：今天{vol_len}、{price_len}、{body_judge}',
-            '<strong>量学依据</strong>：量价的长短伸缩，是当下多空力量最直接的体现。'
-        ]
-    })
-    
-    key_points = []
-    if stock['peak_20']:
-        above = "上方" if stock['close'] > stock['peak_20'] else "下方"
-        key_points.append(f"20日峰顶线{stock['peak_20']:.2f}元（{stock['peak_date_20']}）：当前在<strong>{above}</strong>")
-    if stock['valley_20']:
-        above = "上方" if stock['close'] > stock['valley_20'] else "下方"
-        key_points.append(f"20日谷底线{stock['valley_20']:.2f}元（{stock['valley_date_20']}）：当前在<strong>{above}</strong>")
-    if stock['precise_lines']:
-        pl = stock['precise_lines'][0]
-        above = "上方" if stock['close'] > pl['price'] else "下方"
-        key_points.append(f"精准线{pl['price']:.2f}元（{pl['points']}个点）：当前在<strong>{above}</strong>")
-    if stock['safe_20']:
-        above = "上方" if stock['close'] > stock['safe_20'] else "下方"
-        key_points.append(f"20日高量柱安全线{stock['safe_20']:.2f}元：当前在<strong>{above}</strong>")
-    if stock['balance_price']:
-        above = "上方" if stock['close'] > stock['balance_price'] else "下方"
-        key_points.append(f"平衡线{stock['balance_price']:.2f}元：当前在<strong>{above}</strong>")
-    if stock.get('pillar_type') and stock['pillar_type'] != "无":
-        above = "上方" if stock['close'] > stock['golden_line'] else "下方"
-        key_points.append(f"{stock['pillar_type']}黄金线{stock['golden_line']:.2f}元：当前在<strong>{above}</strong>")
-    if stock.get('aokou_price'):
-        above = "上方" if stock['close'] > stock['aokou_price'] else "下方"
-        key_points.append(f"凹口线{stock['aokou_price']:.2f}元：当前在<strong>{above}</strong>")
-    if key_points:
-        sections.append({
-            'title': '【第五步】左侧关键位的约束',
-            'content': [
-                '当前价格与左侧关键位的关系：',
-                *[f"• {kp}" for kp in key_points],
-                '<strong>市场机理</strong>：峰顶线=上次卖方赢了的位置，现在变成压力位；谷底线=上次买方赢了的位置，现在变成支撑位。',
-                '<strong>量学依据</strong>：量线是多空双方的「记忆」。'
-            ]
-        })
-    
-    conclusion_points = []
-    if stock['big_yin_top']:
-        if bool(stock['price_above_yintop']):
-            conclusion_points.append("买方已经收复了大阴实顶，说明买方在这个区间占优")
-        else:
-            conclusion_points.append("买方还没能收复大阴实顶，卖方仍在这个区间占优")
-    if stock['yang_yin_ratio'] > 1.5:
-        conclusion_points.append("从大阴实顶到今天，阳线多于阴线，说明买方在逐步推进")
-    elif stock['yang_yin_ratio'] < 0.67:
-        conclusion_points.append("从大阴实顶到今天，阴线多于阳线，说明卖方仍在压制")
-    if stock['yin_vol_size'] == "小量":
-        conclusion_points.append("大阴实顶那天是小量，说明那次下跌是无量空跌")
-    elif stock['yin_vol_size'] == "大量":
-        conclusion_points.append("大阴实顶那天是大量，说明那次下跌是真出货")
-    conclusion_points.append(f"今天{stock['pct_chg']:+.2f}%，{stock['power']}")
-    conclusion_points.append(f"当前在近120日{stock['pos_status']}")
-    
-    sections.append({
-        'title': '【综合结论】逻辑闭环',
-        'content': [
-            '把以上五步串起来：',
-            *[f"{i+1}. {p}" for i, p in enumerate(conclusion_points)],
-            f'<strong>最终判断</strong>：当前价格在{stock["pos_status"]}，{stock["power"]}，近3日涨跌{stock["pct_3d"]:+.2f}%，近5日涨跌{stock["pct_5d"]:+.2f}%。',
-            '<strong>注意</strong>：以上是基于量学理论的客观描述，不构成任何交易建议。'
-        ]
-    })
     
     return sections
 
