@@ -1,0 +1,153 @@
+name: 每日拉基本面数据
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 12 * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: data-push
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: 装 akshare
+        run: pip install akshare -q
+
+      - name: 拉融资融券
+        run: |
+          python3 << 'PYEOF'
+          import akshare as ak
+          import json, os, time
+          from datetime import datetime, timezone, timedelta
+
+          os.makedirs('data/margin', exist_ok=True)
+          bj_now = datetime.now(timezone.utc) + timedelta(hours=8)
+          today = bj_now.strftime('%Y%m%d')
+
+          result = {'date': today, 'updated': bj_now.strftime('%Y-%m-%d %H:%M:%S BJT'), 'data': {'sse': [], 'szse': []}}
+
+          # 探测：沪深数据都没出直接退出
+          probe_ok = 0
+          for probe_fn in [ak.stock_margin_detail_sse, ak.stock_margin_detail_szse]:
+              try:
+                  probe_df = probe_fn(date=today)
+                  if probe_df is not None and len(probe_df) > 0:
+                      probe_ok += 1
+              except Exception:
+                  pass
+          if probe_ok == 0:
+              print(f'融资融券: 沪深数据均未生成（{today}），跳过')
+          else:
+              for market, fn in [('sse', ak.stock_margin_detail_sse), ('szse', ak.stock_margin_detail_szse)]:
+                  success = False
+                  for attempt in range(3):
+                      try:
+                          df = fn(date=today)
+                      except ValueError as e:
+                          print(f'融资融券 {market}: 今天数据未生成')
+                          success = True
+                          break
+                      except Exception as e:
+                          wait = 5 * (attempt + 1)
+                          time.sleep(wait)
+                          continue
+                      if df is None or len(df) == 0:
+                          success = True
+                          break
+                      result['data'][market] = df.to_dict('records')
+                      success = True
+                      break
+                  if success:
+                      print(f'融资融券 {market}: 完成')
+
+          with open(f'data/margin/{today}.json', 'w') as f:
+              json.dump(result, f, ensure_ascii=False, default=str)
+          PYEOF
+
+      - name: 拉基本面
+        run: |
+          python3 << 'PYEOF'
+          import akshare as ak
+          import json, os, time
+          from datetime import datetime, timezone, timedelta
+
+          os.makedirs('data/fundamental', exist_ok=True)
+          bj_now = datetime.now(timezone.utc) + timedelta(hours=8)
+          today = bj_now.strftime('%Y%m%d')
+
+          codes = [
+              '601138', '300476', '603516', '002156',
+              '603283', '601231', '300394', '600584',
+          ]
+
+          result = {'date': today, 'updated': bj_now.strftime('%Y-%m-%d %H:%M:%S BJT'), 'stocks': {}}
+
+          for code in codes:
+              try:
+                  df = ak.stock_financial_abstract(symbol=code)
+                  if df is not None and len(df) > 0:
+                      result['stocks'][code] = df.head(20).to_dict('records')
+              except Exception as e:
+                  pass
+              time.sleep(1)
+
+          with open(f'data/fundamental/{today}.json', 'w') as f:
+              json.dump(result, f, ensure_ascii=False, default=str)
+          print(f'基本面完成: {len(result["stocks"])}只')
+          PYEOF
+
+      - name: 拉股东户数
+        run: |
+          python3 << 'PYEOF'
+          import akshare as ak
+          import json, os, time
+          from datetime import datetime, timezone, timedelta
+
+          os.makedirs('data/holders', exist_ok=True)
+          bj_now = datetime.now(timezone.utc) + timedelta(hours=8)
+          today = bj_now.strftime('%Y%m%d')
+
+          codes = [
+              '601138', '300476', '603516', '002156',
+              '603283', '601231', '300394', '600584',
+          ]
+
+          result = {'date': today, 'updated': bj_now.strftime('%Y-%m-%d %H:%M:%S BJT'), 'stocks': {}}
+
+          for code in codes:
+              try:
+                  df = ak.stock_zh_a_gdhs_detail_em(symbol=code)
+                  if df is not None and len(df) > 0:
+                      result['stocks'][code] = df.head(10).to_dict('records')
+              except Exception as e:
+                  pass
+              time.sleep(1.5)
+
+          with open(f'data/holders/{today}.json', 'w') as f:
+              json.dump(result, f, ensure_ascii=False, default=str)
+          print(f'股东户数完成: {len(result["stocks"])}只')
+          PYEOF
+
+      - name: 提交 + 推送
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/margin/ data/fundamental/ data/holders/
+          if git diff --cached --quiet; then
+            echo "无变化"
+          else
+            git commit -m "data: 基本面数据 $(date -u +%Y%m%d)"
+            git push
+          fi
