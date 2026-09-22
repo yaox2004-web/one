@@ -1345,8 +1345,8 @@ def main():
                         count = len(returns)
                         if count < 5:
                             continue
-                        avg_ret = np.mean(returns)
-                        win_rate = sum(1 for r in returns if r > 0) / count * 100
+                        avg_ret = np.mean([r[0] for r in returns])
+                        win_rate = sum(1 for r in returns if r[0] > 0) / count * 100
                         
                         if win_rate > 55 and avg_ret > 0:
                             conclusion = "有效"
