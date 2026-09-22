@@ -38,7 +38,6 @@ jobs:
 
           result = {'date': today, 'updated': bj_now.strftime('%Y-%m-%d %H:%M:%S BJT'), 'data': {'sse': [], 'szse': []}}
 
-          # 探测：沪深数据都没出直接退出
           probe_ok = 0
           for probe_fn in [ak.stock_margin_detail_sse, ak.stock_margin_detail_szse]:
               try:
