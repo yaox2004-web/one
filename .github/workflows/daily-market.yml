@@ -94,7 +94,6 @@ jobs:
               json.dump(result, f, ensure_ascii=False, default=str)
           PYEOF
 
-      # ========== 新增：拉北向资金 ==========
       - name: 拉北向资金
         run: |
           python3 << 'PYEOF'
@@ -114,22 +113,21 @@ jobs:
           result = {'date': today, 'updated': bj_now.strftime('%Y-%m-%d %H:%M:%S BJT'), 'rows': []}
 
           try:
-              # 北向资金持股排行（今日）
               df_north = ak.stock_hsgt_hold_stock_em(market="北向", indicator="今日排行")
-              if df_north is not None and len(df_north) > 0:
-                  # 兼容不同列名，尝试过滤持仓股
-                  if '代码' in df_north.columns:
-                      df_filtered = df_north[df_north['代码'].astype(str).str.zfill(6).isin(codes)]
-                  elif '股票代码' in df_north.columns:
-                      df_filtered = df_north[df_north['股票代码'].astype(str).str.zfill(6).isin(codes)]
+              if df_north is None:
+                  print('北向资金: 接口返回None（今日无数据）')
+              elif len(df_north) == 0:
+                  print('北向资金: 数据为空')
+              else:
+                  code_col = next((col for col in ['代码', '股票代码', '证券代码'] if col in df_north.columns), None)
+                  if code_col:
+                      df_filtered = df_north[df_north[code_col].astype(str).str.zfill(6).isin(codes)]
                   else:
-                      df_filtered = df_north.head(50) # 找不到列名就取前50
+                      df_filtered = df_north.head(50)
                   result['rows'] = df_filtered.to_dict('records')
                   print(f'北向资金完成: 共{len(df_north)}条，持仓股过滤后{len(df_filtered)}条')
-              else:
-                  print(f'北向资金: {today} 无数据')
           except Exception as e:
-              print(f'北向资金拉取异常: {e}')
+              print(f'北向资金拉取跳过: {e}')
 
           with open(f'data/north/{today}.json', 'w') as f:
               json.dump(result, f, ensure_ascii=False, default=str)
