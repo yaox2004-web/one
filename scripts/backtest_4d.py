@@ -25,6 +25,7 @@ from collections import defaultdict
 
 DATA_DIR = Path(__file__).parent.parent / "data" / "kline"
 INDEX_PATH = DATA_DIR / "sh" / "sh000001.json"  # 上证指数（sh子目录，带sh前缀）
+MIN1_DIR = Path(__file__).parent.parent / "data" / "kline_1min"  # 1分钟数据目录
 
 # 最大回测股票数：持仓8只 + 沪深300全部，共约308只
 MAX_STOCKS = 350
@@ -187,6 +188,105 @@ def calculate_atr(df, period=14):
     atr = np.mean(tr[-period:])
     atr_pct = atr / close[-1] * 100
     return atr, atr_pct
+
+
+# ============================================================
+# 【新增：真假量柱判断】
+# 设计思路：用1分钟数据判断当天是真金白银还是量化对倒
+# 依据：和报告脚本一样的三个指标
+# 1. CV值（成交量标准差/均值）：CV<0.5=均匀，疑似量化
+# 2. 量价相关：相关<0.3=不相关，疑似量化对倒
+# 3. 尾盘占比：尾盘30分钟量占比>30%=疑似量化尾盘做盘
+# 满足2个以上=量化对倒
+# ============================================================
+def is_real_money(market, code, trade_date):
+    """判断当天是真金白银还是量化对倒，返回 (是否真金, 量化占比)"""
+    filepath = MIN1_DIR / f"{market}{code}.json"
+    if not filepath.exists():
+        # 没有1分钟数据，默认当真金白银
+        return True, 0
+    
+    try:
+        with open(filepath, 'r') as f:
+            data = json.load(f)
+        klines = data.get('klines', [])
+        if len(klines) < 100:
+            return True, 0
+        
+        # 找到当天的1分钟数据
+        day_klines = []
+        for k in klines:
+            if k[0].startswith(trade_date):
+                day_klines.append(k)
+        
+        if len(day_klines) < 200:
+            # 当天1分钟数据太少，默认当真金白银
+            return True, 0
+        
+        # 计算三个指标
+        volumes = [float(k[5]) for k in day_klines]
+        closes = [float(k[2]) for k in day_klines]
+        
+        # 1. CV值
+        vol_mean = np.mean(volumes)
+        vol_std = np.std(volumes)
+        cv = vol_std / vol_mean if vol_mean > 0 else 1
+        
+        # 2. 量价相关
+        price_changes = np.diff(closes)
+        vol_changes = np.diff(volumes)
+        if len(price_changes) > 10:
+            corr = np.corrcoef(price_changes, vol_changes)[0, 1]
+            if np.isnan(corr):
+                corr = 0.5
+        else:
+            corr = 0.5
+        
+        # 3. 尾盘占比（最后30分钟）
+        tail_vol = sum(volumes[-30:])
+        total_vol = sum(volumes)
+        tail_ratio = tail_vol / total_vol if total_vol > 0 else 0
+        
+        # 判断
+        quant_count = 0
+        if cv < 0.5:
+            quant_count += 1
+        if abs(corr) < 0.3:
+            quant_count += 1
+        if tail_ratio > 0.3:
+            quant_count += 1
+        
+        # 量化占比估算
+        if cv < 0.5:
+            cv_score = 0.7
+        elif cv < 1.0:
+            cv_score = 0.4
+        else:
+            cv_score = 0.1
+        
+        if abs(corr) < 0.3:
+            corr_score = 0.6
+        elif abs(corr) < 0.5:
+            corr_score = 0.3
+        else:
+            corr_score = 0.1
+        
+        if tail_ratio > 0.3:
+            tail_score = 0.7
+        elif tail_ratio > 0.2:
+            tail_score = 0.4
+        else:
+            tail_score = 0.1
+        
+        quant_ratio = (cv_score + corr_score + tail_score) / 3 * 100
+        
+        # 满足2个以上=量化对倒
+        is_quant = quant_count >= 2
+        return not is_quant, round(quant_ratio, 1)
+        
+    except Exception as e:
+        # 出错了默认当真金白银
+        return True, 0
 
 
 def get_atr_threshold(atr_pct, mult, fallback):
@@ -1147,6 +1247,12 @@ def main():
                 
                 bp = df.iloc[buy_idx]['open']
                 
+                # 新增：判断信号当天是真金白银还是量化对倒
+                # 设计思路：用1分钟数据判断，和报告脚本逻辑一致
+                # 依据：识别量化的目的是去伪存真，提高信号准确率
+                today_date = df.iloc[i]['date']
+                is_real, quant_ratio = is_real_money(market, code, today_date)
+                
                 # 固定持有期
                 for hold_days in HOLD_PERIODS:
                     sell_idx = buy_idx + hold_days
@@ -1156,7 +1262,8 @@ def main():
                     if bp <= 0:
                         continue
                     ret = (sp - bp) / bp * 100 - TOTAL_COST * 100
-                    all_trades[signal_name][position][stock_trend][market_regime][hold_days].append(ret)
+                    # 存 (收益, 是否真金白银)
+                    all_trades[signal_name][position][stock_trend][market_regime][hold_days].append((ret, is_real))
     
     # 输出结果
     print("\n" + "=" * 70)
@@ -1240,13 +1347,30 @@ def main():
                 if trend not in winrate_data[pos]:
                     winrate_data[pos][trend] = {}
                 # 合并牛市和熊市的数据，不分开统计（简化版）
-                all_returns = []
+                all_trades_list = []
                 for regime in market_regimes:
-                    all_returns.extend(all_trades[signal_name][pos][trend][regime][WINRATE_HOLD_DAYS])
+                    all_trades_list.extend(all_trades[signal_name][pos][trend][regime][WINRATE_HOLD_DAYS])
+                
+                # 整体胜率
+                all_returns = [t[0] for t in all_trades_list]
                 count = len(all_returns)
-                if count >= 5:  # 样本数>=5才统计
+                if count >= 5:
                     win_rate = sum(1 for r in all_returns if r > 0) / count * 100
                     winrate_data[pos][trend][signal_name] = round(win_rate, 1)
+                
+                # 真金白银胜率
+                real_returns = [t[0] for t in all_trades_list if t[1] is True]
+                real_count = len(real_returns)
+                if real_count >= 5:
+                    real_win_rate = sum(1 for r in real_returns if r > 0) / real_count * 100
+                    winrate_data[pos][trend][f"{signal_name}_真金"] = round(real_win_rate, 1)
+                
+                # 量化对倒胜率
+                quant_returns = [t[0] for t in all_trades_list if t[1] is False]
+                quant_count = len(quant_returns)
+                if quant_count >= 5:
+                    quant_win_rate = sum(1 for r in quant_returns if r > 0) / quant_count * 100
+                    winrate_data[pos][trend][f"{signal_name}_量化"] = round(quant_win_rate, 1)
     
     # 保存到文件
     output_dir = Path(__file__).parent.parent / "data" / "analysis"
