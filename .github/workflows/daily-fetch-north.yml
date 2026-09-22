@@ -34,7 +34,7 @@ jobs:
           today = bj_now.strftime('%Y-%m-%d')
 
           try:
-              df = ak.stock_hsgt_individual_em(stock="北向资金")
+              df = ak.stock_hsgt_hold_stock_em(market="北向持股", indicator="今日排行")
               if df is None or len(df) == 0:
                   print(f'无北向数据（{today}）')
                   exit(0)
