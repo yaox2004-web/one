@@ -640,6 +640,96 @@ def check_huicai_jingzhun(df, i, precise_price):
 
 
 # ============================================================
+# 【新增：价柱形态识别】
+# ============================================================
+def identify_price_pattern(df, i, atr_pct):
+    if i < 1:
+        return "普通"
+    
+    today = df.iloc[i]
+    open_price = today['open']
+    close_price = today['close']
+    high_price = today['high']
+    low_price = today['low']
+    
+    body = abs(close_price - open_price)
+    total_range = high_price - low_price
+    
+    if total_range == 0:
+        return "十字星"
+    
+    body_ratio = body / total_range
+    upper_shadow = high_price - max(open_price, close_price)
+    lower_shadow = min(open_price, close_price) - low_price
+    
+    changyang_thresh = get_atr_threshold(atr_pct, CHANGYANG_ATR_MULT, CHANGYANG_FALLBACK)
+    
+    # 长阳/长阴
+    if body_ratio > 0.7 and (close_price - open_price) / open_price * 100 > changyang_thresh:
+        return "长阳"
+    if body_ratio > 0.7 and (open_price - close_price) / open_price * 100 > changyang_thresh:
+        return "长阴"
+    
+    # 十字星
+    if body_ratio < 0.1:
+        return "十字星"
+    
+    return "普通"
+
+
+# ============================================================
+# 【新增：量价背离】
+# ============================================================
+def check_divergence(df, i):
+    if i < 10:
+        return None, None
+    
+    recent_10 = df.iloc[i-10:i+1]
+    price_change = (recent_10.iloc[-1]['close'] - recent_10.iloc[0]['close']) / recent_10.iloc[0]['close'] * 100
+    vol_change = (recent_10.iloc[-1]['volume'] - recent_10.iloc[0]['volume']) / recent_10.iloc[0]['volume'] * 100
+    
+    # 顶背离：价涨量缩
+    if price_change > 5 and vol_change < -20:
+        support = recent_10.iloc[-1]['close']
+        return "顶背离", support
+    # 底背离：价跌量增
+    if price_change < -5 and vol_change > 20:
+        support = recent_10.iloc[-1]['close']
+        return "底背离", support
+    
+    return None, None
+
+
+# ============================================================
+# 【新增：主力意图识别】
+# ============================================================
+def check_main_intent(position, stock_trend, vol_pattern, pillar_type, price_pattern):
+    intents = []
+    
+    # 建仓：低位 + 倍量柱 + 上升趋势
+    if position == "低位" and vol_pattern == "倍量柱" and stock_trend == "上升趋势":
+        intents.append(("建仓中", None))
+    
+    # 洗盘：中位 + 黄金柱 + 上升趋势
+    if position == "中位" and pillar_type == "黄金柱" and stock_trend == "上升趋势":
+        intents.append(("洗盘", None))
+    
+    # 拉升：中位 + 元帅柱 + 倍量
+    if position == "中位" and pillar_type == "元帅柱" and vol_pattern == "倍量柱":
+        intents.append(("拉升", None))
+    
+    # 出货：高位 + 倍量柱
+    if position == "高位" and vol_pattern == "倍量柱":
+        intents.append(("出货", None))
+    
+    # 出逃：高位 + 长阴 + 放量
+    if position == "高位" and price_pattern == "长阴" and vol_pattern in ["倍量柱", "高量柱"]:
+        intents.append(("出逃", None))
+    
+    return intents
+
+
+# ============================================================
 # 【找峰顶线/谷底线】
 # ============================================================
 def find_fenggu_at(df, end_idx, lookback_days, peak_side, confirm_days, vol_percentile):
@@ -915,6 +1005,23 @@ def main():
                 today = df.iloc[i]
                 if today['close'] > big_yin_top:
                     signals_today.append(("突破大阴实顶", big_yin_top))
+            
+            # 新增：价柱形态
+            price_pattern = identify_price_pattern(df, i, atr_pct)
+            if price_pattern != "普通":
+                signals_today.append((price_pattern, df.iloc[i]['close']))
+            
+            # 新增：量价背离
+            divergence_name, divergence_support = check_divergence(df, i)
+            if divergence_name:
+                signals_today.append((divergence_name, divergence_support))
+            
+            # 新增：主力意图识别
+            main_intents = check_main_intent(position, stock_trend, vol_pattern, pillar_type, price_pattern)
+            for intent_name, intent_support in main_intents:
+                if intent_support is None:
+                    intent_support = df.iloc[i]['close']
+                signals_today.append((intent_name, intent_support))
             
             # 对每个信号，找回踩买入点
             for signal_name, support_price in signals_today:
