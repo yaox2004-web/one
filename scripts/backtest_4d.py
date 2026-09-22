@@ -1222,6 +1222,40 @@ def main():
     print("- 胜率50%-55%：信号一般")
     print("- 胜率<50%：信号无效")
     print("=" * 70)
+    
+    # ============================================================
+    # 【新增：自动生成胜率JSON文件，供报告脚本读取】
+    # 设计思路：跑完回测自动生成 data/analysis/winrate.json
+    # 好处：以后报告脚本直接读这个文件，不用手动改代码
+    # 格式：{位置: {趋势: {信号: 胜率}}}，用持有20天的胜率
+    # ============================================================
+    WINRATE_HOLD_DAYS = 20  # 报告里用持有20天的胜率
+    
+    winrate_data = {}
+    for signal_name in all_trades:
+        for pos in positions:
+            if pos not in winrate_data:
+                winrate_data[pos] = {}
+            for trend in stock_trends:
+                if trend not in winrate_data[pos]:
+                    winrate_data[pos][trend] = {}
+                # 合并牛市和熊市的数据，不分开统计（简化版）
+                all_returns = []
+                for regime in market_regimes:
+                    all_returns.extend(all_trades[signal_name][pos][trend][regime][WINRATE_HOLD_DAYS])
+                count = len(all_returns)
+                if count >= 5:  # 样本数>=5才统计
+                    win_rate = sum(1 for r in all_returns if r > 0) / count * 100
+                    winrate_data[pos][trend][signal_name] = round(win_rate, 1)
+    
+    # 保存到文件
+    output_dir = Path(__file__).parent.parent / "data" / "analysis"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    winrate_path = output_dir / "winrate.json"
+    with open(winrate_path, 'w', encoding='utf-8') as f:
+        json.dump(winrate_data, f, ensure_ascii=False, indent=2)
+    print(f"\n✅ 已生成胜率文件：{winrate_path}")
+    print(f"   报告脚本下次运行时会自动读取这个文件！")
 
 
 if __name__ == "__main__":
