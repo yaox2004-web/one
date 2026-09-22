@@ -334,6 +334,160 @@ def get_signal_effectiveness(signal_name, position, trend):
 
 
 # ============================================================
+# 【新增：识别量化对倒（用1分钟数据）】
+# ============================================================
+def analyze_1min_volatility(code):
+    import os
+    one_min_path = Path(__file__).parent.parent / "data" / "kline_1min" / f"{code}.json"
+    if not one_min_path.exists():
+        return None, None, None, None
+
+    try:
+        with open(one_min_path, 'r') as f:
+            data = json.load(f)
+        klines = data.get('klines', [])
+        if len(klines) < 60:
+            return None, None, None, None
+
+        # 取最后一天的1分钟数据
+        last_day = klines[-1][0][:10] if isinstance(klines[-1][0], str) else None
+        day_klines = []
+        for k in reversed(klines):
+            day_str = k[0][:10] if isinstance(k[0], str) else None
+            if day_str == last_day:
+                day_klines.append(k)
+            else:
+                break
+        day_klines.reverse()
+
+        if len(day_klines) < 30:
+            return None, None, None, None
+
+        volumes = [float(k[5]) for k in day_klines if len(k) > 5]
+        if not volumes:
+            return None, None, None, None
+
+        # 1. 成交量CV（标准差/均值）
+        vol_mean = np.mean(volumes)
+        vol_std = np.std(volumes)
+        cv = vol_std / vol_mean if vol_mean > 0 else 999
+
+        # 2. 量价相关系数
+        closes = [float(k[2]) for k in day_klines if len(k) > 2]
+        if len(closes) == len(volumes) and len(closes) > 10:
+            price_changes = np.diff(closes)
+            vol_changes = np.diff(volumes)
+            if np.std(price_changes) > 0 and np.std(vol_changes) > 0:
+                corr = np.corrcoef(price_changes, vol_changes)[0, 1]
+            else:
+                corr = 0
+        else:
+            corr = 0
+
+        # 3. 尾盘成交量占比（最后30分钟）
+        tail_vol = sum(volumes[-30:])
+        total_vol = sum(volumes)
+        tail_ratio = tail_vol / total_vol if total_vol > 0 else 0
+
+        # 综合判断
+        quant_score = 0
+        if cv < 0.5:
+            quant_score += 1
+        if abs(corr) < 0.3:
+            quant_score += 1
+        if tail_ratio > 0.3:
+            quant_score += 1
+
+        if quant_score >= 2:
+            verdict = "量化对倒"
+        elif quant_score == 1:
+            verdict = "疑似量化"
+        else:
+            verdict = "真金白银"
+
+        return verdict, cv, corr, tail_ratio
+
+    except Exception as e:
+        return None, None, None, None
+
+
+# ============================================================
+# 【新增：筹码集中/分散（用股东户数数据）】
+# ============================================================
+def get_shareholder_chips(code):
+    import os
+    holders_dir = Path(__file__).parent.parent / "data" / "holders"
+    if not holders_dir.exists():
+        return None, None, None
+
+    try:
+        files = sorted(holders_dir.glob("*.json"), reverse=True)
+        if not files:
+            return None, None, None
+
+        with open(files[0], 'r') as f:
+            data = json.load(f)
+
+        stock_data = data.get('stocks', {}).get(code, [])
+        if not stock_data or len(stock_data) < 2:
+            return None, None, None
+
+        latest = stock_data[0]
+        prev = stock_data[1]
+
+        # 找股东户数字段
+        latest_holders = None
+        prev_holders = None
+        for key in latest.keys():
+            if '股东户数' in key or '户数' in key:
+                latest_holders = latest[key]
+                break
+        for key in prev.keys():
+            if '股东户数' in key or '户数' in key:
+                prev_holders = prev[key]
+                break
+
+        if latest_holders is None or prev_holders is None:
+            return None, None, None
+
+        change_pct = (latest_holders - prev_holders) / prev_holders * 100
+
+        if change_pct < -5:
+            verdict = "筹码集中（主力吸筹）"
+        elif change_pct > 5:
+            verdict = "筹码分散（主力出货）"
+        else:
+            verdict = "筹码稳定"
+
+        return verdict, latest_holders, change_pct
+
+    except Exception as e:
+        return None, None, None
+
+
+# ============================================================
+# 【新增：主力成本区（VWAP）】
+# ============================================================
+def calc_main_cost(df, lookback=60):
+    if len(df) < lookback:
+        lookback = len(df)
+    recent_df = df.iloc[-lookback:]
+
+    # 成交量加权平均价格（VWAP）
+    total_vol = recent_df['volume'].sum()
+    if total_vol == 0:
+        return None, None
+
+    typical_price = (recent_df['high'] + recent_df['low'] + recent_df['close']) / 3
+    vwap = (typical_price * recent_df['volume']).sum() / total_vol
+
+    today_price = df.iloc[-1]['close']
+    vs_cost_pct = (today_price - vwap) / vwap * 100
+
+    return vwap, vs_cost_pct
+
+
+# ============================================================
 # 【ATR计算】
 # ============================================================
 def calculate_atr(df, period=14):
@@ -1478,6 +1632,24 @@ def get_stock_data(market, code):
         })
     stock_data['signals_with_effectiveness'] = signals_with_effectiveness
     
+    # 新增：识别量化对倒（用1分钟数据）
+    vol_verdict, vol_cv, vol_corr, vol_tail = analyze_1min_volatility(market + code)
+    stock_data['vol_verdict'] = vol_verdict
+    stock_data['vol_cv'] = vol_cv
+    stock_data['vol_corr'] = vol_corr
+    stock_data['vol_tail'] = vol_tail
+    
+    # 新增：筹码集中/分散（用股东户数数据）
+    chips_verdict, latest_holders, holders_change = get_shareholder_chips(code)
+    stock_data['chips_verdict'] = chips_verdict
+    stock_data['latest_holders'] = latest_holders
+    stock_data['holders_change'] = holders_change
+    
+    # 新增：主力成本区（VWAP）
+    main_cost, vs_cost_pct = calc_main_cost(df)
+    stock_data['main_cost'] = main_cost
+    stock_data['vs_cost_pct'] = vs_cost_pct
+    
     stock_data['interpretations'] = generate_interpretation(stock_data)
     
     return stock_data
@@ -1674,6 +1846,42 @@ def generate_html(stocks_data, today_str):
                     {pos_trend_text}
                 </div>
             </div>
+            
+            <!-- 新增：量化对倒判断 -->
+            {f'''
+            <div style="background:#ef444420; border-radius:8px; padding:10px; margin-bottom:10px; border-left:4px solid #ef4444;">
+                <div style="font-size:14px; font-weight:bold; color:#ef4444;">
+                    ⚠️ 今日量能：{stock['vol_verdict']}
+                </div>
+                <div style="font-size:12px; color:#ef4444; margin-top:2px;">
+                    CV={stock['vol_cv']:.2f} · 量价相关={stock['vol_corr']:.2f} · 尾盘占比={stock['vol_tail']*100:.0f}%
+                </div>
+            </div>
+            ''' if stock.get('vol_verdict') else ''}
+            
+            <!-- 新增：筹码集中/分散 -->
+            {f'''
+            <div style="background:#60a5fa20; border-radius:8px; padding:10px; margin-bottom:10px; border-left:4px solid #60a5fa;">
+                <div style="font-size:14px; font-weight:bold; color:#60a5fa;">
+                    👥 筹码：{stock['chips_verdict']}
+                </div>
+                <div style="font-size:12px; color:#60a5fa; margin-top:2px;">
+                    股东户数{stock['holders_change']:+.1f}%
+                </div>
+            </div>
+            ''' if stock.get('chips_verdict') else ''}
+            
+            <!-- 新增：主力成本区 -->
+            {f'''
+            <div style="background:#a78bfa20; border-radius:8px; padding:10px; margin-bottom:15px; border-left:4px solid #a78bfa;">
+                <div style="font-size:14px; font-weight:bold; color:#a78bfa;">
+                    💰 主力成本区：{stock['main_cost']:.2f}元
+                </div>
+                <div style="font-size:12px; color:#a78bfa; margin-top:2px;">
+                    当前价格{stock['vs_cost_pct']:+.1f}%（60日VWAP）
+                </div>
+            </div>
+            ''' if stock.get('main_cost') else ''}
             
             <div class="step-section">
                 <div class="step-title">📐 本股ATR参数（自动计算）</div>
