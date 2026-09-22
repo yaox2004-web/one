@@ -1,0 +1,275 @@
+name: 每日拉行情数据
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 12 * * *'
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: 拉日线数据
+        run: |
+          python3 << 'PYEOF'
+          import requests, json, os, time
+          from datetime import datetime
+
+          codes = [
+              # ===== 原有43只 =====
+              ('sz001311', '丰元股份'),
+              ('sz002050', '三花智控'),
+              ('sz002130', '沃尔核材'),
+              ('sz002156', '通富微电'),
+              ('sz002414', '高德红外'),
+              ('sz002463', '沪电股份'),
+              ('sz002472', '双环传动'),
+              ('sz002484', '江海股份'),
+              ('sz002837', '英维克'),
+              ('sz002851', '麦格米特'),
+              ('sz002975', '博迁新材'),
+              ('sz300100', '双林股份'),
+              ('sz300124', '汇川技术'),
+              ('sz300236', '上海新阳'),
+              ('sz300308', '中际旭创'),
+              ('sz300394', '天孚通信'),
+              ('sz300476', '胜宏科技'),
+              ('sz300502', '新易盛'),
+              ('sz300547', '川环科技'),
+              ('sz300548', '博思软件'),
+              ('sz300604', '长川科技'),
+              ('sz300757', '测绘股份'),
+              ('sz300811', '铂科新材'),
+              ('sz300857', '协创数据'),
+              ('sz300976', '哈焊华通'),
+              ('sz301128', '强瑞技术'),
+              ('sz301297', '富乐德'),
+              ('sh600183', '生益科技'),
+              ('sh600584', '长电科技'),
+              ('sh601138', '工业富联'),
+              ('sh601231', '环旭电子'),
+              ('sh601689', '拓普集团'),
+              ('sh601869', '长飞光纤'),
+              ('sh603228', '景旺电子'),
+              ('sh603256', '宏和科技'),
+              ('sh603283', '赛腾股份'),
+              ('sh603516', '淳中科技'),
+              ('sh603650', '彤程新材'),
+              ('sh603662', '柯力传感'),
+              ('sh603757', '大元泵业'),
+              ('sh688017', '绿的谐波'),
+              ('sh688313', '仕佳光子'),
+              ('sh688498', '源杰科技'),
+              # ===== 新增57只大盘蓝筹 =====
+              # 金融
+              ('sh600036', '招商银行'),
+              ('sh601318', '中国平安'),
+              ('sh601166', '兴业银行'),
+              ('sh601398', '工商银行'),
+              ('sh601288', '农业银行'),
+              ('sh601988', '中国银行'),
+              ('sh601628', '中国人寿'),
+              ('sh600030', '中信证券'),
+              # 消费
+              ('sh600519', '贵州茅台'),
+              ('sz000858', '五粮液'),
+              ('sh600887', '伊利股份'),
+              ('sz000333', '美的集团'),
+              ('sz000651', '格力电器'),
+              ('sh603288', '海天味业'),
+              ('sh600690', '海尔智家'),
+              ('sz002714', '牧原股份'),
+              # 医药
+              ('sh600276', '恒瑞医药'),
+              ('sz300760', '迈瑞医疗'),
+              ('sh603259', '药明康德'),
+              ('sz000538', '云南白药'),
+              # 科技/新能源
+              ('sz002594', '比亚迪'),
+              ('sz300750', '宁德时代'),
+              ('sh601012', '隆基绿能'),
+              ('sz002475', '立讯精密'),
+              ('sh603501', '韦尔股份'),
+              ('sz002415', '海康威视'),
+              ('sh688981', '中芯国际'),
+              ('sh688111', '金山办公'),
+              ('sz300059', '东方财富'),
+              ('sh600570', '恒生电子'),
+              ('sz002230', '科大讯飞'),
+              # 军工/制造
+              ('sh600760', '中航沈飞'),
+              ('sh600893', '航发动力'),
+              ('sh601899', '紫金矿业'),
+              ('sh601088', '中国神华'),
+              ('sh600028', '中国石化'),
+              ('sh601857', '中国石油'),
+              ('sh600900', '长江电力'),
+              ('sh601985', '中国核电'),
+              # 地产/基建
+              ('sh600048', '保利发展'),
+              ('sh601668', '中国建筑'),
+              # 汽车
+              ('sh600104', '上汽集团'),
+              ('sz000625', '长安汽车'),
+              ('sh601633', '长城汽车'),
+              # 交通
+              ('sh600009', '上海机场'),
+              ('sh601111', '中国国航'),
+              # 电子/半导体
+              ('sh603986', '兆易创新'),
+              ('sz002049', '紫光国微'),
+              ('sh603160', '汇顶科技'),
+              ('sz300661', '圣邦股份'),
+              # 通信
+              ('sh600050', '中国联通'),
+              ('sh601728', '中国电信'),
+              ('sh600941', '中国移动'),
+              # 周期
+              ('sh600019', '宝钢股份'),
+              ('sh600309', '万华化学'),
+              ('sh601888', '中国中免'),
+              # 指数
+              ('sh000001', '上证指数'),
+              ('sz399001', '深证成指'),
+              ('sz399006', '创业板指'),
+          ]
+
+          os.makedirs('data/kline/sh', exist_ok=True)
+          os.makedirs('data/kline/sz', exist_ok=True)
+          ok, fail = 0, 0
+          for code, name in codes:
+            try:
+                url = f'https://quotes.sina.cn/cn/api/jsonp_v2.php/var=/CN_MarketDataService.getKLineData?symbol={code}&scale=240&ma=no&datalen=1023'
+                r = requests.get(url, timeout=10, headers={'User-Agent':'Mozilla/5.0'})
+                text = r.text
+                start = text.find('([') + 1
+                end = text.rfind('])') + 1
+                if start < 1 or end < 2:
+                    raise Exception('parse fail')
+                data = json.loads(text[start:end])
+                if not data:
+                    raise Exception('empty')
+                klines = []
+                for k in data:
+                    row = [k['day'], k['open'], k['close'], k['high'], k['low'], k['volume']]
+                    klines.append(row)
+                out = {'name': name, 'klines': klines}
+                # 按 sh/sz 子目录存
+                sub = code[:2]
+                os.makedirs(f'data/kline/{sub}', exist_ok=True)
+                with open(f'data/kline/{sub}/{code}.json', 'w', encoding='utf-8') as f:
+                    json.dump(out, f, ensure_ascii=False)
+                ok += 1
+            except Exception as e:
+                fail += 1
+            time.sleep(0.3)
+
+          print(f'日线完成: 成功{ok} 失败{fail}')
+          PYEOF
+
+      - name: 拉5分钟数据
+        run: |
+          python3 << 'PYEOF'
+          import requests, json, os, time
+          from datetime import datetime, timezone
+
+          codes = [
+              ('sh601138', '工业富联'),
+              ('sz300476', '胜宏科技'),
+              ('sh603516', '淳中科技'),
+              ('sz002156', '通富微电'),
+              ('sh603283', '赛腾股份'),
+              ('sh601231', '环旭电子'),
+              ('sz300394', '天孚通信'),
+              ('sh600584', '长电科技'),
+              ('sh000001', '上证指数'),
+          ]
+
+          os.makedirs('data/kline_5min', exist_ok=True)
+          ok, fail = 0, 0
+
+          for code, name in codes:
+              url = f"https://ifzq.gtimg.cn/appstock/app/kline/mkline"
+              params = {'param': f'{code},m5,,320'}
+              try:
+                  r = requests.get(url, params=params, timeout=30)
+                  data = r.json()
+                  klines = data.get('data', {}).get(code, {}).get('m5', [])
+                  out = {
+                      'code': code, 'name': name,
+                      'updated': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC'),
+                      'count': len(klines), 'klines': klines
+                  }
+                  with open(f'data/kline_5min/{code}.json', 'w') as f:
+                      json.dump(out, f, ensure_ascii=False)
+                  ok += 1
+              except Exception as e:
+                  fail += 1
+              time.sleep(2)
+
+          print(f'5分钟完成: 成功{ok} 失败{fail}')
+          PYEOF
+
+      - name: 拉1分钟数据
+        run: |
+          python3 << 'PYEOF'
+          import requests, json, os, time
+          from datetime import datetime, timezone
+
+          codes = [
+              ('sh601138', '工业富联'),
+              ('sz300476', '胜宏科技'),
+              ('sh603516', '淳中科技'),
+              ('sz002156', '通富微电'),
+              ('sh603283', '赛腾股份'),
+              ('sh601231', '环旭电子'),
+              ('sz300394', '天孚通信'),
+              ('sh600584', '长电科技'),
+              ('sh000001', '上证指数'),
+          ]
+
+          os.makedirs('data/kline_1min', exist_ok=True)
+          ok, fail = 0, 0
+
+          for code, name in codes:
+              url = f"https://ifzq.gtimg.cn/appstock/app/kline/mkline"
+              params = {'param': f'{code},m1,,640'}
+              try:
+                  r = requests.get(url, params=params, timeout=30)
+                  data = r.json()
+                  klines = data.get('data', {}).get(code, {}).get('m1', [])
+                  out = {
+                      'code': code, 'name': name,
+                      'updated': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC'),
+                      'count': len(klines), 'klines': klines
+                  }
+                  with open(f'data/kline_1min/{code}.json', 'w') as f:
+                      json.dump(out, f, ensure_ascii=False)
+                  ok += 1
+              except Exception as e:
+                  fail += 1
+              time.sleep(2)
+
+          print(f'1分钟完成: 成功{ok} 失败{fail}')
+          PYEOF
+
+      - name: 提交 + 推送
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/kline/ data/kline_5min/ data/kline_1min/
+          if git diff --cached --quiet; then
+            echo "无变化"
+          else
+            git commit -m "data: 行情数据 $(date -u +%Y%m%d)"
+            git push
+          fi
