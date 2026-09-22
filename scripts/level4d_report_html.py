@@ -284,6 +284,45 @@ BACKTEST_WINRATE = {
 
 
 # ============================================================
+# 【新增：大盘环境判断】
+# ============================================================
+def get_market_regime():
+    """判断大盘环境：上证指数20日线上方=多头，下方=空头"""
+    sh_index_path = Path(__file__).parent.parent / "data" / "kline" / "sh" / "sh000001.json"
+    if not sh_index_path.exists():
+        sh_index_path = Path(__file__).parent.parent / "data" / "kline" / "sh000001.json"
+    if not sh_index_path.exists():
+        return "未知", None
+
+    try:
+        with open(sh_index_path, 'r') as f:
+            data = json.load(f)
+        klines = data.get('klines', [])
+        if len(klines) < 20:
+            return "未知", None
+
+        df = pd.DataFrame(klines)
+        ncols = len(klines[0])
+        cols = ['date', 'open', 'close', 'high', 'low', 'volume'] if ncols == 6 else ['date', 'open', 'close', 'high', 'low', 'volume', 'amount']
+        df = df.iloc[:, :ncols]
+        df.columns = cols[:ncols]
+        df['close'] = pd.to_numeric(df['close'], errors='coerce')
+        df = df.dropna(subset=['close'])
+
+        ma20 = df.iloc[-20:]['close'].mean()
+        today_close = df.iloc[-1]['close']
+        vs_ma20_pct = (today_close - ma20) / ma20 * 100
+
+        if today_close > ma20:
+            return "多头市场", vs_ma20_pct
+        else:
+            return "空头市场", vs_ma20_pct
+
+    except Exception as e:
+        return "未知", None
+
+
+# ============================================================
 # 【新增：位置计算】
 # ============================================================
 def get_position_level(df):
@@ -499,6 +538,176 @@ def calc_main_cost(df, lookback=60):
     vs_cost_pct = (today_price - vwap) / vwap * 100
 
     return vwap, vs_cost_pct
+
+
+# ============================================================
+# 【新增：龙虎榜解读】
+# ============================================================
+def get_lhb_info(code):
+    import os
+    lhb_dir = Path(__file__).parent.parent / "data" / "lhb"
+    if not lhb_dir.exists():
+        return None, None
+
+    try:
+        files = sorted(lhb_dir.glob("*.json"), reverse=True)
+        if not files:
+            return None, None
+
+        with open(files[0], 'r') as f:
+            data = json.load(f)
+
+        rows = data.get('rows', [])
+        code_short = code[2:] if code.startswith(('sh', 'sz')) else code
+
+        for row in rows:
+            if str(row.get('SECURITY_CODE', '')) == code_short:
+                reason = row.get('EXPLAIN', '未知原因')
+                buy_amount = row.get('BUYLIST', 0)
+                return reason, buy_amount
+
+        return None, None
+
+    except Exception as e:
+        return None, None
+
+
+# ============================================================
+# 【新增：融资融券】
+# ============================================================
+def get_margin_info(code):
+    import os
+    margin_dir = Path(__file__).parent.parent / "data" / "margin"
+    if not margin_dir.exists():
+        return None, None
+
+    try:
+        files = sorted(margin_dir.glob("*.json"), reverse=True)
+        if not files:
+            return None, None
+
+        with open(files[0], 'r') as f:
+            data = json.load(f)
+
+        code_short = code[2:] if code.startswith(('sh', 'sz')) else code
+        sse_data = data.get('data', {}).get('sse', [])
+        szse_data = data.get('data', {}).get('szse', [])
+
+        for record in sse_data + szse_data:
+            if str(record.get('标的证券代码', '')) == code_short:
+                rzye = record.get('融资余额', 0)
+                return rzye, "融资余额"
+
+        return None, None
+
+    except Exception as e:
+        return None, None
+
+
+# ============================================================
+# 【新增：北向资金】
+# ============================================================
+def get_north_info(code):
+    import os
+    north_dir = Path(__file__).parent.parent / "data" / "north"
+    if not north_dir.exists():
+        return None, None
+
+    try:
+        files = sorted(north_dir.glob("*.json"), reverse=True)
+        if not files:
+            return None, None
+
+        with open(files[0], 'r') as f:
+            data = json.load(f)
+
+        rows = data.get('rows', [])
+        code_short = code[2:] if code.startswith(('sh', 'sz')) else code
+
+        for row in rows:
+            if str(row.get('SECURITY_CODE', '')) == code_short:
+                hold_amount = row.get('HOLD_SHARES', 0)
+                return hold_amount, "北向持仓"
+
+        return None, None
+
+    except Exception as e:
+        return None, None
+
+
+# ============================================================
+# 【新增：限售解禁】
+# ============================================================
+def get_restricted_info(code):
+    import os
+    restricted_dir = Path(__file__).parent.parent / "data" / "restricted"
+    if not restricted_dir.exists():
+        return None, None
+
+    try:
+        files = sorted(restricted_dir.glob("*.json"), reverse=True)
+        if not files:
+            return None, None
+
+        with open(files[0], 'r') as f:
+            data = json.load(f)
+
+        rows = data.get('data', [])
+        code_short = code[2:] if code.startswith(('sh', 'sz')) else code
+
+        for row in rows:
+            if str(row.get('股票代码', '')) == code_short:
+                date = row.get('上市时间', '未知')
+                amount = row.get('实际解禁数量', 0)
+                return date, amount
+
+        return None, None
+
+    except Exception as e:
+        return None, None
+
+
+# ============================================================
+# 【新增：周线共振】
+# ============================================================
+def get_weekly_resonance(df):
+    if len(df) < 60:
+        return None, None
+
+    # 把日线转成周线
+    df = df.copy()
+    df['date'] = pd.to_datetime(df['date'])
+    df.set_index('date', inplace=True)
+    weekly = df.resample('W').agg({
+        'open': 'first',
+        'high': 'max',
+        'low': 'min',
+        'close': 'last',
+        'volume': 'sum'
+    }).dropna()
+
+    if len(weekly) < 10:
+        return None, None
+
+    # 周线MACD
+    closes = weekly['close'].values
+    if len(closes) < 26:
+        return None, None
+
+    ema12 = pd.Series(closes).ewm(span=12).mean().values
+    ema26 = pd.Series(closes).ewm(span=26).mean().values
+    dif = ema12 - ema26
+    dea = pd.Series(dif).ewm(span=9).mean().values
+    macd = (dif - dea) * 2
+
+    if macd[-1] > 0 and macd[-2] <= 0:
+        return "金叉", "周线MACD金叉！"
+    elif macd[-1] < 0 and macd[-2] >= 0:
+        return "死叉", "周线MACD死叉！"
+    elif macd[-1] > 0:
+        return "多头", "周线MACD多头"
+    else:
+        return "空头", "周线MACD空头"
 
 
 # ============================================================
@@ -1628,6 +1837,11 @@ def get_stock_data(market, code):
         'extra_signals': extra_signals,
     }
     
+    # 新增：大盘环境判断
+    market_regime, vs_ma20_pct = get_market_regime()
+    stock_data['market_regime'] = market_regime
+    stock_data['vs_ma20_pct'] = vs_ma20_pct
+    
     # 新增：位置和趋势计算
     position, position_pct = get_position_level(df)
     stock_trend = get_stock_trend(df)
@@ -1663,6 +1877,31 @@ def get_stock_data(market, code):
     main_cost, vs_cost_pct = calc_main_cost(df)
     stock_data['main_cost'] = main_cost
     stock_data['vs_cost_pct'] = vs_cost_pct
+    
+    # 新增：龙虎榜解读
+    lhb_reason, lhb_amount = get_lhb_info(market + code)
+    stock_data['lhb_reason'] = lhb_reason
+    stock_data['lhb_amount'] = lhb_amount
+    
+    # 新增：融资融券
+    margin_balance, margin_label = get_margin_info(market + code)
+    stock_data['margin_balance'] = margin_balance
+    stock_data['margin_label'] = margin_label
+    
+    # 新增：北向资金
+    north_hold, north_label = get_north_info(market + code)
+    stock_data['north_hold'] = north_hold
+    stock_data['north_label'] = north_label
+    
+    # 新增：限售解禁
+    restricted_date, restricted_amount = get_restricted_info(market + code)
+    stock_data['restricted_date'] = restricted_date
+    stock_data['restricted_amount'] = restricted_amount
+    
+    # 新增：周线共振
+    weekly_signal, weekly_desc = get_weekly_resonance(df)
+    stock_data['weekly_signal'] = weekly_signal
+    stock_data['weekly_desc'] = weekly_desc
     
     stock_data['interpretations'] = generate_interpretation(stock_data)
     
@@ -1851,6 +2090,18 @@ def generate_html(stocks_data, today_str):
                 <div class="stock-price {price_class}">{stock['close']:.2f}元 ({stock['pct_chg']:+.2f}%)</div>
             </div>
             
+            <!-- 新增：大盘环境 -->
+            {f'''
+            <div style="background:{'#10b981' if stock['market_regime'] == '多头市场' else '#ef4444'}20; border-radius:8px; padding:10px; margin-bottom:10px; border-left:4px solid {'#10b981' if stock['market_regime'] == '多头市场' else '#ef4444'};">
+                <div style="font-size:14px; font-weight:bold; color:{'#10b981' if stock['market_regime'] == '多头市场' else '#ef4444'};">
+                    🏛️ 大盘环境：{stock['market_regime']}
+                </div>
+                <div style="font-size:12px; color:{'#10b981' if stock['market_regime'] == '多头市场' else '#ef4444'}; margin-top:2px;">
+                    上证指数{stock['vs_ma20_pct']:+.1f}%（vs 20日线）
+                </div>
+            </div>
+            ''' if stock.get('market_regime') and stock['market_regime'] != '未知' else ''}
+            
             <!-- 新增：位置+趋势总览 -->
             <div style="background:{pos_trend_color}20; border-radius:8px; padding:12px; margin-bottom:15px; border-left:4px solid {pos_trend_color};">
                 <div style="font-size:16px; font-weight:bold; color:{pos_trend_color};">
@@ -1896,6 +2147,54 @@ def generate_html(stocks_data, today_str):
                 </div>
             </div>
             ''' if stock.get('main_cost') else ''}
+            
+            <!-- 新增：龙虎榜 -->
+            {f'''
+            <div style="background:#f59e0b20; border-radius:8px; padding:10px; margin-bottom:10px; border-left:4px solid #f59e0b;">
+                <div style="font-size:14px; font-weight:bold; color:#f59e0b;">
+                    🐉 龙虎榜：{stock['lhb_reason']}
+                </div>
+            </div>
+            ''' if stock.get('lhb_reason') else ''}
+            
+            <!-- 新增：融资融券 -->
+            {f'''
+            <div style="background:#06b6d420; border-radius:8px; padding:10px; margin-bottom:10px; border-left:4px solid #06b6d4;">
+                <div style="font-size:14px; font-weight:bold; color:#06b6d4;">
+                    💰 {stock['margin_label']}：{stock['margin_balance']/1e8:.1f}亿
+                </div>
+            </div>
+            ''' if stock.get('margin_balance') else ''}
+            
+            <!-- 新增：北向资金 -->
+            {f'''
+            <div style="background:#10b98120; border-radius:8px; padding:10px; margin-bottom:10px; border-left:4px solid #10b981;">
+                <div style="font-size:14px; font-weight:bold; color:#10b981;">
+                    🌏 北向持仓：{stock['north_hold']/1e4:.0f}万股
+                </div>
+            </div>
+            ''' if stock.get('north_hold') else ''}
+            
+            <!-- 新增：限售解禁 -->
+            {f'''
+            <div style="background:#dc262620; border-radius:8px; padding:10px; margin-bottom:10px; border-left:4px solid #dc262626;">
+                <div style="font-size:14px; font-weight:bold; color:#dc262626;">
+                    ⚠️ 解禁：{stock['restricted_date']}
+                </div>
+                <div style="font-size:12px; color:#dc262626; margin-top:2px;">
+                    解禁{stock['restricted_amount']/1e8:.2f}亿股
+                </div>
+            </div>
+            ''' if stock.get('restricted_date') else ''}
+            
+            <!-- 新增：周线共振 -->
+            {f'''
+            <div style="background:{'#10b981' if stock['weekly_signal'] in ['金叉','多头'] else '#ef4444'}20; border-radius:8px; padding:10px; margin-bottom:15px; border-left:4px solid {'#10b981' if stock['weekly_signal'] in ['金叉','多头'] else '#ef4444'};">
+                <div style="font-size:14px; font-weight:bold; color:{'#10b981' if stock['weekly_signal'] in ['金叉','多头'] else '#ef4444'};">
+                    📅 {stock['weekly_desc']}
+                </div>
+            </div>
+            ''' if stock.get('weekly_desc') else ''}
             
             <div class="step-section">
                 <div class="step-title">📐 本股ATR参数（自动计算）</div>
