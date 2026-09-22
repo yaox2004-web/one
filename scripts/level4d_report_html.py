@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-四维循环看盘法报告 - HTML版（量能自适应版）
+四维循环看盘法报告 - HTML版（量能自适应版 + AI研判）
 =================================================
 【无未来函数】
 【资料来源】：股海明灯《量柱擒涨停》《量线捉涨停》黑马王子著
@@ -214,15 +214,11 @@ TREND_MA_PERIOD = 20
 
 # ============================================================
 # 【回测胜率数据】
-# 设计思路：从 data/analysis/winrate.json 读取，回测脚本自动生成
-# 好处：以后跑完回测不用手动改代码，直接更新JSON就行
-# 格式：{位置: {趋势: {信号: 胜率}}}
 # ============================================================
 def load_winrate_data():
     """加载回测胜率数据，如果文件不存在用默认值兜底"""
     winrate_path = Path(__file__).parent.parent / "data" / "analysis" / "winrate.json"
     
-    # 默认兜底胜率（第一次用，还没跑回测的时候）
     default_winrate = {
         "低位": {
             "上升趋势": {
@@ -272,8 +268,6 @@ def load_winrate_data():
         print(f"  提示：读取胜率文件失败({e})，使用默认胜率数据")
         return default_winrate
 
-
-# 启动时加载一次
 BACKTEST_WINRATE = load_winrate_data()
 
 
@@ -281,7 +275,6 @@ BACKTEST_WINRATE = load_winrate_data()
 # 【新增：大盘环境判断】
 # ============================================================
 def get_market_regime():
-    """判断大盘环境：上证指数20日线上方=多头，下方=空头"""
     sh_index_path = Path(__file__).parent.parent / "data" / "kline" / "sh" / "sh000001.json"
     if not sh_index_path.exists():
         sh_index_path = Path(__file__).parent.parent / "data" / "kline" / "sh000001.json"
@@ -349,10 +342,6 @@ def get_stock_trend(df):
 
 # ============================================================
 # 【新增：信号有效性查询】
-# 设计思路：如果知道当天是真金白银还是量化对倒，就用对应的胜率
-# 依据：同样的信号，在真金白银的票上胜率高很多
-# 修复：同时判断胜率和平均收益，和回测脚本的标准一致
-# 回测标准：胜率>55% 且 平均收益>0 = 有效
 # ============================================================
 def get_signal_effectiveness(signal_name, position, trend, is_real=None):
     if position == "未知" or trend == "未知":
@@ -360,27 +349,21 @@ def get_signal_effectiveness(signal_name, position, trend, is_real=None):
     pos_data = BACKTEST_WINRATE.get(position, {})
     trend_data = pos_data.get(trend, {})
     
-    # 先按真假量柱查对应的胜率
     winrate_data = None
     if is_real is True:
         winrate_data = trend_data.get(f"{signal_name}_真金")
     elif is_real is False:
         winrate_data = trend_data.get(f"{signal_name}_量化")
     
-    # 如果没查到，用整体胜率
     if winrate_data is None:
         winrate_data = trend_data.get(signal_name)
     
     if winrate_data is None:
         return None, None
     
-    # 兼容两种格式：
-    # 1. 新格式：{"win_rate": 56.2, "avg_ret": 1.5}
-    # 2. 旧格式/硬编码默认值：56.2（单纯数字）
     if isinstance(winrate_data, dict):
         win_rate = winrate_data.get("win_rate", 0)
         avg_ret = winrate_data.get("avg_ret", 0)
-        # 回测标准：胜率>55% 且 平均收益>0 = 有效
         if win_rate >= 55 and avg_ret > 0:
             return win_rate, "有效"
         elif win_rate >= 50:
@@ -388,7 +371,6 @@ def get_signal_effectiveness(signal_name, position, trend, is_real=None):
         else:
             return win_rate, "无效"
     else:
-        # 旧格式：只看胜率
         win_rate = winrate_data
         if win_rate >= 55:
             return win_rate, "有效"
@@ -414,18 +396,14 @@ def analyze_1min_volatility(code):
         if len(klines) < 60:
             return None, None, None, None, None
 
-        # 直接取最后240根（约一天的交易时间），不管时间格式
         day_klines = klines[-240:] if len(klines) >= 240 else klines
-
         if len(day_klines) < 30:
             return None, None, None, None, None
 
-        # 找成交量列：腾讯格式第6列是成交量（索引5）
         volumes = []
         closes = []
         for k in day_klines:
             try:
-                # 尝试第6列（索引5）是成交量
                 if len(k) > 5:
                     vol = float(k[5])
                     close = float(k[2])
@@ -437,12 +415,10 @@ def analyze_1min_volatility(code):
         if not volumes or len(volumes) < 30:
             return None, None, None, None, None
 
-        # 1. 成交量CV（标准差/均值）
         vol_mean = np.mean(volumes)
         vol_std = np.std(volumes)
         cv = vol_std / vol_mean if vol_mean > 0 else 999
 
-        # 2. 量价相关系数
         if len(closes) == len(volumes) and len(closes) > 10:
             price_changes = np.diff(closes)
             vol_changes = np.diff(volumes)
@@ -453,12 +429,10 @@ def analyze_1min_volatility(code):
         else:
             corr = 0
 
-        # 3. 尾盘成交量占比（最后30根 = 最后30分钟）
         tail_vol = sum(volumes[-30:])
         total_vol = sum(volumes)
         tail_ratio = tail_vol / total_vol if total_vol > 0 else 0
 
-        # 综合判断
         quant_score = 0
         if cv < 0.5:
             quant_score += 1
@@ -474,8 +448,6 @@ def analyze_1min_volatility(code):
         else:
             verdict = "真金白银"
 
-        # 新增：估算量化对倒占比
-        # 1. CV贡献：CV<0.5贡献70%，CV=0.5-1.0贡献40%，CV>1.0贡献10%
         if cv < 0.5:
             cv_contrib = 70
         elif cv < 1.0:
@@ -483,7 +455,6 @@ def analyze_1min_volatility(code):
         else:
             cv_contrib = 10
 
-        # 2. 量价相关贡献：<0.2贡献60%，0.2-0.5贡献30%，>0.5贡献10%
         if abs(corr) < 0.2:
             corr_contrib = 60
         elif abs(corr) < 0.5:
@@ -491,7 +462,6 @@ def analyze_1min_volatility(code):
         else:
             corr_contrib = 10
 
-        # 3. 尾盘占比贡献：>40%贡献70%，20-40%贡献40%，<20%贡献10%
         if tail_ratio > 0.4:
             tail_contrib = 70
         elif tail_ratio > 0.2:
@@ -499,7 +469,6 @@ def analyze_1min_volatility(code):
         else:
             tail_contrib = 10
 
-        # 平均就是估算的量化对倒占比
         quant_pct = (cv_contrib + corr_contrib + tail_contrib) / 3
 
         return verdict, cv, corr, tail_ratio, quant_pct
@@ -518,7 +487,6 @@ def get_shareholder_chips(code):
         return None, None, None
 
     try:
-        # 修复：只取日期格式的文件（8位数字），避免混入 backup 等文件导致排序乱
         import re
         all_files = list(holders_dir.glob("*.json"))
         date_files = [f for f in all_files if re.match(r'^\d{8}$', f.stem)]
@@ -529,11 +497,9 @@ def get_shareholder_chips(code):
         with open(files[0], 'r') as f:
             data = json.load(f)
 
-        # 尝试找股票数据：先试纯数字code，再试带前缀的
         stock_list = data.get('stocks', {})
         stock_data = stock_list.get(code, [])
         if not stock_data:
-            # 试试带sh/sz前缀的
             for k in stock_list.keys():
                 if code in k:
                     stock_data = stock_list[k]
@@ -545,7 +511,6 @@ def get_shareholder_chips(code):
         latest = stock_data[0]
         prev = stock_data[1]
 
-        # 找股东户数字段：宽泛搜索
         def find_holders_field(record):
             for key in record.keys():
                 key_lower = key.lower()
@@ -584,7 +549,6 @@ def calc_main_cost(df, lookback=60):
         lookback = len(df)
     recent_df = df.iloc[-lookback:]
 
-    # 成交量加权平均价格（VWAP）
     total_vol = recent_df['volume'].sum()
     if total_vol == 0:
         return None, None
@@ -651,7 +615,6 @@ def get_margin_info(code):
         sse_data = data.get('data', {}).get('sse', [])
         szse_data = data.get('data', {}).get('szse', [])
 
-        # 激进搜索：遍历所有记录，只要任何字段值包含股票代码就算找到
         for record in sse_data + szse_data:
             found_code = False
             for key, val in record.items():
@@ -661,7 +624,6 @@ def get_margin_info(code):
                     break
 
             if found_code:
-                # 找最大的数值字段，就是融资余额
                 max_val = 0
                 for key, val in record.items():
                     try:
@@ -699,7 +661,6 @@ def get_north_info(code):
         rows = data.get('rows', [])
         code_short = code[2:] if code.startswith(('sh', 'sz')) else code
 
-        # 激进搜索：遍历所有行，只要任何字段值包含股票代码就算找到
         for row in rows:
             found_code = False
             for key, val in row.items():
@@ -709,7 +670,6 @@ def get_north_info(code):
                     break
 
             if found_code:
-                # 找最大的数值字段，就是持股数量
                 max_val = 0
                 for key, val in row.items():
                     try:
@@ -766,7 +726,6 @@ def get_weekly_resonance(df):
     if len(df) < 60:
         return None, None
 
-    # 把日线转成周线
     df = df.copy()
     df['date'] = pd.to_datetime(df['date'])
     df.set_index('date', inplace=True)
@@ -781,7 +740,6 @@ def get_weekly_resonance(df):
     if len(weekly) < 10:
         return None, None
 
-    # 周线MACD
     closes = weekly['close'].values
     if len(closes) < 26:
         return None, None
@@ -814,10 +772,8 @@ def get_ace_lines(df, pillar_type, pillar_idx):
     close_price = row['close']
     low_price = row['low']
 
-    # 王牌线 = 王牌柱的实底（实体最低点）
     ace_line = min(open_price, close_price)
 
-    # 今天价格离王牌线多远
     today_price = df.iloc[-1]['close']
     vs_ace_pct = (today_price - ace_line) / ace_line * 100
 
@@ -847,25 +803,20 @@ def identify_price_pattern(df):
     lower_ratio = lower_shadow / total_range
     upper_ratio = upper_shadow / total_range
 
-    # 长阳/长阴
     if body_ratio > 0.7 and (close_price - open_price) / open_price * 100 > 3:
         return "长阳"
     if body_ratio > 0.7 and (open_price - close_price) / open_price * 100 > 3:
         return "长阴"
 
-    # 十字星
     if body_ratio < 0.1:
         return "十字星"
 
-    # 锤头线（下影线长，实体小）
     if lower_ratio > 0.6 and body_ratio < 0.3 and close_price > open_price:
         return "锤头线"
 
-    # 上吊线（上影线长，实体小）
     if upper_ratio > 0.6 and body_ratio < 0.3 and close_price < open_price:
         return "上吊线"
 
-    # 阴包阳
     yesterday = df.iloc[-2]
     if close_price < open_price and yesterday['close'] > yesterday['open']:
         if open_price > yesterday['close'] and close_price < yesterday['open']:
@@ -883,17 +834,14 @@ def get_combined_signals(df, vol_pattern, peak_20):
     today_vol = df.iloc[-1]['volume']
     yesterday_vol = df.iloc[-2]['volume']
 
-    # 1. 倍量过左峰
     if vol_pattern == "倍量柱" and peak_20 and today_price > peak_20:
         signals.append("倍量过左峰")
 
-    # 2. 阳包阴
     today = df.iloc[-1]
     yesterday = df.iloc[-2]
     if today['close'] > yesterday['open'] and today['open'] < yesterday['close'] and today['close'] > today['open']:
         signals.append("阳包阴")
 
-    # 3. 价升量缩
     if len(df) >= 2:
         pct_1d = (today_price - df.iloc[-2]['close']) / df.iloc[-2]['close'] * 100
         vol_change = (today_vol - yesterday_vol) / yesterday_vol * 100 if yesterday_vol > 0 else 0
@@ -910,12 +858,10 @@ def get_fenggu_line(peaks, valleys):
     if len(peaks) < 1 or len(valleys) < 1:
         return None
 
-    # 最近的峰顶和最近的谷底
     recent_peak = peaks[-1]['price'] if peaks else None
     recent_valley = valleys[-1]['price'] if valleys else None
 
     if recent_peak and recent_valley:
-        # 峰谷线 = 最近的峰顶和谷底的中间位置
         fenggu_line = (recent_peak + recent_valley) / 2
         return fenggu_line
 
@@ -933,10 +879,8 @@ def get_volume_price_divergence(df):
     price_change = (recent_10.iloc[-1]['close'] - recent_10.iloc[0]['close']) / recent_10.iloc[0]['close'] * 100
     vol_change = (recent_10.iloc[-1]['volume'] - recent_10.iloc[0]['volume']) / recent_10.iloc[0]['volume'] * 100
 
-    # 顶背离：价涨量缩
     if price_change > 5 and vol_change < -20:
         return "顶背离（价涨量缩）"
-    # 底背离：价跌量增
     if price_change < -5 and vol_change > 20:
         return "底背离（价跌量增）"
 
@@ -949,16 +893,11 @@ def get_volume_price_divergence(df):
 def get_risk_signals(position, stock_trend, vol_pattern):
     risks = []
 
-    # 高位+倍量 = 出货信号
     if position == "高位" and vol_pattern == "倍量柱":
         risks.append("⚠️ 高位倍量柱（出货信号）")
 
-    # 下降趋势+突破 = 假突破
     if stock_trend == "下降趋势" and "突破大阴实顶" in str(vol_pattern):
         risks.append("⚠️ 下降趋势突破（假突破）")
-
-    # 高位+长上影 = 见顶信号
-    # （这个在价柱形态里）
 
     return risks
 
@@ -975,16 +914,13 @@ def get_ao_kou(df):
     recent_low = recent_30['low'].min()
     today_price = df.iloc[-1]['close']
 
-    # 凹底：从最低点上涨10%以上，且现在价格在最低点上方10-20%
     low_idx = recent_30['low'].idxmin()
     low_price = recent_30.loc[low_idx, 'low']
     rise_pct = (today_price - low_price) / low_price * 100
 
     if 10 < rise_pct < 20:
-        # 凹口：从最低点到现在，中间有一个回调
         after_low = recent_30.loc[low_idx:]
         if len(after_low) > 5:
-            # 找中间的高点
             mid_high = after_low.iloc[5:]['high'].max() if len(after_low) > 5 else 0
             if mid_high > 0 and today_price < mid_high * 0.95:
                 return f"凹口淘金（从底部上涨{rise_pct:.1f}%）"
@@ -999,7 +935,6 @@ def get_san_yin(df):
     if len(df) < 4:
         return None
 
-    # 连续三阴线
     last_3 = df.iloc[-3:]
     all_yin = all(row['close'] < row['open'] for _, row in last_3.iterrows())
 
@@ -1017,31 +952,24 @@ def get_san_yin(df):
 def get_main_force_intent(position, stock_trend, vol_pattern, pillar_type, vol_verdict, price_pattern):
     signals = []
 
-    # 1. 建仓：低位 + 倍量柱 + 真金白银 + 上升趋势
     if position == "低位" and vol_pattern == "倍量柱" and vol_verdict == "真金白银" and stock_trend == "上升趋势":
         signals.append(("建仓中", "#10b981", "低位+倍量+真金白银+上升=主力建仓！"))
 
-    # 2. 洗盘：中位 + 黄金柱 + 上升趋势
     if position == "中位" and pillar_type == "黄金柱" and stock_trend == "上升趋势":
         signals.append(("洗盘", "#f59e0b", "中位+黄金柱+上升=主力洗盘！"))
 
-    # 3. 拉升：中位 + 元帅柱 + 倍量
     if position == "中位" and pillar_type == "元帅柱" and vol_pattern == "倍量柱":
         signals.append(("拉升", "#10b981", "中位+元帅柱+倍量=主力拉升！"))
 
-    # 4. 出货：高位 + 倍量 + 量化对倒
     if position == "高位" and vol_pattern == "倍量柱" and vol_verdict == "量化对倒":
         signals.append(("出货", "#ef4444", "高位+倍量+量化对倒=主力出货！"))
 
-    # 5. 出逃：高位 + 长阴 + 放量
     if position == "高位" and price_pattern == "长阴" and vol_pattern in ["倍量柱", "高量柱"]:
         signals.append(("出逃", "#ef4444", "高位+长阴+放量=主力出逃！"))
 
-    # 6. 吸筹：低位 + 地量群 + 真金白银
     if position == "低位" and vol_pattern == "地量群" and vol_verdict == "真金白银":
         signals.append(("吸筹", "#10b981", "低位+地量群+真金白银=主力吸筹！"))
 
-    # 7. 诱多：中位 + 倍量 + 量化对倒
     if position in ["中位", "高位"] and vol_pattern == "倍量柱" and vol_verdict == "量化对倒":
         signals.append(("诱多", "#f97316", "倍量+量化对倒=主力诱多！"))
 
@@ -1080,7 +1008,6 @@ def get_atr_threshold(atr_pct, mult, fallback):
 
 
 def is_gem_star(code):
-    # 修复：传进来的是 sz300394 这种带前缀的，先去掉 sh/sz 再判断
     pure = code[2:] if code.startswith(('sh', 'sz')) else code
     if pure.startswith('300') or pure.startswith('301') or pure.startswith('688'):
         return True
@@ -1367,7 +1294,7 @@ def find_pillars_official(df, lookback_days=60):
         return "无", None, None, None
     
     recent_df = df.iloc[-lookback_days:]
-    df_offset = len(df) - lookback_days  # recent_df 在 df 中的偏移量
+    df_offset = len(df) - lookback_days
     
     marshals = []
     goldens = []
@@ -1381,7 +1308,6 @@ def find_pillars_official(df, lookback_days=60):
         
         if i < 20:
             continue
-        # 修复：确保索引不越界，避免 iloc 负索引绕回去取到末尾数据
         start_idx = max(0, i - 20)
         vol_window = recent_df.iloc[start_idx:i]['volume']
         vol_pctl = (vol_window < row['volume']).sum() / len(vol_window)
@@ -1412,7 +1338,6 @@ def find_pillars_official(df, lookback_days=60):
         else:
             is_gap_up = False
         
-        # 修复：同时返回在 df 中的真实索引，供王牌线使用
         df_idx = df_offset + i
         pillar = (row['date'], row['low'], df_idx)
         
@@ -1736,7 +1661,6 @@ def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top
 def generate_interpretation(stock):
     sections = []
     
-    # ========== 【总结论】放最前面！一眼看懂！ ==========
     main_intent = stock.get('main_intent', [])
     if main_intent:
         intent_lines = []
@@ -1765,7 +1689,6 @@ def generate_interpretation(stock):
             ]
         })
     
-    # ========== 【第一步】天时：大盘环境 ==========
     market = stock.get('market_regime', '未知')
     vs_ma20 = stock.get('vs_ma20_pct', 0)
     if market == "多头市场":
@@ -1787,13 +1710,11 @@ def generate_interpretation(stock):
         ]
     })
     
-    # ========== 【第二步】地利：位置 + 趋势 ==========
     position = stock.get('position', '未知')
     position_pct = stock.get('position_pct', 0)
     trend = stock.get('stock_trend', '未知')
     
     if position == "低位":
-        # 修复：position_pct 是百分位排名，不是距离最低点的百分比
         pos_desc = f"股价在近120天的低位区域（{position_pct:.0f}%分位）"
         pos_logic = "低位意味着风险小，上涨空间大！主力最喜欢在低位建仓！"
     elif position == "中位":
@@ -1821,7 +1742,6 @@ def generate_interpretation(stock):
         ]
     })
     
-    # ========== 【第三步】人和：量柱 + 王牌柱 ==========
     vol = stock.get('vol_pattern', '未知')
     pillar = stock.get('pillar_type', '无')
     
@@ -1835,7 +1755,6 @@ def generate_interpretation(stock):
         ]
     })
     
-    # ========== 【第四步】去伪：真假量柱 ==========
     vol_verdict = stock.get('vol_verdict', '未知')
     quant_pct = stock.get('quant_pct', 0)
     cv = stock.get('vol_cv', 0)
@@ -1859,7 +1778,6 @@ def generate_interpretation(stock):
         ]
     })
     
-    # ========== 【第五步】验证：量线 + 其他信号 ==========
     ace_line = stock.get('ace_line', 0)
     vs_ace = stock.get('vs_ace_pct', 0)
     divergence = stock.get('divergence', '')
@@ -1881,7 +1799,6 @@ def generate_interpretation(stock):
             ]
         })
     
-    # ========== 【第六步】为什么得出这个结论？ ==========
     if main_intent:
         why_lines = []
         for intent, color, desc in main_intent:
@@ -1895,7 +1812,6 @@ def generate_interpretation(stock):
             ]
         })
     
-    # ========== 原来的大阴实顶分析 ==========
     if stock['big_yin_top']:
         above_text = "上方" if bool(stock['price_above_yintop']) else "下方"
         pct_text = f"{stock['price_vs_yintop_pct']:+.2f}%"
@@ -2199,19 +2115,16 @@ def get_stock_data(market, code):
         'extra_signals': extra_signals,
     }
     
-    # 新增：大盘环境判断
     market_regime, vs_ma20_pct = get_market_regime()
     stock_data['market_regime'] = market_regime
     stock_data['vs_ma20_pct'] = vs_ma20_pct
     
-    # 新增：位置和趋势计算
     position, position_pct = get_position_level(df)
     stock_trend = get_stock_trend(df)
     stock_data['position'] = position
     stock_data['position_pct'] = position_pct
     stock_data['stock_trend'] = stock_trend
     
-    # 新增：识别量化对倒（用1分钟数据）—— 提前到这里，因为信号有效性查询需要用到
     vol_verdict, vol_cv, vol_corr, vol_tail, quant_pct = analyze_1min_volatility(market + code)
     stock_data['vol_verdict'] = vol_verdict
     stock_data['vol_cv'] = vol_cv
@@ -2219,7 +2132,6 @@ def get_stock_data(market, code):
     stock_data['vol_tail'] = vol_tail
     stock_data['quant_pct'] = quant_pct
     
-    # 转换真假量柱判断结果
     if vol_verdict == "真金白银":
         is_real = True
     elif vol_verdict == "量化对倒":
@@ -2227,17 +2139,13 @@ def get_stock_data(market, code):
     else:
         is_real = None
     
-    # 新增：给信号加上有效性标签
     signals_with_effectiveness = []
     for sig in extra_signals:
-        # 传入 is_real，用对应的胜率
         winrate, effectiveness = get_signal_effectiveness(sig, position, stock_trend, is_real)
         
-        # 新增：信号强度综合评分
-        score = 50  # 基础分
+        score = 50
         score_details = []
         
-        # 1. 位置加分
         if position == "低位":
             score += 15
             score_details.append("低位+15")
@@ -2248,7 +2156,6 @@ def get_stock_data(market, code):
             score -= 5
             score_details.append("高位-5")
         
-        # 2. 趋势加分
         if stock_trend == "上升趋势":
             score += 15
             score_details.append("上升+15")
@@ -2256,7 +2163,6 @@ def get_stock_data(market, code):
             score -= 5
             score_details.append("下降-5")
         
-        # 3. 大盘环境加分
         if stock_data.get('market_regime') == "多头市场":
             score += 10
             score_details.append("多头+10")
@@ -2264,7 +2170,6 @@ def get_stock_data(market, code):
             score -= 5
             score_details.append("空头-5")
         
-        # 4. 王牌柱加分
         pillar_type = stock_data.get('pillar_type', '')
         if pillar_type == "元帅柱":
             score += 15
@@ -2276,7 +2181,6 @@ def get_stock_data(market, code):
             score += 5
             score_details.append("将军柱+5")
         
-        # 5. 量能加分
         if vol_pattern == "倍量柱":
             score += 10
             score_details.append("倍量+10")
@@ -2287,7 +2191,6 @@ def get_stock_data(market, code):
             score += 0
             score_details.append("缩量+0")
         
-        # 6. 信号有效性加分
         if effectiveness == "有效":
             score += 10
             score_details.append("有效+10")
@@ -2295,7 +2198,6 @@ def get_stock_data(market, code):
             score -= 10
             score_details.append("无效-10")
         
-        # 7. 新增：量化对倒减分（去伪存真！）
         vol_verdict = stock_data.get('vol_verdict', '')
         if vol_verdict == "量化对倒":
             score -= 20
@@ -2307,7 +2209,6 @@ def get_stock_data(market, code):
             score += 5
             score_details.append("真金白银+5")
         
-        # 星级
         stars = min(5, max(1, round(score / 20)))
         
         signals_with_effectiveness.append({
@@ -2321,7 +2222,6 @@ def get_stock_data(market, code):
     
     stock_data['signals_with_effectiveness'] = signals_with_effectiveness
     
-    # 新增：三维共振提示
     resonance = ""
     if position == "低位" and stock_trend == "上升趋势" and stock_data.get('market_regime') == "多头市场":
         resonance = "✅ 最佳买点！低位+上升+多头"
@@ -2333,77 +2233,61 @@ def get_stock_data(market, code):
         resonance = "📉 较好卖点！高位+下降"
     stock_data['resonance'] = resonance
     
-    # 新增：筹码集中/分散（用股东户数数据）
     chips_verdict, latest_holders, holders_change = get_shareholder_chips(code)
     stock_data['chips_verdict'] = chips_verdict
     stock_data['latest_holders'] = latest_holders
     stock_data['holders_change'] = holders_change
     
-    # 新增：主力成本区（VWAP）
     main_cost, vs_cost_pct = calc_main_cost(df)
     stock_data['main_cost'] = main_cost
     stock_data['vs_cost_pct'] = vs_cost_pct
     
-    # 新增：龙虎榜解读
     lhb_reason, lhb_amount = get_lhb_info(market + code)
     stock_data['lhb_reason'] = lhb_reason
     stock_data['lhb_amount'] = lhb_amount
     
-    # 新增：融资融券
     margin_balance, margin_label = get_margin_info(market + code)
     stock_data['margin_balance'] = margin_balance
     stock_data['margin_label'] = margin_label
     
-    # 新增：北向资金
     north_hold, north_label = get_north_info(market + code)
     stock_data['north_hold'] = north_hold
     stock_data['north_label'] = north_label
     
-    # 新增：限售解禁
     restricted_date, restricted_amount = get_restricted_info(market + code)
     stock_data['restricted_date'] = restricted_date
     stock_data['restricted_amount'] = restricted_amount
     
-    # 新增：周线共振
     weekly_signal, weekly_desc = get_weekly_resonance(df)
     stock_data['weekly_signal'] = weekly_signal
     stock_data['weekly_desc'] = weekly_desc
     
-    # 新增：王牌线
     ace_line, vs_ace_pct, ace_type = get_ace_lines(df, stock_data.get('pillar_type'), stock_data.get('pillar_idx'))
     stock_data['ace_line'] = ace_line
     stock_data['vs_ace_pct'] = vs_ace_pct
     stock_data['ace_type'] = ace_type
     
-    # 新增：价柱形态识别
     price_pattern = identify_price_pattern(df)
     stock_data['price_pattern'] = price_pattern
     
-    # 新增：组合信号
     combined_signals = get_combined_signals(df, vol_pattern, peak_20)
     stock_data['combined_signals'] = combined_signals
     
-    # 新增：峰谷线
     fenggu_line = get_fenggu_line(peaks_60, valleys_60)
     stock_data['fenggu_line'] = fenggu_line
     
-    # 新增：量价背离
     divergence = get_volume_price_divergence(df)
     stock_data['divergence'] = divergence
     
-    # 新增：风险信号提示
     risks = get_risk_signals(position, stock_trend, vol_pattern)
     stock_data['risks'] = risks
     
-    # 新增：凹口淘金
     ao_kou = get_ao_kou(df)
     stock_data['ao_kou'] = ao_kou
     
-    # 新增：三阴选股
     san_yin = get_san_yin(df)
     stock_data['san_yin'] = san_yin
     
-    # 新增：主力意图识别
     main_intent = get_main_force_intent(position, stock_trend, vol_pattern, 
                                         stock_data.get('pillar_type', ''), 
                                         stock_data.get('vol_verdict', ''),
@@ -2420,6 +2304,22 @@ def get_stock_data(market, code):
 # ============================================================
 def generate_html(stocks_data, today_str):
     items = []
+    
+    # ========== 新增：加载 AI 研判数据 ==========
+    ai_comments = {}
+    ai_path = OUTPUT_DIR / f"ai_comment_{today_str.replace('-', '')}.json"
+    if ai_path.exists():
+        try:
+            with open(ai_path, 'r', encoding='utf-8') as f:
+                ai_data = json.load(f)
+            ai_comments = ai_data.get('stocks', {})
+            print(f"  [AI研判] 已加载 {len(ai_comments)} 只股票的 AI 分析")
+        except Exception as e:
+            print(f"  [AI研判] 读取失败: {e}")
+    else:
+        print(f"  [AI研判] 未找到 {ai_path}，跳过 AI 研判渲染")
+    # ============================================
+
     for stock in stocks_data:
         if stock is None:
             continue
@@ -2558,7 +2458,6 @@ def generate_html(stocks_data, today_str):
                 stars_text = "⭐" * stars
                 
                 if winrate is not None:
-                    # 新增：量化对倒标假信号！
                     vol_verdict = stock.get('vol_verdict', '')
                     fake_badge = ""
                     if vol_verdict == "量化对倒":
@@ -2584,7 +2483,6 @@ def generate_html(stocks_data, today_str):
         atr_text = f"{stock['atr_pct']:.2f}%" if stock['atr_pct'] else "未知"
         yin_thresh_text = f"{stock['yin_body_threshold']:.2f}%" if stock.get('yin_body_threshold') else "未知"
         
-        # 新增：位置+趋势的颜色和文字
         if stock.get('stock_trend') == "上升趋势" and stock.get('position') in ["中位", "低位"]:
             pos_trend_color = "#22c55e"
             pos_trend_text = "✅ 黄金组合！信号胜率高"
@@ -2597,6 +2495,22 @@ def generate_html(stocks_data, today_str):
         else:
             pos_trend_color = "#eab308"
             pos_trend_text = "⚠️ 一般，轻仓试错"
+
+        # ========== 新增：提取当前股票的 AI 研判 ==========
+        ai_comment_text = ai_comments.get(stock['code'], {}).get('ai_comment', '')
+        ai_html = ""
+        if ai_comment_text and "未配置" not in ai_comment_text and "失败" not in ai_comment_text:
+            ai_html = f'''
+            <div style="background:#8b5cf620; border-radius:8px; padding:12px; margin-bottom:15px; border-left:4px solid #8b5cf6;">
+                <div style="font-size:14px; font-weight:bold; color:#8b5cf6;">
+                    🤖 AI 研判（Agnes AI）
+                </div>
+                <div style="font-size:12px; color:#cbd5e1; margin-top:4px; line-height: 1.6;">
+                    {ai_comment_text}
+                </div>
+            </div>
+            '''
+        # ====================================================
         
         item_html = f"""
         <div class="stock-card">
@@ -2619,6 +2533,8 @@ def generate_html(stocks_data, today_str):
                 </div>
             </div>
             ''' for intent, color, desc in stock.get('main_intent', [])])}
+
+            {ai_html}
             
             <!-- 新增：大盘环境 -->
             {f'''
