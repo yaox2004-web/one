@@ -199,19 +199,30 @@ def calculate_atr(df, period=14):
 # 3. 尾盘占比：尾盘30分钟量占比>30%=疑似量化尾盘做盘
 # 满足2个以上=量化对倒
 # ============================================================
+# 缓存：按 (code, date) 缓存结果，避免重复遍历大文件
+_real_money_cache = {}
+
 def is_real_money(market, code, trade_date):
     """判断当天是真金白银还是量化对倒，返回 (是否真金, 量化占比)"""
+    cache_key = f"{market}{code}_{trade_date}"
+    if cache_key in _real_money_cache:
+        return _real_money_cache[cache_key]
+    
     filepath = MIN1_DIR / f"{market}{code}.json"
     if not filepath.exists():
         # 没有1分钟数据，默认当真金白银
-        return True, 0
+        result = (True, 0)
+        _real_money_cache[cache_key] = result
+        return result
     
     try:
         with open(filepath, 'r') as f:
             data = json.load(f)
         klines = data.get('klines', [])
         if len(klines) < 100:
-            return True, 0
+            result = (True, 0)
+            _real_money_cache[cache_key] = result
+            return result
         
         # 找到当天的1分钟数据
         day_klines = []
@@ -221,7 +232,9 @@ def is_real_money(market, code, trade_date):
         
         if len(day_klines) < 200:
             # 当天1分钟数据太少，默认当真金白银
-            return True, 0
+            result = (True, 0)
+            _real_money_cache[cache_key] = result
+            return result
         
         # 计算三个指标
         volumes = [float(k[5]) for k in day_klines]
@@ -282,11 +295,15 @@ def is_real_money(market, code, trade_date):
         
         # 满足2个以上=量化对倒
         is_quant = quant_count >= 2
-        return not is_quant, round(quant_ratio, 1)
+        result = (not is_quant, round(quant_ratio, 1))
+        _real_money_cache[cache_key] = result
+        return result
         
     except Exception as e:
         # 出错了默认当真金白银
-        return True, 0
+        result = (True, 0)
+        _real_money_cache[cache_key] = result
+        return result
 
 
 def get_atr_threshold(atr_pct, mult, fallback):
@@ -297,8 +314,10 @@ def get_atr_threshold(atr_pct, mult, fallback):
 
 
 def is_gem_star(code):
+    # 修复：传进来的是 sz300394 这种带前缀的，先去掉 sh/sz 再判断
     # 创业板300/301开头，科创板688开头，涨跌幅20%
-    if code.startswith('300') or code.startswith('301') or code.startswith('688'):
+    pure = code[2:] if code.startswith(('sh', 'sz')) else code
+    if pure.startswith('300') or pure.startswith('301') or pure.startswith('688'):
         return True
     return False
 
@@ -479,8 +498,8 @@ def scan_all_stocks():
     if sh_dir.exists():
         for f in sh_dir.glob("*.json"):
             code = f.stem
-            # 跳过上证指数等指数
-            if "000001" in code:
+            # 修复：精确判断上证指数，避免误伤 sh000001 以外的股票
+            if code == "sh000001":
                 continue
             if not any(c == code for _, c in stocks):
                 stocks.append(("sh", code))
@@ -489,8 +508,8 @@ def scan_all_stocks():
     if sz_dir.exists():
         for f in sz_dir.glob("*.json"):
             code = f.stem
-            # 跳过指数
-            if "399" in code:
+            # 跳过指数（sz399开头的是深证指数）
+            if code.startswith("sz399"):
                 continue
             if not any(c == code for _, c in stocks):
                 stocks.append(("sz", code))
@@ -1031,7 +1050,9 @@ def find_pillars_at(df, end_idx, lookback_days=60):
             continue
         if i < 20:
             continue
-        vol_window = recent_df.iloc[i-20:i]['volume']
+        # 修复：确保索引不越界，避免 iloc 负索引绕回去取到末尾数据
+        start_idx = max(0, i - 20)
+        vol_window = recent_df.iloc[start_idx:i]['volume']
         vol_pctl = (vol_window < row['volume']).sum() / len(vol_window)
         if vol_pctl < BASE_VOL_PCTL:
             continue
@@ -1128,6 +1149,8 @@ def main():
             vol_pattern = "无"
             
             # 量柱六种
+            # 修复：补全所有量柱形态的 vol_pattern 赋值，和报告脚本对齐
+            # 优先级：倍量柱 > 高量柱 > 梯量柱 > 平量柱 > 缩量柱 > 低量柱
             ok, support = check_bei_liang(df, i)
             if ok:
                 signals_today.append(("倍量柱", support))
@@ -1140,15 +1163,23 @@ def main():
             ok, support = check_di_liang(df, i)
             if ok:
                 signals_today.append(("低量柱（地量）", support))
+                if vol_pattern == "无":
+                    vol_pattern = "低量柱"
             ok, support = check_ti_liang(df, i)
             if ok:
                 signals_today.append(("梯量柱", support))
+                if vol_pattern == "无":
+                    vol_pattern = "梯量柱"
             ok, support = check_suo_liang(df, i)
             if ok:
                 signals_today.append(("缩量柱", support))
+                if vol_pattern == "无":
+                    vol_pattern = "缩量柱"
             ok, support = check_ping_liang(df, i)
             if ok:
                 signals_today.append(("平量柱", support))
+                if vol_pattern == "无":
+                    vol_pattern = "平量柱"
             
             # 形态信号
             ok, support = check_xiao_bei_yang(df, i)
@@ -1236,6 +1267,9 @@ def main():
             
             # 对每个信号，找回踩买入点
             for signal_name, support_price in signals_today:
+                # 修复：阴胜出是看跌信号，不适合用回踩买入逻辑回测，跳过
+                if signal_name == "阴胜出":
+                    continue
                 buy_idx = check_pullback_buy(df, i, support_price)
                 if buy_idx is None:
                     continue
@@ -1351,26 +1385,39 @@ def main():
                 for regime in market_regimes:
                     all_trades_list.extend(all_trades[signal_name][pos][trend][regime][WINRATE_HOLD_DAYS])
                 
-                # 整体胜率
+                # 整体胜率和平均收益
+                # 修复：同时存胜率和平均收益，报告脚本需要两个条件一起判断
                 all_returns = [t[0] for t in all_trades_list]
                 count = len(all_returns)
                 if count >= 5:
                     win_rate = sum(1 for r in all_returns if r > 0) / count * 100
-                    winrate_data[pos][trend][signal_name] = round(win_rate, 1)
+                    avg_ret = float(np.mean(all_returns))
+                    winrate_data[pos][trend][signal_name] = {
+                        "win_rate": round(win_rate, 1),
+                        "avg_ret": round(avg_ret, 2)
+                    }
                 
-                # 真金白银胜率
+                # 真金白银胜率和平均收益
                 real_returns = [t[0] for t in all_trades_list if t[1] is True]
                 real_count = len(real_returns)
                 if real_count >= 5:
                     real_win_rate = sum(1 for r in real_returns if r > 0) / real_count * 100
-                    winrate_data[pos][trend][f"{signal_name}_真金"] = round(real_win_rate, 1)
+                    real_avg_ret = float(np.mean(real_returns))
+                    winrate_data[pos][trend][f"{signal_name}_真金"] = {
+                        "win_rate": round(real_win_rate, 1),
+                        "avg_ret": round(real_avg_ret, 2)
+                    }
                 
-                # 量化对倒胜率
+                # 量化对倒胜率和平均收益
                 quant_returns = [t[0] for t in all_trades_list if t[1] is False]
                 quant_count = len(quant_returns)
                 if quant_count >= 5:
                     quant_win_rate = sum(1 for r in quant_returns if r > 0) / quant_count * 100
-                    winrate_data[pos][trend][f"{signal_name}_量化"] = round(quant_win_rate, 1)
+                    quant_avg_ret = float(np.mean(quant_returns))
+                    winrate_data[pos][trend][f"{signal_name}_量化"] = {
+                        "win_rate": round(quant_win_rate, 1),
+                        "avg_ret": round(quant_avg_ret, 2)
+                    }
     
     # 保存到文件
     output_dir = Path(__file__).parent.parent / "data" / "analysis"
