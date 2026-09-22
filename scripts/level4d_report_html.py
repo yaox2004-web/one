@@ -349,22 +349,27 @@ def analyze_1min_volatility(code):
         if len(klines) < 60:
             return None, None, None, None
 
-        # 取最后一天的1分钟数据
-        last_day = klines[-1][0][:10] if isinstance(klines[-1][0], str) else None
-        day_klines = []
-        for k in reversed(klines):
-            day_str = k[0][:10] if isinstance(k[0], str) else None
-            if day_str == last_day:
-                day_klines.append(k)
-            else:
-                break
-        day_klines.reverse()
+        # 直接取最后240根（约一天的交易时间），不管时间格式
+        day_klines = klines[-240:] if len(klines) >= 240 else klines
 
         if len(day_klines) < 30:
             return None, None, None, None
 
-        volumes = [float(k[5]) for k in day_klines if len(k) > 5]
-        if not volumes:
+        # 找成交量列：腾讯格式第6列是成交量（索引5）
+        volumes = []
+        closes = []
+        for k in day_klines:
+            try:
+                # 尝试第6列（索引5）是成交量
+                if len(k) > 5:
+                    vol = float(k[5])
+                    close = float(k[2])
+                    volumes.append(vol)
+                    closes.append(close)
+            except:
+                continue
+
+        if not volumes or len(volumes) < 30:
             return None, None, None, None
 
         # 1. 成交量CV（标准差/均值）
@@ -373,7 +378,6 @@ def analyze_1min_volatility(code):
         cv = vol_std / vol_mean if vol_mean > 0 else 999
 
         # 2. 量价相关系数
-        closes = [float(k[2]) for k in day_klines if len(k) > 2]
         if len(closes) == len(volumes) and len(closes) > 10:
             price_changes = np.diff(closes)
             vol_changes = np.diff(volumes)
@@ -384,7 +388,7 @@ def analyze_1min_volatility(code):
         else:
             corr = 0
 
-        # 3. 尾盘成交量占比（最后30分钟）
+        # 3. 尾盘成交量占比（最后30根 = 最后30分钟）
         tail_vol = sum(volumes[-30:])
         total_vol = sum(volumes)
         tail_ratio = tail_vol / total_vol if total_vol > 0 else 0
@@ -428,24 +432,34 @@ def get_shareholder_chips(code):
         with open(files[0], 'r') as f:
             data = json.load(f)
 
-        stock_data = data.get('stocks', {}).get(code, [])
+        # 尝试找股票数据：先试纯数字code，再试带前缀的
+        stock_list = data.get('stocks', {})
+        stock_data = stock_list.get(code, [])
+        if not stock_data:
+            # 试试带sh/sz前缀的
+            for k in stock_list.keys():
+                if code in k:
+                    stock_data = stock_list[k]
+                    break
+
         if not stock_data or len(stock_data) < 2:
             return None, None, None
 
         latest = stock_data[0]
         prev = stock_data[1]
 
-        # 找股东户数字段
-        latest_holders = None
-        prev_holders = None
-        for key in latest.keys():
-            if '股东户数' in key or '户数' in key:
-                latest_holders = latest[key]
-                break
-        for key in prev.keys():
-            if '股东户数' in key or '户数' in key:
-                prev_holders = prev[key]
-                break
+        # 找股东户数字段：宽泛搜索
+        def find_holders_field(record):
+            for key in record.keys():
+                key_lower = key.lower()
+                if '户' in key or 'holder' in key_lower or 'num' in key_lower:
+                    val = record[key]
+                    if isinstance(val, (int, float)) and val > 100:
+                        return val
+            return None
+
+        latest_holders = find_holders_field(latest)
+        prev_holders = find_holders_field(prev)
 
         if latest_holders is None or prev_holders is None:
             return None, None, None
