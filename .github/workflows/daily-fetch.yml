@@ -144,7 +144,8 @@ jobs:
               ('sz399006', '创业板指'),
           ]
 
-          os.makedirs('data/kline', exist_ok=True)
+          os.makedirs('data/kline/sh', exist_ok=True)
+          os.makedirs('data/kline/sz', exist_ok=True)
           ok, fail = 0, 0
           for code, name in codes:
             try:
@@ -163,7 +164,9 @@ jobs:
                     row = [k['day'], k['open'], k['close'], k['high'], k['low'], k['volume']]
                     klines.append(row)
                 out = {'name': name, 'klines': klines}
-                with open(f'data/kline/{code}.json', 'w', encoding='utf-8') as f:
+                market = code[:2]
+                filepath = f'data/kline/{market}/{code}.json'
+                with open(filepath, 'w', encoding='utf-8') as f:
                     json.dump(out, f, ensure_ascii=False)
                 ok += 1
                 print(f'  OK {code} {name} {len(klines)}条')
