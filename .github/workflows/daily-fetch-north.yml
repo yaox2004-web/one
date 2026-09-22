@@ -18,44 +18,28 @@ jobs:
         with:
           token: ${{ secrets.GH_TOKEN }}
 
-      - name: 拉北向资金
+      - name: 装 akshare
+        run: pip install akshare -q
+
+      - name: 拉北向个股持仓
         run: |
           python3 << 'PYEOF'
-          import requests, json, os
+          import akshare as ak
+          import json, os
           from datetime import datetime, timezone, timedelta
-
-          HEADERS = {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Referer': 'https://data.eastmoney.com/hsgt/index.html',
-              'Accept': 'application/json, text/plain, */*',
-          }
 
           os.makedirs('data/north', exist_ok=True)
 
           bj_now = datetime.now(timezone.utc) + timedelta(hours=8)
           today = bj_now.strftime('%Y-%m-%d')
 
-          url = "https://datacenter-web.eastmoney.com/api/data/v1/get"
-          params = {
-              'reportName': 'RPT_MUTUAL_HOLD_DET',
-              'columns': 'ALL',
-              'filter': f"(TRADE_DATE='{today}')",
-              'pageNumber': '1',
-              'pageSize': '500',
-              'source': 'WEB',
-              'client': 'WEB',
-          }
-
           try:
-              r = requests.get(url, params=params, headers=HEADERS, timeout=30)
-              data = r.json()
-              result = data.get('result')
-              rows = result.get('data', []) if result else []
-              if not rows:
+              df = ak.stock_hsgt_individual_em(stock="北向资金")
+              if df is None or len(df) == 0:
                   print(f'无北向数据（{today}）')
-                  print(f'原始返回: {str(data)[:300]}')
                   exit(0)
 
+              rows = df.to_dict('records')
               out = {
                   'date': today,
                   'updated': bj_now.strftime('%Y-%m-%d %H:%M:%S BJT'),
@@ -63,7 +47,7 @@ jobs:
                   'rows': rows
               }
               with open(f'data/north/{today}.json', 'w') as f:
-                  json.dump(out, f, ensure_ascii=False)
+                  json.dump(out, f, ensure_ascii=False, default=str)
               print(f'OK {today}: {len(rows)} 条记录')
 
           except Exception as e:
