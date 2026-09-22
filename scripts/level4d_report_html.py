@@ -349,13 +349,26 @@ def get_stock_trend(df):
 
 # ============================================================
 # 【新增：信号有效性查询】
+# 设计思路：如果知道当天是真金白银还是量化对倒，就用对应的胜率
+# 依据：同样的信号，在真金白银的票上胜率高很多
 # ============================================================
-def get_signal_effectiveness(signal_name, position, trend):
+def get_signal_effectiveness(signal_name, position, trend, is_real=None):
     if position == "未知" or trend == "未知":
         return None, None
     pos_data = BACKTEST_WINRATE.get(position, {})
     trend_data = pos_data.get(trend, {})
-    winrate = trend_data.get(signal_name)
+    
+    # 先按真假量柱查对应的胜率
+    winrate = None
+    if is_real is True:
+        winrate = trend_data.get(f"{signal_name}_真金")
+    elif is_real is False:
+        winrate = trend_data.get(f"{signal_name}_量化")
+    
+    # 如果没查到，用整体胜率
+    if winrate is None:
+        winrate = trend_data.get(signal_name)
+    
     if winrate is None:
         return None, None
     if winrate >= 55:
@@ -2166,10 +2179,27 @@ def get_stock_data(market, code):
     stock_data['position_pct'] = position_pct
     stock_data['stock_trend'] = stock_trend
     
+    # 新增：识别量化对倒（用1分钟数据）—— 提前到这里，因为信号有效性查询需要用到
+    vol_verdict, vol_cv, vol_corr, vol_tail, quant_pct = analyze_1min_volatility(market + code)
+    stock_data['vol_verdict'] = vol_verdict
+    stock_data['vol_cv'] = vol_cv
+    stock_data['vol_corr'] = vol_corr
+    stock_data['vol_tail'] = vol_tail
+    stock_data['quant_pct'] = quant_pct
+    
+    # 转换真假量柱判断结果
+    if vol_verdict == "真金白银":
+        is_real = True
+    elif vol_verdict == "量化对倒":
+        is_real = False
+    else:
+        is_real = None
+    
     # 新增：给信号加上有效性标签
     signals_with_effectiveness = []
     for sig in extra_signals:
-        winrate, effectiveness = get_signal_effectiveness(sig, position, stock_trend)
+        # 传入 is_real，用对应的胜率
+        winrate, effectiveness = get_signal_effectiveness(sig, position, stock_trend, is_real)
         
         # 新增：信号强度综合评分
         score = 50  # 基础分
@@ -2270,14 +2300,6 @@ def get_stock_data(market, code):
     elif position == "高位" and stock_trend == "下降趋势":
         resonance = "📉 较好卖点！高位+下降"
     stock_data['resonance'] = resonance
-    
-    # 新增：识别量化对倒（用1分钟数据）
-    vol_verdict, vol_cv, vol_corr, vol_tail, quant_pct = analyze_1min_volatility(market + code)
-    stock_data['vol_verdict'] = vol_verdict
-    stock_data['vol_cv'] = vol_cv
-    stock_data['vol_corr'] = vol_corr
-    stock_data['vol_tail'] = vol_tail
-    stock_data['quant_pct'] = quant_pct
     
     # 新增：筹码集中/分散（用股东户数数据）
     chips_verdict, latest_holders, holders_change = get_shareholder_chips(code)
