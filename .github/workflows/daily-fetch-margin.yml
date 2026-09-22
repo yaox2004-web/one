@@ -3,7 +3,7 @@ name: 每日拉融资融券
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 14 * * *'
+    - cron: '0 15 * * *'
 
 permissions:
   contents: write
