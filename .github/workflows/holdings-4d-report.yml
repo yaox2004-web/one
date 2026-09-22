@@ -28,12 +28,13 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pandas numpy
+          pip install pandas numpy requests    # <--- 加上了 requests
       
-      - name: Run report
+      - name: Run report and AI comment
         run: |
           cd scripts
           python3 level4d_report_html.py
+          python3 ai_comment.py                # <--- 加上了这行，关键！
       
       - name: 提交 + 推送
         run: |
@@ -43,7 +44,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "无变化"
           else
-            git commit -m "report: 四维循环看盘报告 $(date -u +%Y%m%d)"
+            git commit -m "report: 四维循环看盘报告+AI研判 $(date -u +%Y%m%d)"
             git pull --rebase origin main
             git push
           fi
