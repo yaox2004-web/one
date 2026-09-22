@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: data-push
+  cancel-in-progress: false
+
 jobs:
   fetch:
     runs-on: ubuntu-latest
@@ -271,5 +275,6 @@ jobs:
             echo "无变化"
           else
             git commit -m "data: 行情数据 $(date -u +%Y%m%d)"
+            git pull --rebase origin main
             git push
           fi
