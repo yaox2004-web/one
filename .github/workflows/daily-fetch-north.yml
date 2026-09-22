@@ -37,11 +37,11 @@ jobs:
 
           url = "https://datacenter-web.eastmoney.com/api/data/v1/get"
           params = {
-              'reportName': 'RPT_MUTUAL_DEAL_HISTORY',
+              'reportName': 'RPT_MUTUAL_HOLD_DET',
               'columns': 'ALL',
               'filter': f"(TRADE_DATE='{today}')",
               'pageNumber': '1',
-              'pageSize': '100',
+              'pageSize': '500',
               'source': 'WEB',
               'client': 'WEB',
           }
@@ -79,6 +79,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "无变化，跳过提交"
           else
-            git commit -m "data: 北向 $(date -u +%Y%m%d)"
+            git commit -m "data: 北向持仓 $(date -u +%Y%m%d)"
             git push
           fi
