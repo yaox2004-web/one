@@ -351,6 +351,8 @@ def get_stock_trend(df):
 # 【新增：信号有效性查询】
 # 设计思路：如果知道当天是真金白银还是量化对倒，就用对应的胜率
 # 依据：同样的信号，在真金白银的票上胜率高很多
+# 修复：同时判断胜率和平均收益，和回测脚本的标准一致
+# 回测标准：胜率>55% 且 平均收益>0 = 有效
 # ============================================================
 def get_signal_effectiveness(signal_name, position, trend, is_real=None):
     if position == "未知" or trend == "未知":
@@ -359,24 +361,41 @@ def get_signal_effectiveness(signal_name, position, trend, is_real=None):
     trend_data = pos_data.get(trend, {})
     
     # 先按真假量柱查对应的胜率
-    winrate = None
+    winrate_data = None
     if is_real is True:
-        winrate = trend_data.get(f"{signal_name}_真金")
+        winrate_data = trend_data.get(f"{signal_name}_真金")
     elif is_real is False:
-        winrate = trend_data.get(f"{signal_name}_量化")
+        winrate_data = trend_data.get(f"{signal_name}_量化")
     
     # 如果没查到，用整体胜率
-    if winrate is None:
-        winrate = trend_data.get(signal_name)
+    if winrate_data is None:
+        winrate_data = trend_data.get(signal_name)
     
-    if winrate is None:
+    if winrate_data is None:
         return None, None
-    if winrate >= 55:
-        return winrate, "有效"
-    elif winrate >= 50:
-        return winrate, "一般"
+    
+    # 兼容两种格式：
+    # 1. 新格式：{"win_rate": 56.2, "avg_ret": 1.5}
+    # 2. 旧格式/硬编码默认值：56.2（单纯数字）
+    if isinstance(winrate_data, dict):
+        win_rate = winrate_data.get("win_rate", 0)
+        avg_ret = winrate_data.get("avg_ret", 0)
+        # 回测标准：胜率>55% 且 平均收益>0 = 有效
+        if win_rate >= 55 and avg_ret > 0:
+            return win_rate, "有效"
+        elif win_rate >= 50:
+            return win_rate, "一般"
+        else:
+            return win_rate, "无效"
     else:
-        return winrate, "无效"
+        # 旧格式：只看胜率
+        win_rate = winrate_data
+        if win_rate >= 55:
+            return win_rate, "有效"
+        elif win_rate >= 50:
+            return win_rate, "一般"
+        else:
+            return win_rate, "无效"
 
 
 # ============================================================
@@ -386,20 +405,20 @@ def analyze_1min_volatility(code):
     import os
     one_min_path = Path(__file__).parent.parent / "data" / "kline_1min" / f"{code}.json"
     if not one_min_path.exists():
-        return None, None, None, None
+        return None, None, None, None, None
 
     try:
         with open(one_min_path, 'r') as f:
             data = json.load(f)
         klines = data.get('klines', [])
         if len(klines) < 60:
-            return None, None, None, None
+            return None, None, None, None, None
 
         # 直接取最后240根（约一天的交易时间），不管时间格式
         day_klines = klines[-240:] if len(klines) >= 240 else klines
 
         if len(day_klines) < 30:
-            return None, None, None, None
+            return None, None, None, None, None
 
         # 找成交量列：腾讯格式第6列是成交量（索引5）
         volumes = []
@@ -416,7 +435,7 @@ def analyze_1min_volatility(code):
                 continue
 
         if not volumes or len(volumes) < 30:
-            return None, None, None, None
+            return None, None, None, None, None
 
         # 1. 成交量CV（标准差/均值）
         vol_mean = np.mean(volumes)
@@ -486,7 +505,7 @@ def analyze_1min_volatility(code):
         return verdict, cv, corr, tail_ratio, quant_pct
 
     except Exception as e:
-        return None, None, None, None
+        return None, None, None, None, None
 
 
 # ============================================================
@@ -499,7 +518,11 @@ def get_shareholder_chips(code):
         return None, None, None
 
     try:
-        files = sorted(holders_dir.glob("*.json"), reverse=True)
+        # 修复：只取日期格式的文件（8位数字），避免混入 backup 等文件导致排序乱
+        import re
+        all_files = list(holders_dir.glob("*.json"))
+        date_files = [f for f in all_files if re.match(r'^\d{8}$', f.stem)]
+        files = sorted(date_files, key=lambda p: p.stem, reverse=True)
         if not files:
             return None, None, None
 
@@ -1057,7 +1080,9 @@ def get_atr_threshold(atr_pct, mult, fallback):
 
 
 def is_gem_star(code):
-    if code.startswith('300') or code.startswith('301') or code.startswith('688'):
+    # 修复：传进来的是 sz300394 这种带前缀的，先去掉 sh/sz 再判断
+    pure = code[2:] if code.startswith(('sh', 'sz')) else code
+    if pure.startswith('300') or pure.startswith('301') or pure.startswith('688'):
         return True
     return False
 
@@ -1105,7 +1130,7 @@ def load_klines(market, code):
 # ============================================================
 def find_big_yin_top(df, lookback_days, yin_body_pct):
     if len(df) < lookback_days:
-        return None, None, None, None, None
+        return None, None, None, None, None, None
     recent_df = df.iloc[-lookback_days:]
     for i in range(len(recent_df)-1, -1, -1):
         row = recent_df.iloc[i]
@@ -1114,7 +1139,7 @@ def find_big_yin_top(df, lookback_days, yin_body_pct):
         body_pct = (row['open'] - row['close']) / row['close'] * 100
         if body_pct >= yin_body_pct:
             return row['open'], row['close'], row['date'], row['volume'], len(df) - lookback_days + i
-    return None, None, None, None, None
+    return None, None, None, None, None, None
 
 
 # ============================================================
@@ -1122,7 +1147,7 @@ def find_big_yin_top(df, lookback_days, yin_body_pct):
 # ============================================================
 def find_gaoliang_lines(recent_df):
     if len(recent_df) < 5:
-        return None, None, None, None, None
+        return None, None, None, None, None, None
     max_vol_idx = recent_df['volume'].idxmax()
     max_vol_row = recent_df.loc[max_vol_idx]
     open_price = max_vol_row['open']
@@ -1132,7 +1157,7 @@ def find_gaoliang_lines(recent_df):
     body_size = abs(close_price - open_price)
     total_range = high_price - low_price
     if total_range == 0:
-        return None, None, None, None, None
+        return None, None, None, None, None, None
     body_ratio = body_size / total_range
     if body_ratio > BODY_RATIO_THRESHOLD:
         safe_line = max(open_price, close_price)
@@ -1204,7 +1229,7 @@ def find_precise_lines(df, lookback_days, min_points, price_tolerance):
 def find_fenggu_lines(df, lookback_days, peak_side, confirm_days, vol_percentile):
     min_required = lookback_days + confirm_days + peak_side
     if len(df) < min_required:
-        return None, None, None, None, [], []
+        return None, None, None, None, None, [], []
     recent_df = df.iloc[-lookback_days:]
     vol_threshold = recent_df['volume'].quantile(vol_percentile)
     peaks, valleys = [], []
@@ -1339,9 +1364,10 @@ def judge_key_vol_impact(df, key_vol, key_date):
 # ============================================================
 def find_pillars_official(df, lookback_days=60):
     if len(df) < lookback_days + GENERAL_CONFIRM_DAYS + 20:
-        return "无", None, None
+        return "无", None, None, None
     
     recent_df = df.iloc[-lookback_days:]
+    df_offset = len(df) - lookback_days  # recent_df 在 df 中的偏移量
     
     marshals = []
     goldens = []
@@ -1355,7 +1381,9 @@ def find_pillars_official(df, lookback_days=60):
         
         if i < 20:
             continue
-        vol_window = recent_df.iloc[i-20:i]['volume']
+        # 修复：确保索引不越界，避免 iloc 负索引绕回去取到末尾数据
+        start_idx = max(0, i - 20)
+        vol_window = recent_df.iloc[start_idx:i]['volume']
         vol_pctl = (vol_window < row['volume']).sum() / len(vol_window)
         if vol_pctl < BASE_VOL_PCTL:
             continue
@@ -1384,7 +1412,9 @@ def find_pillars_official(df, lookback_days=60):
         else:
             is_gap_up = False
         
-        pillar = (row['date'], row['low'])
+        # 修复：同时返回在 df 中的真实索引，供王牌线使用
+        df_idx = df_offset + i
+        pillar = (row['date'], row['low'], df_idx)
         
         if is_golden and is_gap_up:
             marshals.append(pillar)
@@ -1394,13 +1424,13 @@ def find_pillars_official(df, lookback_days=60):
             generals.append(pillar)
     
     if marshals:
-        return "元帅柱", marshals[0][0], marshals[0][1]
+        return "元帅柱", marshals[0][0], marshals[0][1], marshals[0][2]
     elif goldens:
-        return "黄金柱", goldens[0][0], goldens[0][1]
+        return "黄金柱", goldens[0][0], goldens[0][1], goldens[0][2]
     elif generals:
-        return "将军柱", generals[0][0], generals[0][1]
+        return "将军柱", generals[0][0], generals[0][1], generals[0][2]
     else:
-        return "无", None, None
+        return "无", None, None, None
 
 
 # ============================================================
@@ -1763,13 +1793,14 @@ def generate_interpretation(stock):
     trend = stock.get('stock_trend', '未知')
     
     if position == "低位":
-        pos_desc = f"股价在近60天的低位区域（距离最低点{position_pct:.1f}%）"
+        # 修复：position_pct 是百分位排名，不是距离最低点的百分比
+        pos_desc = f"股价在近120天的低位区域（{position_pct:.0f}%分位）"
         pos_logic = "低位意味着风险小，上涨空间大！主力最喜欢在低位建仓！"
     elif position == "中位":
-        pos_desc = f"股价在近60天的中间位置"
+        pos_desc = f"股价在近120天的中位区域（{position_pct:.0f}%分位）"
         pos_logic = "中位比较尴尬，要看主力意图！"
     else:
-        pos_desc = f"股价在近60天的高位区域（距离最高点{position_pct:.1f}%）"
+        pos_desc = f"股价在近120天的高位区域（{position_pct:.0f}%分位）"
         pos_logic = "高位意味着风险大，下跌空间大！主力最喜欢在高位出货！"
     
     if trend == "上升趋势":
@@ -2045,7 +2076,7 @@ def get_stock_data(market, code):
     vol_pattern = identify_vol_pattern(df)
     impact_20, vol_ratio_20, time_dist_20 = judge_key_vol_impact(df, key_vol_20, date_20)
     
-    pillar_type, pillar_date, golden_line = find_pillars_official(df)
+    pillar_type, pillar_date, golden_line, pillar_idx = find_pillars_official(df)
     
     aokou_price, aokou_date, aokou_gap = find_aokou_line(df)
     
@@ -2161,6 +2192,7 @@ def get_stock_data(market, code):
         'pillar_type': pillar_type,
         'pillar_date': pillar_date,
         'golden_line': golden_line,
+        'pillar_idx': pillar_idx,
         'aokou_price': aokou_price,
         'aokou_date': aokou_date,
         'aokou_gap': aokou_gap,
