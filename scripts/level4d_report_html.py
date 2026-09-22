@@ -593,10 +593,29 @@ def get_margin_info(code):
         sse_data = data.get('data', {}).get('sse', [])
         szse_data = data.get('data', {}).get('szse', [])
 
+        # 宽泛搜索标的证券代码
+        def find_code_field(record):
+            for key in record.keys():
+                if '证券代码' in key or 'code' in key.lower():
+                    val = str(record[key])
+                    if code_short in val:
+                        return True
+            return False
+
+        # 宽泛搜索融资余额字段
+        def find_balance_field(record):
+            for key in record.keys():
+                if '融资余额' in key or 'rzye' in key.lower():
+                    val = record[key]
+                    if isinstance(val, (int, float)) and val > 0:
+                        return val
+            return None
+
         for record in sse_data + szse_data:
-            if str(record.get('标的证券代码', '')) == code_short:
-                rzye = record.get('融资余额', 0)
-                return rzye, "融资余额"
+            if find_code_field(record):
+                balance = find_balance_field(record)
+                if balance:
+                    return balance, "融资余额"
 
         return None, None
 
@@ -624,10 +643,30 @@ def get_north_info(code):
         rows = data.get('rows', [])
         code_short = code[2:] if code.startswith(('sh', 'sz')) else code
 
+        # 宽泛搜索证券代码
+        def find_code_field(row):
+            for key in row.keys():
+                if 'code' in key.lower() or '代码' in key:
+                    val = str(row[key])
+                    if code_short in val:
+                        return True
+            return False
+
+        # 宽泛搜索持股数量
+        def find_hold_field(row):
+            for key in row.keys():
+                key_lower = key.lower()
+                if 'hold' in key_lower or '持股' in key or '数量' in key:
+                    val = row[key]
+                    if isinstance(val, (int, float)) and val > 0:
+                        return val
+            return None
+
         for row in rows:
-            if str(row.get('SECURITY_CODE', '')) == code_short:
-                hold_amount = row.get('HOLD_SHARES', 0)
-                return hold_amount, "北向持仓"
+            if find_code_field(row):
+                hold = find_hold_field(row)
+                if hold:
+                    return hold, "北向持仓"
 
         return None, None
 
