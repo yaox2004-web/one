@@ -28,7 +28,7 @@ INDEX_PATH = DATA_DIR / "sh" / "sh000001.json"  # 上证指数（sh子目录，�
 MIN1_DIR = Path(__file__).parent.parent / "data" / "kline_1min"  # 1分钟数据目录
 
 # 最大回测股票数：持仓8只 + 沪深300全部，共约308只
-MAX_STOCKS = 350
+MAX_STOCKS = 8
 
 # 持仓股（必跑，用户实际操作的）
 HOLDINGS = [
