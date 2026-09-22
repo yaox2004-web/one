@@ -38,6 +38,7 @@ jobs:
 
           result = {'date': today, 'updated': bj_now.strftime('%Y-%m-%d %H:%M:%S BJT'), 'data': {'sse': [], 'szse': []}}
 
+          # 探测：沪深数据都没出直接退出
           probe_ok = 0
           for probe_fn in [ak.stock_margin_detail_sse, ak.stock_margin_detail_szse]:
               try:
@@ -139,87 +140,15 @@ jobs:
           print(f'股东户数完成: {len(result["stocks"])}只')
           PYEOF
 
-      # ========== 新增：拉龙虎榜 ==========
-      - name: 拉龙虎榜
-        run: |
-          python3 << 'PYEOF'
-          import akshare as ak
-          import json, os, time
-          from datetime import datetime, timezone, timedelta
-
-          os.makedirs('data/lhb', exist_ok=True)
-          bj_now = datetime.now(timezone.utc) + timedelta(hours=8)
-          today = bj_now.strftime('%Y%m%d')
-
-          codes = [
-              '601138', '300476', '603516', '002156',
-              '603283', '601231', '300394', '600584',
-          ]
-
-          result = {'date': today, 'updated': bj_now.strftime('%Y-%m-%d %H:%M:%S BJT'), 'rows': []}
-
-          try:
-              # 全市场龙虎榜（按日）
-              df_all = ak.stock_lhb_detail_em(start_date=today, end_date=today)
-              if df_all is not None and len(df_all) > 0:
-                  # 只保留持仓股
-                  df_filtered = df_all[df_all['代码'].isin(codes)]
-                  result['rows'] = df_filtered.to_dict('records')
-                  print(f'龙虎榜全市场完成: 共{len(df_all)}条，持仓股{len(df_filtered)}条')
-              else:
-                  print(f'龙虎榜: {today} 无数据（非交易日或数据未更新）')
-          except Exception as e:
-              print(f'龙虎榜拉取异常: {e}')
-
-          with open(f'data/lhb/{today}.json', 'w') as f:
-              json.dump(result, f, ensure_ascii=False, default=str)
-          PYEOF
-
-      # ========== 新增：拉北向资金 ==========
-      - name: 拉北向资金
-        run: |
-          python3 << 'PYEOF'
-          import akshare as ak
-          import json, os, time
-          from datetime import datetime, timezone, timedelta
-
-          os.makedirs('data/north', exist_ok=True)
-          bj_now = datetime.now(timezone.utc) + timedelta(hours=8)
-          today = bj_now.strftime('%Y%m%d')
-
-          codes = [
-              '601138', '300476', '603516', '002156',
-              '603283', '601231', '300394', '600584',
-          ]
-
-          result = {'date': today, 'updated': bj_now.strftime('%Y-%m-%d %H:%M:%S BJT'), 'rows': []}
-
-          try:
-              # 北向资金持股排行（今日）
-              df_north = ak.stock_hsgt_hold_stock_em(market="北向", indicator="今日排行")
-              if df_north is not None and len(df_north) > 0:
-                  # 只保留持仓股
-                  df_filtered = df_north[df_north['代码'].isin(codes)]
-                  result['rows'] = df_filtered.to_dict('records')
-                  print(f'北向资金完成: 共{len(df_north)}条，持仓股{len(df_filtered)}条')
-              else:
-                  print(f'北向资金: {today} 无数据')
-          except Exception as e:
-              print(f'北向资金拉取异常: {e}')
-
-          with open(f'data/north/{today}.json', 'w') as f:
-              json.dump(result, f, ensure_ascii=False, default=str)
-          PYEOF
-
       - name: 提交 + 推送
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/margin/ data/fundamental/ data/holders/ data/lhb/ data/north/
+          git add data/margin/ data/fundamental/ data/holders/
           if git diff --cached --quiet; then
             echo "无变化"
           else
-            git commit -m "data: 基本面+龙虎榜+北向数据 $(date -u +%Y%m%d)"
+            git commit -m "data: 基本面数据 $(date -u +%Y%m%d)"
             git pull --rebase origin main
             git push
           fi
