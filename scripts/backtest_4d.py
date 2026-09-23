@@ -27,20 +27,24 @@ DATA_DIR = Path(__file__).parent.parent / "data" / "kline"
 INDEX_PATH = DATA_DIR / "sh" / "sh000001.json"
 MIN1_DIR = Path(__file__).parent.parent / "data" / "kline_1min"
 LEDGER_PATH = Path(__file__).parent.parent / "data" / "analysis" / "truth_ledger.json"
+HS300_PATH = Path(__file__).parent.parent / "data" / "hushen300.json"
 
-# 最大回测股票数：持仓8只 + 沪深300全部，共约308只
-MAX_STOCKS = 600
+# 最大回测股票数：沪深300 + 持仓股，约308只
+MAX_STOCKS = 308
+
+# 回测起始日（缩短历史跨度，加速回测）
+START_IDX = 500
 
 # 持仓股（必跑，用户实际操作的）
 HOLDINGS = [
-    ("sh", "600584"),
-    ("sz", "002156"),
-    ("sh", "603283"),
-    ("sz", "300394"),
-    ("sh", "601138"),
-    ("sh", "601231"),
-    ("sz", "300476"),
-    ("sh", "603516"),
+    ("sh", "600584"),  # 长电科技
+    ("sz", "002156"),  # 通富微电
+    ("sh", "603283"),  # 赛腾股份
+    ("sz", "300394"),  # 天孚通信
+    ("sh", "601138"),  # 工业富联
+    ("sh", "601231"),  # 环旭电子
+    ("sz", "300476"),  # 胜宏科技
+    ("sh", "603516"),  # 淳中科技
 ]
 
 # 持有周期：5天/10天/20天
@@ -171,7 +175,6 @@ _ledger_cache = None
 
 
 def _load_ledger():
-    """加载真假账本（带缓存，只读一次）"""
     global _ledger_cache
     if _ledger_cache is not None:
         return _ledger_cache
@@ -192,17 +195,11 @@ def _load_ledger():
 
 
 def is_real_money(market, code, trade_date):
-    """
-    判断当天是真金白银还是量化对倒。
-    【优先级1】查账本 truth_ledger.json（几KB，秒查）
-    【优先级2】退回1分钟原始数据（兼容老数据）
-    返回：(是否真金, 量化占比)
-    """
     cache_key = f"{market}{code}_{trade_date}"
     if cache_key in _real_money_cache:
         return _real_money_cache[cache_key]
 
-    # ========== 优先级1：查账本 ==========
+    # 优先级1：查账本
     ledger = _load_ledger()
     key = f"{market}{code}"
     if key in ledger and trade_date in ledger[key]:
@@ -211,7 +208,7 @@ def is_real_money(market, code, trade_date):
         _real_money_cache[cache_key] = result
         return result
 
-    # ========== 优先级2：退回1分钟数据 ==========
+    # 优先级2：退回1分钟数据
     filepath = MIN1_DIR / f"{market}{code}.json"
     if not filepath.exists():
         result = (True, 0)
@@ -227,7 +224,6 @@ def is_real_money(market, code, trade_date):
             _real_money_cache[cache_key] = result
             return result
 
-        # 找到当天的1分钟数据
         day_klines = []
         for k in klines:
             if k[0].startswith(trade_date):
@@ -238,16 +234,13 @@ def is_real_money(market, code, trade_date):
             _real_money_cache[cache_key] = result
             return result
 
-        # 计算三个指标
         volumes = [float(k[5]) for k in day_klines]
         closes = [float(k[2]) for k in day_klines]
 
-        # 1. CV值
         vol_mean = np.mean(volumes)
         vol_std = np.std(volumes)
         cv = vol_std / vol_mean if vol_mean > 0 else 1
 
-        # 2. 量价相关
         price_changes = np.diff(closes)
         vol_changes = np.diff(volumes)
         if len(price_changes) > 10:
@@ -257,50 +250,34 @@ def is_real_money(market, code, trade_date):
         else:
             corr = 0.5
 
-        # 3. 尾盘占比
         tail_vol = sum(volumes[-30:])
         total_vol = sum(volumes)
         tail_ratio = tail_vol / total_vol if total_vol > 0 else 0
 
-        # 判断
         quant_count = 0
-        if cv < 0.5:
-            quant_count += 1
-        if abs(corr) < 0.3:
-            quant_count += 1
-        if tail_ratio > 0.3:
-            quant_count += 1
+        if cv < 0.5: quant_count += 1
+        if abs(corr) < 0.3: quant_count += 1
+        if tail_ratio > 0.3: quant_count += 1
 
-        # 量化占比估算
-        if cv < 0.5:
-            cv_score = 0.7
-        elif cv < 1.0:
-            cv_score = 0.4
-        else:
-            cv_score = 0.1
+        if cv < 0.5: cv_score = 0.7
+        elif cv < 1.0: cv_score = 0.4
+        else: cv_score = 0.1
 
-        if abs(corr) < 0.3:
-            corr_score = 0.6
-        elif abs(corr) < 0.5:
-            corr_score = 0.3
-        else:
-            corr_score = 0.1
+        if abs(corr) < 0.3: corr_score = 0.6
+        elif abs(corr) < 0.5: corr_score = 0.3
+        else: corr_score = 0.1
 
-        if tail_ratio > 0.3:
-            tail_score = 0.7
-        elif tail_ratio > 0.2:
-            tail_score = 0.4
-        else:
-            tail_score = 0.1
+        if tail_ratio > 0.3: tail_score = 0.7
+        elif tail_ratio > 0.2: tail_score = 0.4
+        else: tail_score = 0.1
 
         quant_ratio = (cv_score + corr_score + tail_score) / 3 * 100
-
         is_quant = quant_count >= 2
         result = (not is_quant, round(quant_ratio, 1))
         _real_money_cache[cache_key] = result
         return result
 
-    except Exception as e:
+    except Exception:
         result = (True, 0)
         _real_money_cache[cache_key] = result
         return result
@@ -466,28 +443,53 @@ def load_klines(market, code):
 
 
 # ============================================================
-# 【自动扫描所有股票】
+# 【自动扫描所有股票】（优先纳入沪深300和持仓股）
 # ============================================================
 def scan_all_stocks():
     stocks = []
+    
+    # 1. 优先：持仓股
     for market, code in HOLDINGS:
         stocks.append((market, code))
+        
+    # 2. 其次：沪深300成分股（从本地读取）
+    hs300_codes = []
+    if HS300_PATH.exists():
+        try:
+            with open(HS300_PATH, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            hs300_codes = data.get('codes', [])
+        except Exception:
+            pass
+            
+    for code in hs300_codes:
+        market = code[:2]
+        pure_code = code[2:]
+        if not any(c == pure_code for _, c in stocks):
+            stocks.append((market, pure_code))
+
+    # 3. 最后：本地目录补充（防止不足308只）
     sh_dir = DATA_DIR / "sh"
     if sh_dir.exists():
         for f in sh_dir.glob("*.json"):
             code = f.stem
             if code == "sh000001":
                 continue
-            if not any(c == code for _, c in stocks):
-                stocks.append(("sh", code))
+            pure_code = code[2:] if code.startswith('sh') else code
+            if not any(c == pure_code for _, c in stocks):
+                stocks.append(("sh", pure_code))
+                
     sz_dir = DATA_DIR / "sz"
     if sz_dir.exists():
         for f in sz_dir.glob("*.json"):
             code = f.stem
             if code.startswith("sz399"):
                 continue
-            if not any(c == code for _, c in stocks):
-                stocks.append(("sz", code))
+            pure_code = code[2:] if code.startswith('sz') else code
+            if not any(c == pure_code for _, c in stocks):
+                stocks.append(("sz", pure_code))
+
+    # 限制最大数量
     if len(stocks) > MAX_STOCKS:
         stocks = stocks[:MAX_STOCKS]
     return stocks
@@ -520,269 +522,178 @@ def check_pullback_buy(df, confirm_idx, support_price, max_wait_days=MAX_WAIT_DA
 # 【信号判断函数】
 # ============================================================
 def check_bei_liang(df, i):
-    if i < 2:
-        return False, None
+    if i < 2: return False, None
     today_vol = df.iloc[i]['volume']
     yesterday_vol = df.iloc[i-1]['volume']
     if yesterday_vol > 0 and today_vol / yesterday_vol >= BEISHU_RATIO:
-        support = df.iloc[i]['open']
-        return True, support
+        return True, df.iloc[i]['open']
     return False, None
-
 
 def check_gao_liang(df, i):
-    if i < GAOLIANG_LOOKBACK:
-        return False, None
+    if i < GAOLIANG_LOOKBACK: return False, None
     recent = df.iloc[i-GAOLIANG_LOOKBACK:i+1]
-    today_vol = df.iloc[i]['volume']
-    if today_vol == recent['volume'].max():
-        support = df.iloc[i]['low']
-        return True, support
+    if df.iloc[i]['volume'] == recent['volume'].max():
+        return True, df.iloc[i]['low']
     return False, None
-
 
 def check_di_liang(df, i):
-    if i < GAOLIANG_LOOKBACK:
-        return False, None
+    if i < GAOLIANG_LOOKBACK: return False, None
     recent = df.iloc[i-GAOLIANG_LOOKBACK:i+1]
-    today_vol = df.iloc[i]['volume']
-    if today_vol == recent['volume'].min():
-        support = df.iloc[i]['low']
-        return True, support
+    if df.iloc[i]['volume'] == recent['volume'].min():
+        return True, df.iloc[i]['low']
     return False, None
-
 
 def check_ti_liang(df, i):
-    if i < 3:
-        return False, None
-    v1 = df.iloc[i-2]['volume']
-    v2 = df.iloc[i-1]['volume']
-    v3 = df.iloc[i]['volume']
+    if i < 3: return False, None
+    v1, v2, v3 = df.iloc[i-2]['volume'], df.iloc[i-1]['volume'], df.iloc[i]['volume']
     if v1 < v2 < v3:
-        support = df.iloc[i-2]['open']
-        return True, support
+        return True, df.iloc[i-2]['open']
     return False, None
-
 
 def check_suo_liang(df, i):
-    if i < 3:
-        return False, None
-    v1 = df.iloc[i-2]['volume']
-    v2 = df.iloc[i-1]['volume']
-    v3 = df.iloc[i]['volume']
+    if i < 3: return False, None
+    v1, v2, v3 = df.iloc[i-2]['volume'], df.iloc[i-1]['volume'], df.iloc[i]['volume']
     if v1 > v2 > v3:
-        support = df.iloc[i-2]['open']
-        return True, support
+        return True, df.iloc[i-2]['open']
     return False, None
-
 
 def check_ping_liang(df, i):
-    if i < 6:
-        return False, None
-    today_vol = df.iloc[i]['volume']
+    if i < 6: return False, None
     recent_5_avg = df.iloc[i-5:i]['volume'].mean()
-    if recent_5_avg > 0:
-        diff_pct = abs(today_vol - recent_5_avg) / recent_5_avg
-        if diff_pct <= PINGLIANG_TOLERANCE:
-            support = df.iloc[i]['close']
-            return True, support
+    if recent_5_avg > 0 and abs(df.iloc[i]['volume'] - recent_5_avg) / recent_5_avg <= PINGLIANG_TOLERANCE:
+        return True, df.iloc[i]['close']
     return False, None
 
-
 def check_xiao_bei_yang(df, i):
-    if i < 2:
-        return False, None
-    today = df.iloc[i]
-    yesterday = df.iloc[i-1]
+    if i < 2: return False, None
+    today, yesterday = df.iloc[i], df.iloc[i-1]
     body_pct = (today['close'] - today['open']) / today['open'] * 100
     vol_ratio = today['volume'] / yesterday['volume'] if yesterday['volume'] > 0 else 0
     if 0 < body_pct < 3 and SMALL_BEISHU_MIN <= vol_ratio < SMALL_BEISHU_MAX:
-        support = today['open']
-        return True, support
+        return True, today['open']
     return False, None
-
 
 def check_yang_sheng_jin(df, i):
-    if i < 2:
-        return False, None
-    today = df.iloc[i]
-    yesterday = df.iloc[i-1]
+    if i < 2: return False, None
+    today, yesterday = df.iloc[i], df.iloc[i-1]
     if today['close'] > today['open'] and today['volume'] > yesterday['volume'] and today['close'] > yesterday['close']:
-        support = today['open']
-        return True, support
+        return True, today['open']
     return False, None
-
 
 def check_yin_sheng_chu(df, i):
-    if i < 2:
-        return False, None
-    today = df.iloc[i]
-    yesterday = df.iloc[i-1]
+    if i < 2: return False, None
+    today, yesterday = df.iloc[i], df.iloc[i-1]
     if today['close'] < today['open'] and today['volume'] > yesterday['volume'] and today['close'] < yesterday['close']:
-        support = today['close']
-        return True, support
+        return True, today['close']
     return False, None
-
 
 def check_chang_duan_yin(df, i, atr_pct):
-    if i < 6:
-        return False, None
+    if i < 6: return False, None
     today = df.iloc[i]
     body_pct_down = (today['open'] - today['close']) / today['close'] * 100
-    changyang_thresh = get_atr_threshold(atr_pct, CHANGYANG_ATR_MULT, CHANGYANG_FALLBACK)
     vol_pctl = get_vol_percentile(df.iloc[:i+1], VOL_LOOKBACK)
-    if body_pct_down > changyang_thresh and vol_pctl < LONG_YIN_SHORT_VOL_PCTL:
-        support = today['low']
-        return True, support
+    if body_pct_down > get_atr_threshold(atr_pct, CHANGYANG_ATR_MULT, CHANGYANG_FALLBACK) and vol_pctl < LONG_YIN_SHORT_VOL_PCTL:
+        return True, today['low']
     return False, None
-
 
 def check_yang_bao_yin(df, i):
-    if i < 2:
-        return False, None
-    today = df.iloc[i]
-    yesterday = df.iloc[i-1]
+    if i < 2: return False, None
+    today, yesterday = df.iloc[i], df.iloc[i-1]
     if today['close'] > yesterday['open'] and today['open'] < yesterday['close'] and today['close'] > today['open']:
-        support = today['open']
-        return True, support
+        return True, today['open']
     return False, None
 
-
 def check_ban_zhang(df, i, code):
-    if i < 2:
-        return False, None
-    today = df.iloc[i]
-    yesterday = df.iloc[i-1]
+    if i < 2: return False, None
+    today, yesterday = df.iloc[i], df.iloc[i-1]
     pct = (today['close'] - yesterday['close']) / yesterday['close'] * 100
     limit_up = LIMIT_UP_GEM if is_gem_star(code) else LIMIT_UP_MAIN
     if pct >= limit_up:
-        support = today['open']
-        return True, support
+        return True, today['open']
     return False, None
-
 
 def check_guo_zuofeng(df, i, peak_20):
-    if peak_20 is None:
-        return False, None
-    today = df.iloc[i]
-    if today['close'] > peak_20:
-        support = peak_20
-        return True, support
+    if peak_20 is None: return False, None
+    if df.iloc[i]['close'] > peak_20:
+        return True, peak_20
     return False, None
 
-
 def check_jiayin_ciyang(df, i, atr_pct):
-    if i < 6:
-        return False, None
+    if i < 6: return False, None
     today = df.iloc[i]
     recent_5 = df.iloc[i-5:i]
     changyang_thresh = get_atr_threshold(atr_pct, CHANGYANG_ATR_MULT, CHANGYANG_FALLBACK)
     for j in range(len(recent_5)-2, 0, -1):
         row = recent_5.iloc[j]
-        drop_pct = (row['close'] - row['open']) / row['open'] * 100
-        if drop_pct < -changyang_thresh:
-            if today['close'] > today['open']:
-                yin_body_size = row['open'] - row['close']
-                rebound_size = today['close'] - row['close']
-                if yin_body_size > 0 and rebound_size / yin_body_size > 0.5:
-                    support = row['close']
-                    return True, support
+        if (row['close'] - row['open']) / row['open'] * 100 < -changyang_thresh:
+            if today['close'] > today['open'] and (row['open'] - row['close']) > 0 and (today['close'] - row['close']) / (row['open'] - row['close']) > 0.5:
+                return True, row['close']
             break
     return False, None
 
-
 def check_changyang_aizhu(df, i, atr_pct):
-    if i < 2:
-        return False, None
-    today = df.iloc[i]
-    yesterday = df.iloc[i-1]
-    changyang_thresh = get_atr_threshold(atr_pct, CHANGYANG_ATR_MULT, CHANGYANG_FALLBACK)
-    chongyang_up_pct = (today['close'] - yesterday['close']) / yesterday['close'] * 100
-    vol_pctl = get_vol_percentile(df.iloc[:i+1], VOL_LOOKBACK)
-    if chongyang_up_pct > changyang_thresh and vol_pctl < 0.5:
-        support = today['open']
-        return True, support
+    if i < 2: return False, None
+    today, yesterday = df.iloc[i], df.iloc[i-1]
+    if (today['close'] - yesterday['close']) / yesterday['close'] * 100 > get_atr_threshold(atr_pct, CHANGYANG_ATR_MULT, CHANGYANG_FALLBACK) and get_vol_percentile(df.iloc[:i+1], VOL_LOOKBACK) < 0.5:
+        return True, today['open']
     return False, None
 
-
 def check_beiliang_buchuan(df, i, code):
-    if i < 60:
-        return False, None
+    if i < 60: return False, None
     recent_60 = df.iloc[i-59:i+1]
     for j in range(len(recent_60)-1, 5, -1):
-        row = recent_60.iloc[j]
-        prev_row = recent_60.iloc[j-1]
+        row, prev_row = recent_60.iloc[j], recent_60.iloc[j-1]
         if prev_row['volume'] > 0 and row['volume'] / prev_row['volume'] >= BEISHU_RATIO and row['close'] > row['open']:
             beiliang_bottom = row['open']
             future = recent_60.iloc[j+1:]
             if len(future) > 0 and all(future['low'] >= beiliang_bottom * (1 - NIUGU_TOUCH_TOLERANCE)):
-                support = beiliang_bottom
-                return True, support
+                return True, beiliang_bottom
             break
     return False, None
 
-
 def check_gaoliang_bupo(df, i):
-    if i < 60:
-        return False, None
+    if i < 60: return False, None
     recent_60 = df.iloc[i-59:i+1]
     max_vol_idx = recent_60['volume'].idxmax()
     max_vol_row = recent_60.loc[max_vol_idx]
     gaoliang_bottom = max_vol_row['low']
     future = recent_60.iloc[max_vol_idx + 1:]
     if len(future) > 0 and all(future['low'] >= gaoliang_bottom * (1 - NIUGU_TOUCH_TOLERANCE)):
-        support = gaoliang_bottom
-        return True, support
+        return True, gaoliang_bottom
     return False, None
 
-
 def check_diliang_qun(df, i):
-    if i < 100:
-        return False, None
+    if i < 100: return False, None
     recent_100 = df.iloc[i-99:i+1]
     vol_low_pctl = recent_100['volume'].quantile(VOL_PCTL_LOW)
     low_vol_count = sum(recent_100['volume'] <= vol_low_pctl)
     if low_vol_count >= 5:
-        last_diliang = recent_100[recent_100['volume'] <= vol_low_pctl].iloc[-1]
-        support = last_diliang['low']
-        return True, support
+        return True, recent_100[recent_100['volume'] <= vol_low_pctl].iloc[-1]['low']
     return False, None
 
-
 def check_jiasheng_liangsou(df, i):
-    if i < 3:
-        return False, None
+    if i < 3: return False, None
     recent_3 = df.iloc[i-2:i+1]
     prices_up = all(recent_3.iloc[j]['close'] > recent_3.iloc[j-1]['close'] for j in range(1, len(recent_3)))
     vols_down = all(recent_3.iloc[j]['volume'] < recent_3.iloc[j-1]['volume'] for j in range(1, len(recent_3)))
     if prices_up and vols_down:
-        support = recent_3.iloc[0]['open']
-        return True, support
+        return True, recent_3.iloc[0]['open']
     return False, None
 
-
 def check_beishuo_shensuo(df, i):
-    if i < 5:
-        return False, None
+    if i < 5: return False, None
     recent_5 = df.iloc[i-4:i+1]
     vols_pctl = (recent_5['volume'].rank(pct=True)).values
     for j in range(1, len(vols_pctl)):
         if vols_pctl[j] >= BEISHUO_EXTEND_PCTL and vols_pctl[j-1] <= BEISHUO_SHRINK_PCTL:
-            support = recent_5.iloc[j]['open']
-            return True, support
+            return True, recent_5.iloc[j]['open']
     return False, None
 
-
 def check_huicai_jingzhun(df, i, precise_price):
-    if precise_price is None:
-        return False, None
-    if i < 10:
-        return False, None
+    if precise_price is None or i < 10: return False, None
     recent_10 = df.iloc[i-9:i+1]
-    touched = any(abs(row['low'] - precise_price) / precise_price < TOUCH_TOLERANCE for _, row in recent_10.iterrows())
-    if touched:
-        support = precise_price
-        return True, support
+    if any(abs(row['low'] - precise_price) / precise_price < TOUCH_TOLERANCE for _, row in recent_10.iterrows()):
+        return True, precise_price
     return False, None
 
 
@@ -790,43 +701,39 @@ def check_huicai_jingzhun(df, i, precise_price):
 # 【新增：价柱形态识别】
 # ============================================================
 def identify_price_pattern(df, i, atr_pct):
-    if i < 1:
-        return "普通"
+    if i < 1: return "普通"
     today = df.iloc[i]
-    open_price = today['open']
-    close_price = today['close']
-    high_price = today['high']
-    low_price = today['low']
-    body = abs(close_price - open_price)
-    total_range = high_price - low_price
-    if total_range == 0:
-        return "十字星"
+    body = abs(today['close'] - today['open'])
+    total_range = today['high'] - today['low']
+    if total_range == 0: return "十字星"
     body_ratio = body / total_range
     changyang_thresh = get_atr_threshold(atr_pct, CHANGYANG_ATR_MULT, CHANGYANG_FALLBACK)
-    if body_ratio > 0.7 and (close_price - open_price) / open_price * 100 > changyang_thresh:
-        return "长阳"
-    if body_ratio > 0.7 and (open_price - close_price) / open_price * 100 > changyang_thresh:
-        return "长阴"
-    if body_ratio < 0.1:
-        return "十字星"
+    if body_ratio > 0.7:
+        if (today['close'] - today['open']) / today['open'] * 100 > changyang_thresh: return "长阳"
+        if (today['open'] - today['close']) / today['open'] * 100 > changyang_thresh: return "长阴"
+    if body_ratio < 0.1: return "十字星"
     return "普通"
 
 
 # ============================================================
-# 【新增：量价背离】
+# 【新增：量价背离】（修复除零问题）
 # ============================================================
 def check_divergence(df, i):
-    if i < 10:
-        return None, None
+    if i < 10: return None, None
     recent_10 = df.iloc[i-10:i+1]
     price_change = (recent_10.iloc[-1]['close'] - recent_10.iloc[0]['close']) / recent_10.iloc[0]['close'] * 100
-    vol_change = (recent_10.iloc[-1]['volume'] - recent_10.iloc[0]['volume']) / recent_10.iloc[0]['volume'] * 100
+    
+    # 修复：防止除零
+    first_vol = recent_10.iloc[0]['volume']
+    if first_vol > 0:
+        vol_change = (recent_10.iloc[-1]['volume'] - first_vol) / first_vol * 100
+    else:
+        vol_change = 0
+    
     if price_change > 5 and vol_change < -20:
-        support = recent_10.iloc[-1]['close']
-        return "顶背离", support
+        return "顶背离", recent_10.iloc[-1]['close']
     if price_change < -5 and vol_change > 20:
-        support = recent_10.iloc[-1]['close']
-        return "底背离", support
+        return "底背离", recent_10.iloc[-1]['close']
     return None, None
 
 
@@ -853,78 +760,51 @@ def check_main_intent(position, stock_trend, vol_pattern, pillar_type, price_pat
 # ============================================================
 def find_fenggu_at(df, end_idx, lookback_days, peak_side, confirm_days, vol_percentile):
     min_required = lookback_days + confirm_days + peak_side
-    if end_idx < min_required:
-        return None, None
+    if end_idx < min_required: return None, None
     recent_df = df.iloc[end_idx-lookback_days+1:end_idx+1]
     vol_threshold = recent_df['volume'].quantile(vol_percentile)
     peaks, valleys = [], []
-    start = peak_side
-    end = len(recent_df) - max(peak_side, confirm_days)
-    for i in range(start, end):
+    for i in range(peak_side, len(recent_df) - max(peak_side, confirm_days)):
         row = recent_df.iloc[i]
         window = recent_df.iloc[i-peak_side:i+peak_side+1]
-        is_local_high = row['high'] == window['high'].max()
-        is_local_low = row['low'] == window['low'].min()
-        has_vol = row['volume'] >= vol_threshold
-        if is_local_high and has_vol:
-            future = recent_df.iloc[i+1:i+1+confirm_days]
-            if all(future['close'] < row['high']):
-                peaks.append({'price': row['high'], 'date': row['date']})
-        if is_local_low and has_vol:
-            future = recent_df.iloc[i+1:i+1+confirm_days]
-            if all(future['close'] > row['low']):
-                valleys.append({'price': row['low'], 'date': row['date']})
-    recent_peak = peaks[-1] if peaks else None
-    recent_valley = valleys[-1] if valleys else None
-    return (recent_peak['price'] if recent_peak else None,
-            recent_valley['price'] if recent_valley else None)
+        if row['high'] == window['high'].max() and row['volume'] >= vol_threshold:
+            if all(recent_df.iloc[i+1:i+1+confirm_days]['close'] < row['high']): peaks.append({'price': row['high'], 'date': row['date']})
+        if row['low'] == window['low'].min() and row['volume'] >= vol_threshold:
+            if all(recent_df.iloc[i+1:i+1+confirm_days]['close'] > row['low']): valleys.append({'price': row['low'], 'date': row['date']})
+    return (peaks[-1]['price'] if peaks else None, valleys[-1]['price'] if valleys else None)
 
 
 # ============================================================
 # 【找精准线】
 # ============================================================
 def find_precise_at(df, end_idx, lookback_days=120, min_points=3, price_tolerance=1.0):
-    if end_idx < lookback_days:
-        return None
+    if end_idx < lookback_days: return None
     recent_df = df.iloc[end_idx-lookback_days+1:end_idx+1]
     prices = recent_df['close'].values
-    if len(prices) < min_points:
-        return None
-    clusters = {}
-    used = set()
+    if len(prices) < min_points: return None
+    clusters, used = {}, set()
     for i in range(len(prices)):
-        if i in used:
-            continue
+        if i in used: continue
         cluster = [i]
         for j in range(len(prices)):
-            if i == j or j in used:
-                continue
-            diff_pct = abs(prices[i] - prices[j]) / prices[i] * 100
-            if diff_pct <= price_tolerance:
-                cluster.append(j)
+            if i == j or j in used: continue
+            if abs(prices[i] - prices[j]) / prices[i] * 100 <= price_tolerance: cluster.append(j)
         if len(cluster) >= min_points:
             avg_price = np.mean([prices[idx] for idx in cluster])
             clusters[len(cluster)] = avg_price
-            for idx in cluster:
-                used.add(idx)
-    if clusters:
-        return clusters[max(clusters.keys())]
-    return None
+            for idx in cluster: used.add(idx)
+    return clusters[max(clusters.keys())] if clusters else None
 
 
 # ============================================================
 # 【找大阴实顶】
 # ============================================================
 def find_big_yin_top_at(df, end_idx, lookback_days, yin_body_pct):
-    if end_idx < lookback_days:
-        return None, None
+    if end_idx < lookback_days: return None, None
     recent_df = df.iloc[end_idx-lookback_days+1:end_idx+1]
     for i in range(len(recent_df)-1, -1, -1):
         row = recent_df.iloc[i]
-        if row['close'] >= row['open']:
-            continue
-        body_pct = (row['open'] - row['close']) / row['close'] * 100
-        if body_pct >= yin_body_pct:
+        if row['close'] < row['open'] and (row['open'] - row['close']) / row['close'] * 100 >= yin_body_pct:
             return row['open'], row['date']
     return None, None
 
@@ -933,55 +813,27 @@ def find_big_yin_top_at(df, end_idx, lookback_days, yin_body_pct):
 # 【找王牌柱】
 # ============================================================
 def find_pillars_at(df, end_idx, lookback_days=60):
-    if end_idx < lookback_days + GENERAL_CONFIRM_DAYS + 20:
-        return "无", None
+    if end_idx < lookback_days + GENERAL_CONFIRM_DAYS + 20: return "无", None
     recent_df = df.iloc[end_idx-lookback_days+1:end_idx+1]
-    marshals = []
-    goldens = []
-    generals = []
+    marshals, goldens, generals = [], [], []
     for i in range(len(recent_df) - GENERAL_CONFIRM_DAYS - 1, 5, -1):
         row = recent_df.iloc[i]
-        if row['close'] <= row['open']:
-            continue
-        if i < 20:
-            continue
+        if row['close'] <= row['open'] or i < 20: continue
         start_idx = max(0, i - 20)
         vol_window = recent_df.iloc[start_idx:i]['volume']
-        vol_pctl = (vol_window < row['volume']).sum() / len(vol_window)
-        if vol_pctl < BASE_VOL_PCTL:
-            continue
+        if (vol_window < row['volume']).sum() / len(vol_window) < BASE_VOL_PCTL: continue
         future = recent_df.iloc[i+1:i+1+GENERAL_CONFIRM_DAYS]
-        if len(future) < GENERAL_CONFIRM_DAYS:
-            continue
-        base_open = row['open']
-        base_close = row['close']
-        future_avg_close = future['close'].mean()
-        if future_avg_close < base_open:
-            continue
-        future_last_vol = future.iloc[-1]['volume']
-        base_vol = row['volume']
-        if future_last_vol >= base_vol:
-            continue
-        is_golden = future_avg_close >= base_close
-        if i > 0:
-            prev_row = recent_df.iloc[i-1]
-            is_gap_up = row['open'] > prev_row['high']
-        else:
-            is_gap_up = False
-        if is_golden and is_gap_up:
-            marshals.append(row['low'])
-        elif is_golden:
-            goldens.append(row['low'])
-        else:
-            generals.append(row['low'])
-    if marshals:
-        return "元帅柱", marshals[0]
-    elif goldens:
-        return "黄金柱", goldens[0]
-    elif generals:
-        return "将军柱", generals[0]
-    else:
-        return "无", None
+        if len(future) < GENERAL_CONFIRM_DAYS: continue
+        if future['close'].mean() < row['open'] or future.iloc[-1]['volume'] >= row['volume']: continue
+        is_golden = future['close'].mean() >= row['close']
+        is_gap_up = row['open'] > recent_df.iloc[i-1]['high'] if i > 0 else False
+        if is_golden and is_gap_up: marshals.append(row['low'])
+        elif is_golden: goldens.append(row['low'])
+        else: generals.append(row['low'])
+    if marshals: return "元帅柱", marshals[0]
+    if goldens: return "黄金柱", goldens[0]
+    if generals: return "将军柱", generals[0]
+    return "无", None
 
 
 # ============================================================
@@ -991,23 +843,14 @@ def main():
     print("=" * 70)
     print("四维循环看盘法 - 历史回测验证（终极完整版 + 真假账本优先）")
     print("=" * 70)
-    print(f"\n样本：持仓8只 + 沪深300全部，约{MAX_STOCKS}只")
+    print(f"\n样本：沪深300 + 持仓股，共 {MAX_STOCKS} 只")
+    print(f"回测起始日：第 {START_IDX} 天（只跑近2年）")
     print(f"位置分档：低位<30% / 中位30%-70% / 高位>70%")
-    print(f"个股趋势：上升/下降（20日均线）")
-    print(f"大盘环境：牛市/熊市（200年线）")
     print(f"交易成本：{TOTAL_COST*100:.2f}%")
-    print(f"买入规则：信号→回踩支撑→缩量企稳→T+1开盘买")
     print(f"真假量柱：优先查账本 truth_ledger.json")
 
-    # 预加载账本
     _load_ledger()
-
     index_df = load_index_data()
-    if index_df is not None:
-        print(f"\n已加载上证指数数据：{len(index_df)}条")
-    else:
-        print("\n警告：未找到上证指数数据，大盘环境判断将显示'未知'")
-
     all_stocks = scan_all_stocks()
 
     print(f"\n自动扫描到股票数：{len(all_stocks)}只")
@@ -1018,271 +861,120 @@ def main():
     for idx, (market, code) in enumerate(all_stocks):
         print(f"  回测中 {idx+1}/{len(all_stocks)}: {market}{code} ...")
         df = load_klines(market, code)
-        if df is None:
-            continue
+        if df is None: continue
         full_code = f"{market}{code}"
         n = len(df)
-        start_idx = 120
-
-        for i in range(start_idx, n - 60 - MAX_WAIT_DAYS - 2):
+        
+        for i in range(START_IDX, n - 60 - MAX_WAIT_DAYS - 2):
             atr_value, atr_pct = calculate_atr(df.iloc[:i+1], ATR_PERIOD)
             yin_body_thresh = get_atr_threshold(atr_pct, YIN_BODY_ATR_MULT, YIN_BODY_FALLBACK)
-
             peak_20, valley_20 = find_fenggu_at(df, i, SHORT_WINDOW, PEAK_SIDE_SHORT, CONFIRM_DAYS_SHORT, VOL_PERCENTILE)
             precise_price = find_precise_at(df, i)
             big_yin_top, big_yin_date = find_big_yin_top_at(df, i, YIN_LOOKBACK, yin_body_thresh)
             pillar_type, golden_line = find_pillars_at(df, i)
-
             position = get_position_level(df, i)
             stock_trend = get_stock_trend(df, i)
-
             today_date = df.iloc[i]['date']
             market_regime = get_market_regime(index_df, today_date)
 
             signals_today = []
             vol_pattern = "无"
 
-            ok, support = check_bei_liang(df, i)
-            if ok:
-                signals_today.append(("倍量柱", support))
-                vol_pattern = "倍量柱"
-            ok, support = check_gao_liang(df, i)
-            if ok:
-                signals_today.append(("高量柱", support))
-                if vol_pattern == "无":
-                    vol_pattern = "高量柱"
-            ok, support = check_di_liang(df, i)
-            if ok:
-                signals_today.append(("低量柱（地量）", support))
-                if vol_pattern == "无":
-                    vol_pattern = "低量柱"
-            ok, support = check_ti_liang(df, i)
-            if ok:
-                signals_today.append(("梯量柱", support))
-                if vol_pattern == "无":
-                    vol_pattern = "梯量柱"
-            ok, support = check_suo_liang(df, i)
-            if ok:
-                signals_today.append(("缩量柱", support))
-                if vol_pattern == "无":
-                    vol_pattern = "缩量柱"
-            ok, support = check_ping_liang(df, i)
-            if ok:
-                signals_today.append(("平量柱", support))
-                if vol_pattern == "无":
-                    vol_pattern = "平量柱"
+            # 1. 量柱
+            for name, func in [("倍量柱", check_bei_liang), ("高量柱", check_gao_liang), ("低量柱（地量）", check_di_liang), 
+                               ("梯量柱", check_ti_liang), ("缩量柱", check_suo_liang), ("平量柱", check_ping_liang)]:
+                ok, support = func(df, i)
+                if ok:
+                    signals_today.append((name, support))
+                    if vol_pattern == "无": vol_pattern = name
 
-            ok, support = check_xiao_bei_yang(df, i)
-            if ok:
-                signals_today.append(("小倍阳（矮将军）", support))
-            ok, support = check_yang_sheng_jin(df, i)
-            if ok:
-                signals_today.append(("阳胜进", support))
-            ok, support = check_yin_sheng_chu(df, i)
-            if ok:
-                signals_today.append(("阴胜出", support))
-            ok, support = check_chang_duan_yin(df, i, atr_pct)
-            if ok:
-                signals_today.append(("长阴短柱", support))
-            ok, support = check_yang_bao_yin(df, i)
-            if ok:
-                signals_today.append(("阳包阴", support))
-            ok, support = check_ban_zhang(df, i, full_code)
-            if ok:
-                signals_today.append(("涨停板", support))
-            ok, support = check_guo_zuofeng(df, i, peak_20)
-            if ok:
-                signals_today.append(("过左峰", support))
-            ok, support = check_jiayin_ciyang(df, i, atr_pct)
-            if ok:
-                signals_today.append(("极阴次阳", support))
-            ok, support = check_changyang_aizhu(df, i, atr_pct)
-            if ok:
-                signals_today.append(("长阳矮柱", support))
-            ok, support = check_beiliang_buchuan(df, i, full_code)
-            if ok:
-                signals_today.append(("倍量不穿", support))
-            ok, support = check_gaoliang_bupo(df, i)
-            if ok:
-                signals_today.append(("高量不破", support))
-            ok, support = check_diliang_qun(df, i)
-            if ok:
-                signals_today.append(("地量群", support))
-            ok, support = check_jiasheng_liangsou(df, i)
-            if ok:
-                signals_today.append(("价升量缩", support))
-            ok, support = check_beishuo_shensuo(df, i)
-            if ok:
-                signals_today.append(("倍量伸缩", support))
-            ok, support = check_huicai_jingzhun(df, i, precise_price)
-            if ok:
-                signals_today.append(("回踩精准线", support))
+            # 2. 形态信号
+            for name, func, arg in [("小倍阳（矮将军）", check_xiao_bei_yang, None), ("阳胜进", check_yang_sheng_jin, None),
+                                   ("阴胜出", check_yin_sheng_chu, None), ("长阴短柱", check_chang_duan_yin, atr_pct),
+                                   ("阳包阴", check_yang_bao_yin, None), ("涨停板", check_ban_zhang, full_code),
+                                   ("过左峰", check_guo_zuofeng, peak_20), ("极阴次阳", check_jiayin_ciyang, atr_pct),
+                                   ("长阳矮柱", check_changyang_aizhu, atr_pct), ("倍量不穿", check_beiliang_buchuan, full_code),
+                                   ("高量不破", check_gaoliang_bupo, None), ("地量群", check_diliang_qun, None),
+                                   ("价升量缩", check_jiasheng_liangsou, None), ("倍量伸缩", check_beishuo_shensuo, None),
+                                   ("回踩精准线", check_huicai_jingzhun, precise_price)]:
+                ok, support = func(df, i, arg) if arg is not None else func(df, i)
+                if ok: signals_today.append((name, support))
 
-            if pillar_type == "元帅柱":
-                signals_today.append(("元帅柱", golden_line))
-            elif pillar_type == "黄金柱":
-                signals_today.append(("黄金柱", golden_line))
-            elif pillar_type == "将军柱":
-                signals_today.append(("将军柱", golden_line))
+            # 3. 王牌柱
+            if pillar_type != "无": signals_today.append((pillar_type, golden_line))
 
-            if valley_20:
-                today = df.iloc[i]
-                touched = abs(today['low'] - valley_20) / valley_20 < TOUCH_TOLERANCE
-                if touched and today['close'] > valley_20:
-                    signals_today.append(("回踩谷底线不破", valley_20))
+            # 4. 量线
+            if valley_20 and abs(df.iloc[i]['low'] - valley_20) / valley_20 < TOUCH_TOLERANCE and df.iloc[i]['close'] > valley_20:
+                signals_today.append(("回踩谷底线不破", valley_20))
+            if big_yin_top and df.iloc[i]['close'] > big_yin_top:
+                signals_today.append(("突破大阴实顶", big_yin_top))
 
-            if big_yin_top:
-                today = df.iloc[i]
-                if today['close'] > big_yin_top:
-                    signals_today.append(("突破大阴实顶", big_yin_top))
-
+            # 5. 价柱形态 & 背离
             price_pattern = identify_price_pattern(df, i, atr_pct)
-            if price_pattern != "普通":
-                signals_today.append((price_pattern, df.iloc[i]['close']))
-
+            if price_pattern != "普通": signals_today.append((price_pattern, df.iloc[i]['close']))
             divergence_name, divergence_support = check_divergence(df, i)
-            if divergence_name:
-                signals_today.append((divergence_name, divergence_support))
+            if divergence_name: signals_today.append((divergence_name, divergence_support))
 
-            main_intents = check_main_intent(position, stock_trend, vol_pattern, pillar_type, price_pattern)
-            for intent_name, intent_support in main_intents:
-                if intent_support is None:
-                    intent_support = df.iloc[i]['close']
-                signals_today.append((intent_name, intent_support))
+            # 6. 主力意图
+            for intent_name, intent_support in check_main_intent(position, stock_trend, vol_pattern, pillar_type, price_pattern):
+                signals_today.append((intent_name, intent_support if intent_support else df.iloc[i]['close']))
 
+            # 对每个信号，找回踩买入点
             for signal_name, support_price in signals_today:
-                if signal_name == "阴胜出":
-                    continue
+                if signal_name == "阴胜出": continue
                 buy_idx = check_pullback_buy(df, i, support_price)
-                if buy_idx is None:
-                    continue
-
-                buy_today = df.iloc[buy_idx]
-                buy_yesterday = df.iloc[buy_idx - 1]
-                if buy_today['open'] == buy_today['close'] and (buy_today['close'] - buy_yesterday['close']) / buy_yesterday['close'] * 100 > 9.5:
-                    continue
-
+                if buy_idx is None: continue
+                buy_today, buy_yesterday = df.iloc[buy_idx], df.iloc[buy_idx - 1]
+                if buy_today['open'] == buy_today['close'] and (buy_today['close'] - buy_yesterday['close']) / buy_yesterday['close'] * 100 > 9.5: continue
                 bp = df.iloc[buy_idx]['open']
-
-                today_date = df.iloc[i]['date']
-                is_real, quant_ratio = is_real_money(market, code, today_date)
-
+                is_real, quant_ratio = is_real_money(market, code, df.iloc[i]['date'])
                 for hold_days in HOLD_PERIODS:
                     sell_idx = buy_idx + hold_days
-                    if sell_idx >= n:
-                        continue
+                    if sell_idx >= n: continue
                     sp = df.iloc[sell_idx]['close']
-                    if bp <= 0:
-                        continue
+                    if bp <= 0: continue
                     ret = (sp - bp) / bp * 100 - TOTAL_COST * 100
                     all_trades[signal_name][position][stock_trend][market_regime][hold_days].append((ret, is_real))
 
+    # 输出结果（省略详细打印，保留核心JSON生成）
     print("\n" + "=" * 70)
-    print("四维循环看盘法 - 历史回测结果（终极完整版）")
+    print("回测完成，正在生成 winrate.json ...")
     print("=" * 70)
-    print(f"\n总股票数：{len(all_stocks)}只")
-    print(f"交易成本：已扣除{TOTAL_COST*100:.2f}%\n")
 
+    WINRATE_HOLD_DAYS = 20
+    winrate_data = {}
     positions = ["低位", "中位", "高位"]
     stock_trends = ["上升趋势", "下降趋势"]
     market_regimes = ["牛市", "熊市", "未知"]
 
-    for hold_days in HOLD_PERIODS:
-        print(f"\n=== 持有{hold_days}天 ===")
-
-        for market_regime in market_regimes:
-            has_data = False
-            for pos in positions:
-                for trend in stock_trends:
-                    for sig in all_trades:
-                        if len(all_trades[sig][pos][trend][market_regime][hold_days]) > 0:
-                            has_data = True
-                            break
-                    if has_data:
-                        break
-                if has_data:
-                    break
-            if not has_data:
-                continue
-
-            print(f"\n大盘环境：{market_regime}")
-
-            for pos in positions:
-                print(f"\n  --- {pos} ---")
-
-                for trend in stock_trends:
-                    print(f"\n    [{trend}]")
-                    print(f"    {'信号':<20} {'样本数':>8} {'平均收益%':>10} {'胜率%':>8} {'结论':>10}")
-                    print("    " + "-" * 65)
-
-                    sorted_signals = sorted(all_trades.keys(), key=lambda x: len(all_trades[x][pos][trend][market_regime][hold_days]), reverse=True)
-
-                    for signal_name in sorted_signals:
-                        returns = all_trades[signal_name][pos][trend][market_regime][hold_days]
-                        count = len(returns)
-                        if count < 5:
-                            continue
-                        avg_ret = np.mean([r[0] for r in returns])
-                        win_rate = sum(1 for r in returns if r[0] > 0) / count * 100
-
-                        if win_rate > 55 and avg_ret > 0:
-                            conclusion = "有效"
-                        elif win_rate > 50:
-                            conclusion = "一般"
-                        else:
-                            conclusion = "无效"
-
-                        print(f"    {signal_name:<20} {count:>8} {avg_ret:>10.2f} {win_rate:>8.1f} {conclusion:>10}")
-
-    print("\n" + "=" * 70)
-    print("结论说明：")
-    print("- 胜率>55% 且 平均收益>0：信号有效")
-    print("- 胜率50%-55%：信号一般")
-    print("- 胜率<50%：信号无效")
-    print("=" * 70)
-
-    WINRATE_HOLD_DAYS = 20
-
-    winrate_data = {}
     for signal_name in all_trades:
         for pos in positions:
-            if pos not in winrate_data:
-                winrate_data[pos] = {}
+            if pos not in winrate_data: winrate_data[pos] = {}
             for trend in stock_trends:
-                if trend not in winrate_data[pos]:
-                    winrate_data[pos][trend] = {}
+                if trend not in winrate_data[pos]: winrate_data[pos][trend] = {}
                 all_trades_list = []
-                for regime in market_regimes:
-                    all_trades_list.extend(all_trades[signal_name][pos][trend][regime][WINRATE_HOLD_DAYS])
+                for regime in market_regimes: all_trades_list.extend(all_trades[signal_name][pos][trend][regime][WINRATE_HOLD_DAYS])
 
                 all_returns = [t[0] for t in all_trades_list]
                 count = len(all_returns)
                 if count >= 5:
-                    win_rate = sum(1 for r in all_returns if r > 0) / count * 100
-                    avg_ret = float(np.mean(all_returns))
                     winrate_data[pos][trend][signal_name] = {
-                        "win_rate": round(win_rate, 1),
-                        "avg_ret": round(avg_ret, 2)
+                        "win_rate": round(sum(1 for r in all_returns if r > 0) / count * 100, 1),
+                        "avg_ret": round(float(np.mean(all_returns)), 2)
                     }
 
                 real_returns = [t[0] for t in all_trades_list if t[1] is True]
-                real_count = len(real_returns)
-                if real_count >= 5:
-                    real_win_rate = sum(1 for r in real_returns if r > 0) / real_count * 100
-                    real_avg_ret = float(np.mean(real_returns))
+                if len(real_returns) >= 5:
                     winrate_data[pos][trend][f"{signal_name}_真金"] = {
-                        "win_rate": round(real_win_rate, 1),
-                        "avg_ret": round(real_avg_ret, 2)
+                        "win_rate": round(sum(1 for r in real_returns if r > 0) / len(real_returns) * 100, 1),
+                        "avg_ret": round(float(np.mean(real_returns)), 2)
                     }
 
                 quant_returns = [t[0] for t in all_trades_list if t[1] is False]
-                quant_count = len(quant_returns)
-                if quant_count >= 5:
-                    quant_win_rate = sum(1 for r in quant_returns if r > 0) / quant_count * 100
-                    quant_avg_ret = float(np.mean(quant_returns))
+                if len(quant_returns) >= 5:
                     winrate_data[pos][trend][f"{signal_name}_量化"] = {
-                        "win_rate": round(quant_win_rate, 1),
-                        "avg_ret": round(quant_avg_ret, 2)
+                        "win_rate": round(sum(1 for r in quant_returns if r > 0) / len(quant_returns) * 100, 1),
+                        "avg_ret": round(float(np.mean(quant_returns)), 2)
                     }
 
     output_dir = Path(__file__).parent.parent / "data" / "analysis"
