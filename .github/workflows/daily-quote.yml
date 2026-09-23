@@ -32,10 +32,18 @@ jobs:
           python3 << 'PYEOF'
           import requests, json, os, time
           from concurrent.futures import ThreadPoolExecutor, as_completed
-          from datetime import datetime, timezone
+          from datetime import datetime, timezone, timedelta
 
           MAX_WORKERS = 5
           IS_SUNDAY = datetime.now(timezone.utc).weekday() == 6
+
+          # ============ 北京时间 + 盘中判断 ============
+          bj_now = datetime.now(timezone.utc) + timedelta(hours=8)
+          minutes_now = bj_now.hour * 60 + bj_now.minute
+          is_trading_hours = (9*60+30) <= minutes_now < (15*60)
+          skip_daily = is_trading_hours and not IS_SUNDAY
+          print(f"[时间] 北京时间: {bj_now.strftime('%Y-%m-%d %H:%M')}")
+          print(f"[时间] 盘中: {is_trading_hours}, 周日: {IS_SUNDAY}, 跳过日线: {skip_daily}")
 
           # ============ 构建1分钟股票列表（9只持仓 + 沪深300）============
           HOLDINGS_1MIN = [
@@ -45,8 +53,6 @@ jobs:
           ]
           HS300_PATH = 'data/hushen300.json'
           hs300_codes = []
-
-          # 1. 尝试从本地读取沪深300
           if os.path.exists(HS300_PATH):
               try:
                   with open(HS300_PATH, 'r', encoding='utf-8') as f:
@@ -56,9 +62,7 @@ jobs:
               except Exception as e:
                   print(f"  [沪深300] 本地读取失败: {e}")
 
-          # 2. 本地没有则拉取
           if not hs300_codes:
-              print(f"  [沪深300] 本地为空，尝试拉取...")
               try:
                   import akshare as ak
                   df = ak.index_stock_cons_csindex(symbol="000300")
@@ -71,11 +75,10 @@ jobs:
                   os.makedirs('data', exist_ok=True)
                   with open(HS300_PATH, 'w', encoding='utf-8') as f:
                       json.dump({'updated': datetime.now().isoformat(), 'count': len(hs300_codes), 'codes': hs300_codes}, f, ensure_ascii=False, indent=2)
-                  print(f"  [沪深300] 拉取成功 {len(hs300_codes)} 只，已存储")
+                  print(f"  [沪深300] 拉取成功 {len(hs300_codes)} 只")
               except Exception as e:
                   print(f"  [沪深300] 拉取失败: {e}")
 
-          # 3. 合并去重
           ALL_1MIN = list(set(HOLDINGS_1MIN + hs300_codes))
           print(f"  [1分钟] 目标股票数: {len(ALL_1MIN)} 只")
 
@@ -85,6 +88,7 @@ jobs:
           print("\n" + "=" * 60)
           print("[1/4] 获取日线股票列表...")
           print(f"    模式: {'周日全量' if IS_SUNDAY else '平日增量(10天)'}")
+          print(f"    盘中跳过: {skip_daily}")
           print("=" * 60)
 
           all_stocks = []
@@ -106,7 +110,6 @@ jobs:
           if all_stocks:
               print(f"  [本地] 读取到 {len(all_stocks)} 只股票")
           else:
-              print(f"  [兜底] 本地为空，使用持仓股")
               all_stocks = [
                   ('sh600584', '长电科技'), ('sz002156', '通富微电'),
                   ('sh603283', '赛腾股份'), ('sz300394', '天孚通信'),
@@ -118,10 +121,14 @@ jobs:
               all_stocks.append(('sh000001', '上证指数'))
 
           # ============================================================
-          # 2. 并发拉取日线
+          # 2. 并发拉取日线（盘中跳过）
           # ============================================================
           print("\n" + "=" * 60)
-          print(f"[2/4] 并发拉取日线（{MAX_WORKERS}线程，{len(all_stocks)}只）...")
+          if skip_daily:
+              print(f"[2/4] 盘中，跳过日线拉取（避免污染）")
+              daily_ok, daily_fail = 0, 0
+          else:
+              print(f"[2/4] 并发拉取日线（{MAX_WORKERS}线程，{len(all_stocks)}只）...")
           print("=" * 60)
 
           os.makedirs('data/kline/sh', exist_ok=True)
@@ -144,6 +151,8 @@ jobs:
                       if not data:
                           continue
                       new_klines = [[k['day'], k['open'], k['close'], k['high'], k['low'], k['volume']] for k in data]
+                      # 过滤掉收盘价<=0的行
+                      new_klines = [k for k in new_klines if float(k[2]) > 0]
 
                       if IS_SUNDAY:
                           final_klines = new_klines
@@ -178,20 +187,21 @@ jobs:
               return False
 
           daily_ok, daily_fail = 0, 0
-          with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-              futures = {executor.submit(fetch_daily, code, name): (code, name) for code, name in all_stocks}
-              for i, future in enumerate(as_completed(futures)):
-                  if future.result():
-                      daily_ok += 1
-                  else:
-                      daily_fail += 1
-                  if (i + 1) % 1000 == 0:
-                      print(f"  日线进度: {i+1}/{len(all_stocks)} (成功{daily_ok} 失败{daily_fail})")
+          if not skip_daily:
+              with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+                  futures = {executor.submit(fetch_daily, code, name): (code, name) for code, name in all_stocks}
+                  for i, future in enumerate(as_completed(futures)):
+                      if future.result():
+                          daily_ok += 1
+                      else:
+                          daily_fail += 1
+                      if (i + 1) % 1000 == 0:
+                          print(f"  日线进度: {i+1}/{len(all_stocks)} (成功{daily_ok} 失败{daily_fail})")
 
           print(f"  日线完成: 成功{daily_ok} 失败{daily_fail}")
 
           # ============================================================
-          # 3. 并发拉取1分钟数据（9只持仓 + 沪深300，约309只）
+          # 3. 并发拉取1分钟数据（盘中也要拉，用于账本）
           # ============================================================
           print("\n" + "=" * 60)
           print(f"[3/4] 并发拉取1分钟数据（{len(ALL_1MIN)}只）...")
