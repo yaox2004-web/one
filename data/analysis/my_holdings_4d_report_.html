@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>四维循环看盘报告 - </title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background: #0f172a; 
+            color: #e2e8f0; 
+            line-height: 1.6;
+            padding: 20px;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        .header { 
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); 
+            color: white; 
+            padding: 30px; 
+            border-radius: 12px; 
+            margin-bottom: 20px;
+            border-left: 4px solid #fbbf24;
+        }
+        .header h1 { font-size: 24px; color: #fbbf24; margin-bottom: 8px; }
+        .header .date { opacity: 0.8; font-size: 14px; }
+        
+        .signal-guide {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #334155;
+        }
+        .signal-guide h2 {
+            font-size: 18px;
+            color: #fbbf24;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #334155;
+        }
+        .signal-item {
+            margin-bottom: 12px;
+            padding: 10px;
+            background: #0f172a;
+            border-radius: 8px;
+        }
+        .signal-item h3 {
+            font-size: 14px;
+            color: #60a5fa;
+            margin-bottom: 6px;
+        }
+        .signal-item p {
+            font-size: 12px;
+            color: #cbd5e1;
+            margin-bottom: 4px;
+        }
+        .signal-item .source {
+            font-size: 11px;
+            color: #94a3b8;
+            font-style: italic;
+        }
+        
+        .stock-card { 
+            background: #1e293b; 
+            border-radius: 12px; 
+            padding: 20px; 
+            margin-bottom: 15px; 
+            border: 1px solid #334155;
+        }
+        .stock-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 15px; 
+            padding-bottom: 15px; 
+            border-bottom: 1px solid #334155;
+        }
+        .stock-name { font-size: 18px; font-weight: bold; color: #e2e8f0; }
+        .stock-code { font-size: 12px; color: #94a3b8; }
+        .stock-price { font-size: 22px; font-weight: bold; }
+        .price-up { color: #ef4444; }
+        .price-down { color: #22c55e; }
+        
+        .step-section { margin-bottom: 15px; }
+        .step-title { 
+            font-size: 14px; 
+            font-weight: bold; 
+            color: #60a5fa; 
+            margin-bottom: 8px; 
+            padding-left: 8px; 
+            border-left: 3px solid #fbbf24; 
+        }
+        .step-content { 
+            background: #0f172a; 
+            padding: 12px; 
+            border-radius: 8px; 
+            font-size: 13px; 
+            color: #cbd5e1; 
+        }
+        
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .grid-item { 
+            background: #0f172a; 
+            padding: 8px; 
+            border-radius: 6px; 
+            font-size: 13px; 
+        }
+        .grid-item .label { color: #94a3b8; font-size: 11px; }
+        .grid-item .value { font-weight: bold; color: #e2e8f0; font-size: 12px; }
+        .grid-item .value-none { color: #94a3b8; font-weight: normal; font-size: 11px; }
+        .grid-item .value-strong { color: #ef4444; font-weight: normal; font-size: 11px; }
+        .grid-item .value-weak { color: #22c55e; font-weight: normal; font-size: 11px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>四维循环看盘报告</h1>
+            <div class="date"></div>
+            <div class="note" style="margin-top:10px;font-size:13px;opacity:0.7">量能自适应版 · 核心定义保留官方 · 辅助判断用分位数</div>
+        </div>
+        
+        <div class="signal-guide">
+            <h2>参数说明（全部参数化，方便调整）</h2>
+            
+            <div class="signal-item">
+                <h3>【核心定义·保留官方】</h3>
+                <p>倍量柱：今天量/昨天量 ≥ 1.8（官方最低90%）</p>
+                <p>高量柱：前20天最高</p>
+                <p>低量柱：前20天最低</p>
+                <p>梯量柱：连续3天递增</p>
+                <p>缩量柱：连续3天递减</p>
+                <p>平量柱：和前5天平均差不超过15%</p>
+                <p class="source">来源：股海明灯官网</p>
+            </div>
+            
+            <div class="signal-item">
+                <h3>【辅助判断·分位数自适应】</h3>
+                <p>大量/放量：过去20日量的80%分位以上</p>
+                <p>小量/缩量：过去20日量的20%分位以下</p>
+                <p>王牌柱基柱：基柱量在过去20日的60%分位以上</p>
+                <p>倍量伸缩：放量到80%分位 + 缩量到20%分位</p>
+                <p class="source">来源：量化行业通用做法</p>
+            </div>
+            
+            <div class="signal-item">
+                <h3>【王牌柱官方定义】</h3>
+                <p>三原则：①三日收盘不破底 ②量柱三日不过头 ③基柱是相对高量</p>
+                <p>搜索优先级：元帅柱 > 黄金柱 > 将军柱</p>
+                <p class="source">来源：股海明灯官网《王子老师语录十》</p>
+            </div>
+            
+            <div class="signal-item">
+                <h3>【最高原则】</h3>
+                <p><strong>所有参数、阈值都要适配当前最新市场环境</strong></p>
+                <p><strong>代码不要写死，能用参数阈值的就用参数阈值</strong></p>
+                <p><strong>不构成任何交易建议，只做客观描述</strong></p>
+            </div>
+        </div>
+        
+        
+    </div>
+</body>
+</html>
