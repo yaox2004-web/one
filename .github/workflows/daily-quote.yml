@@ -30,7 +30,6 @@ jobs:
       - name: 全市场日线 + 1分钟 + 记账（一体化）
         run: |
           python3 << 'PYEOF'
-          import akshare as ak
           import requests, json, os, time
           from concurrent.futures import ThreadPoolExecutor, as_completed
           from datetime import datetime, timezone
@@ -38,52 +37,91 @@ jobs:
           # ============================================================
           # 配置
           # ============================================================
-          MAX_WORKERS = 5          # 并发线程数
-          DAILY_RETRY = 2          # 日线重试次数
-          MIN_RETRY = 2            # 1分钟重试次数
+          MAX_WORKERS = 5
 
           # 持仓股（必拉1分钟）
           HOLDINGS_1MIN = [
               'sh601138', 'sz300476', 'sh603516', 'sz002156',
               'sh603283', 'sh601231', 'sz300394', 'sh600584',
-              'sh000001',  # 上证指数
+              'sh000001',
           ]
 
           # ============================================================
-          # 1. 获取全市场股票列表
+          # 1. 获取全市场股票列表（三重保险）
           # ============================================================
           print("=" * 60)
           print("[1/4] 获取全市场股票列表...")
           print("=" * 60)
 
+          all_stocks = []
+
+          # ===== 保险1：东方财富 push2 接口（最稳定）=====
           try:
-              df = ak.stock_info_a_code_name()
-              all_stocks = []
-              for _, row in df.iterrows():
-                  code = str(row['code']).zfill(6)
-                  name = str(row['name'])
+              url = "https://push2.eastmoney.com/api/qt/clist/get"
+              params = {
+                  'pn': '1', 'pz': '6000', 'po': '1', 'np': '1',
+                  'fltt': '2', 'invt': '2', 'fid': 'f3',
+                  'fs': 'm:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81+s:2048',
+                  'fields': 'f12,f14',
+              }
+              headers = {'User-Agent': 'Mozilla/5.0'}
+              r = requests.get(url, params=params, headers=headers, timeout=30)
+              data = r.json()
+              items = data.get('data', {}).get('diff', [])
+              for item in items:
+                  code = str(item['f12']).zfill(6)
+                  name = str(item['f14'])
                   if code.startswith('6'):
                       all_stocks.append(('sh' + code, name))
                   elif code.startswith(('0', '3')):
                       all_stocks.append(('sz' + code, name))
                   elif code.startswith(('4', '8')):
                       all_stocks.append(('bj' + code, name))
-              # 加上上证指数
-              all_stocks.append(('sh000001', '上证指数'))
-              print(f"  成功获取 {len(all_stocks)} 只股票")
+              print(f"  [保险1-东财] 成功获取 {len(all_stocks)} 只股票")
           except Exception as e:
-              print(f"  akshare 获取失败: {e}，使用备用方案")
-              all_stocks = []
+              print(f"  [保险1-东财] 失败: {e}")
+
+          # ===== 保险2：akshare（如果东财失败）=====
+          if not all_stocks:
+              try:
+                  import akshare as ak
+                  df = ak.stock_info_a_code_name()
+                  for _, row in df.iterrows():
+                      code = str(row['code']).zfill(6)
+                      name = str(row['name'])
+                      if code.startswith('6'):
+                          all_stocks.append(('sh' + code, name))
+                      elif code.startswith(('0', '3')):
+                          all_stocks.append(('sz' + code, name))
+                      elif code.startswith(('4', '8')):
+                          all_stocks.append(('bj' + code, name))
+                  print(f"  [保险2-akshare] 成功获取 {len(all_stocks)} 只股票")
+              except Exception as e:
+                  print(f"  [保险2-akshare] 失败: {e}")
+
+          # ===== 保险3：兜底，只用持仓股 =====
+          if not all_stocks:
+              print(f"  [保险3-兜底] 所有接口失败，只拉持仓股")
+              all_stocks = [
+                  ('sh600584', '长电科技'), ('sz002156', '通富微电'),
+                  ('sh603283', '赛腾股份'), ('sz300394', '天孚通信'),
+                  ('sh601138', '工业富联'), ('sh601231', '环旭电子'),
+                  ('sz300476', '胜宏科技'), ('sh603516', '淳中科技'),
+              ]
+
+          # 加指数
+          if not any(c == 'sh000001' for c, _ in all_stocks):
+              all_stocks.append(('sh000001', '上证指数'))
 
           if not all_stocks:
               print("  股票列表为空，退出")
               exit(1)
 
           # ============================================================
-          # 2. 并发拉取全市场日线（新浪）
+          # 2. 并发拉取全市场日线
           # ============================================================
           print("\n" + "=" * 60)
-          print(f"[2/4] 并发拉取全市场日线（{MAX_WORKERS}线程）...")
+          print(f"[2/4] 并发拉取全市场日线（{MAX_WORKERS}线程，{len(all_stocks)}只）...")
           print("=" * 60)
 
           os.makedirs('data/kline/sh', exist_ok=True)
@@ -91,7 +129,7 @@ jobs:
           os.makedirs('data/kline/bj', exist_ok=True)
 
           def fetch_daily(stock_code, stock_name):
-              for attempt in range(DAILY_RETRY):
+              for attempt in range(2):
                   try:
                       url = f'https://quotes.sina.cn/cn/api/jsonp_v2.php/var=/CN_MarketDataService.getKLineData?symbol={stock_code}&scale=240&ma=no&datalen=1023'
                       r = requests.get(url, timeout=15, headers={'User-Agent': 'Mozilla/5.0'})
@@ -110,7 +148,7 @@ jobs:
                           json.dump(out, f, ensure_ascii=False)
                       return True
                   except Exception:
-                      if attempt < DAILY_RETRY - 1:
+                      if attempt < 1:
                           time.sleep(1)
               return False
 
@@ -128,16 +166,16 @@ jobs:
           print(f"  日线完成: 成功{daily_ok} 失败{daily_fail}")
 
           # ============================================================
-          # 3. 并发拉取1分钟数据（腾讯，仅持仓股）
+          # 3. 并发拉取1分钟数据
           # ============================================================
           print("\n" + "=" * 60)
-          print(f"[3/4] 并发拉取1分钟数据（{MAX_WORKERS}线程，{len(HOLDINGS_1MIN)}只）...")
+          print(f"[3/4] 并发拉取1分钟数据（{len(HOLDINGS_1MIN)}只）...")
           print("=" * 60)
 
           os.makedirs('data/kline_1min', exist_ok=True)
 
           def fetch_1min(stock_code):
-              for attempt in range(MIN_RETRY):
+              for attempt in range(2):
                   try:
                       url = "https://ifzq.gtimg.cn/appstock/app/kline/mkline"
                       params = {'param': f'{stock_code},m1,,640'}
@@ -154,7 +192,7 @@ jobs:
                           json.dump(out, f, ensure_ascii=False)
                       return True
                   except Exception:
-                      if attempt < MIN_RETRY - 1:
+                      if attempt < 1:
                           time.sleep(2)
               return False
 
