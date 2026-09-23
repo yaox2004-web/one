@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-真假量柱账本记录器 (record_truth.py)
+真假量柱账本记录器 (record_truth.py) — 数据完整度自适应版
 =================================================
-功能：
-  1. 读取当天1分钟数据，计算真假量柱特征
-  2. 写入 data/analysis/truth_ledger.json（永久留档）
-  3. 删除原始1分钟数据，节省仓库体积
-核心修复：
-  从1分钟数据里读取"实际日期"作为记账日期，而非用当前系统日期。
-  避免凌晨跑的时候，把昨天数据记成今天。
+核心逻辑：
+  1. 按"日期"分组1分钟K线
+  2. 只记账"完整"的交易日（≥230根1分钟K线）
+  3. 跳过"不完整"的当天（说明还在盘中）
+  4. 已记账的日期不重复记账（避免覆盖）
+  5. 清理原始1分钟数据，节省仓库体积
+
+时间规则（北京时间）：
+  - 上午9:30-15:00 盘中：数据不完整 → 自动跳过
+  - 下午15:00后：数据完整 → 正常记账
+  - 周末/节假日：接口返回最后交易日数据 → 自动识别日期
+  - 凌晨/任何时刻：用数据自身的时间戳判断归属日期
 """
 import json
 import numpy as np
@@ -24,6 +29,9 @@ KLINE_1MIN_DIR = DATA_DIR / "kline_1min"
 ANALYSIS_DIR = DATA_DIR / "analysis"
 LEDGER_PATH = ANALYSIS_DIR / "truth_ledger.json"
 
+# 完整交易日所需的1分钟K线数量（A股每天240根，留10根容错）
+MIN_FULL_DAY_BARS = 230
+
 
 # ============================================================
 # 从时间戳提取日期（兼容多种格式）
@@ -31,32 +39,29 @@ LEDGER_PATH = ANALYSIS_DIR / "truth_ledger.json"
 def extract_date_from_timestamp(ts):
     """
     从时间戳字符串里提取日期（YYYY-MM-DD）。
-    兼容两种格式：
-      "202609221459"  -> "2026-09-22"
+    兼容：
+      "202609221459"        -> "2026-09-22"
       "2026-09-22 14:59:00" -> "2026-09-22"
     """
     s = str(ts).strip()
     if not s:
         return None
-    # 带横杠格式
     if '-' in s:
         return s[:10]
-    # 纯数字格式（YYYYMMDDHHMM）
     if len(s) >= 8 and s[:8].isdigit():
         return f"{s[:4]}-{s[4:6]}-{s[6:8]}"
     return None
 
 
 # ============================================================
-# 真假量柱识别（与 level4d_report_html.py 逻辑一致）
+# 真假量柱识别（输入是单日完整的1分钟K线）
 # ============================================================
-def analyze_1min_volatility(klines):
-    """返回 (verdict, is_real, quant_pct, cv, corr, tail_ratio)"""
-    if not klines or len(klines) < 60:
-        return None, None, None, None, None, None
-
-    day_klines = klines[-240:] if len(klines) >= 240 else klines
-    if len(day_klines) < 30:
+def analyze_1min_volatility(day_klines):
+    """
+    输入：某个交易日完整的1分钟K线（约240根）
+    输出：(verdict, is_real, quant_pct, cv, corr, tail_ratio)
+    """
+    if not day_klines or len(day_klines) < MIN_FULL_DAY_BARS:
         return None, None, None, None, None, None
 
     volumes, closes = [], []
@@ -89,7 +94,7 @@ def analyze_1min_volatility(klines):
     else:
         corr = 0.0
 
-    # 3. 尾盘占比
+    # 3. 尾盘占比（最后30根）
     tail_vol = sum(volumes[-30:])
     total_vol = sum(volumes)
     tail_ratio = tail_vol / total_vol if total_vol > 0 else 0
@@ -135,6 +140,11 @@ def analyze_1min_volatility(klines):
 def main():
     ANALYSIS_DIR.mkdir(parents=True, exist_ok=True)
 
+    # 北京时间（仅用于日志显示）
+    bj_now = datetime.now(timezone.utc) + timedelta(hours=8)
+    print(f"[账本] 当前北京时间: {bj_now.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"[账本] 完整交易日标准: 至少 {MIN_FULL_DAY_BARS} 根1分钟K线")
+
     # 1. 加载已有账本
     ledger = {}
     if LEDGER_PATH.exists():
@@ -142,7 +152,7 @@ def main():
             with open(LEDGER_PATH, 'r', encoding='utf-8') as f:
                 ledger = json.load(f)
             total = sum(len(v) for v in ledger.values())
-            print(f"[账本] 已加载 {len(ledger)} 只股票，共 {total} 条记录")
+            print(f"[账本] 已加载 {len(ledger)} 只股票，共 {total} 条历史记录")
         except Exception as e:
             print(f"[账本] 读取失败，重新开始: {e}")
             ledger = {}
@@ -157,9 +167,12 @@ def main():
         print("[账本] 无1分钟数据文件，跳过")
         return
 
-    print(f"[账本] 待处理 {len(files)} 个文件")
+    print(f"[账本] 待处理 {len(files)} 个文件\n")
 
     updated = 0
+    skipped_incomplete = 0
+    skipped_exists = 0
+
     for f in files:
         code = f.stem  # 例如 sh600584
         try:
@@ -170,47 +183,67 @@ def main():
                 print(f"  {code} 无K线数据，跳过")
                 continue
 
-            # ==========================================
-            # 关键修复：从最后一条K线数据里提取实际日期
-            # ==========================================
-            data_date = extract_date_from_timestamp(klines[-1][0])
-            if not data_date:
-                print(f"  {code} 无法解析时间戳: {klines[-1][0]}，跳过")
+            # ========== 按日期分组 ==========
+            by_date = {}
+            for k in klines:
+                d = extract_date_from_timestamp(k[0])
+                if d:
+                    by_date.setdefault(d, []).append(k)
+
+            if not by_date:
+                print(f"  {code} 无法解析时间戳，跳过")
                 continue
 
-            res = analyze_1min_volatility(klines)
-            if res[0] is None:
-                print(f"  {code} 数据不足，跳过")
-                continue
+            # ========== 遍历每个日期 ==========
+            for d, day_klines in sorted(by_date.items()):
+                # 检查1：数据完整度
+                if len(day_klines) < MIN_FULL_DAY_BARS:
+                    print(f"  {code} {d} 只有{len(day_klines)}根，盘中不完整，跳过")
+                    skipped_incomplete += 1
+                    continue
 
-            verdict, is_real, quant_pct, cv, corr, tail = res
+                # 检查2：是否已记账
+                if code in ledger and d in ledger[code]:
+                    print(f"  {code} {d} 已记账，跳过")
+                    skipped_exists += 1
+                    continue
 
-            if code not in ledger:
-                ledger[code] = {}
-            ledger[code][data_date] = {
-                "is_real": is_real,
-                "verdict": verdict,
-                "quant_pct": quant_pct,
-                "cv": cv,
-                "corr": corr,
-                "tail_ratio": tail,
-            }
-            updated += 1
-            print(f"  {code} 记账到 {data_date}: {verdict} (is_real={is_real})")
+                # ========== 记账 ==========
+                res = analyze_1min_volatility(day_klines)
+                if res[0] is None:
+                    continue
+
+                verdict, is_real, quant_pct, cv, corr, tail = res
+
+                if code not in ledger:
+                    ledger[code] = {}
+                ledger[code][d] = {
+                    "is_real": is_real,
+                    "verdict": verdict,
+                    "quant_pct": quant_pct,
+                    "cv": cv,
+                    "corr": corr,
+                    "tail_ratio": tail,
+                }
+                updated += 1
+                print(f"  {code} {d} ✅ 记账: {verdict} (is_real={is_real}, 量化{quant_pct}%)")
+
         except Exception as e:
             print(f"  {code} 处理失败: {e}")
 
-    # 3. 安全写入
+    # 3. 安全写入（原子操作）
     if updated > 0:
         tmp_path = LEDGER_PATH.with_suffix('.tmp')
         with open(tmp_path, 'w', encoding='utf-8') as f:
             json.dump(ledger, f, ensure_ascii=False, indent=2)
         tmp_path.replace(LEDGER_PATH)
-        print(f"[账本] 已更新 {updated} 条记录 → {LEDGER_PATH}")
+        print(f"\n[账本] 已更新 {updated} 条记录 → {LEDGER_PATH}")
     else:
-        print("[账本] 无新增记录")
+        print(f"\n[账本] 无新增记录")
 
-    # 4. 清理1分钟原始数据
+    print(f"[统计] 跳过不完整: {skipped_incomplete} 条，已存在: {skipped_exists} 条")
+
+    # 4. 清理1分钟原始数据（账本已留档）
     deleted = 0
     for f in files:
         try:
