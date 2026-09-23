@@ -25,7 +25,7 @@ jobs:
       - name: 安装依赖
         run: |
           python -m pip install --upgrade pip
-          pip install akshare requests numpy
+          pip install requests numpy
 
       - name: 全市场日线 + 1分钟 + 记账（一体化）
         run: |
@@ -46,86 +46,35 @@ jobs:
           ]
 
           # ============================================================
-          # 1. 获取全市场股票列表（三重保险）
+          # 1. 获取股票列表（本地优先）
           # ============================================================
           print("=" * 60)
-          print("[1/4] 获取全市场股票列表...")
+          print("[1/4] 获取股票列表...")
           print("=" * 60)
 
           all_stocks = []
 
-          # ===== 保险1：akshare 东财全市场实时行情（最稳）=====
-          try:
-              import akshare as ak
-              df = ak.stock_zh_a_spot_em()
-              for _, row in df.iterrows():
-                  code = str(row['代码']).zfill(6)
-                  name = str(row['名称'])
-                  if code.startswith('6'):
-                      all_stocks.append(('sh' + code, name))
-                  elif code.startswith(('0', '3')):
-                      all_stocks.append(('sz' + code, name))
-                  elif code.startswith(('4', '8')):
-                      all_stocks.append(('bj' + code, name))
-              print(f"  [保险1-akshare全市场] 成功获取 {len(all_stocks)} 只股票")
-          except Exception as e:
-              print(f"  [保险1-akshare全市场] 失败: {e}")
+          # ===== 优先：从本地 data/kline/ 目录读取 =====
+          for market in ['sh', 'sz', 'bj']:
+              dir_path = f'data/kline/{market}'
+              if os.path.exists(dir_path):
+                  for fname in sorted(os.listdir(dir_path)):
+                      if not fname.endswith('.json'):
+                          continue
+                      code = fname[:-5]
+                      try:
+                          with open(f'{dir_path}/{fname}', 'r', encoding='utf-8') as f:
+                              data = json.load(f)
+                              name = data.get('name', code)
+                      except Exception:
+                          name = code
+                      all_stocks.append((code, name))
 
-          # ===== 保险2：东财 push2 容错分页（每页重试3次，失败跳过继续）=====
-          if not all_stocks:
-              try:
-                  url = "https://push2.eastmoney.com/api/qt/clist/get"
-                  headers = {'User-Agent': 'Mozilla/5.0'}
-                  page = 1
-                  consecutive_fail = 0
-                  while page <= 60:
-                      success = False
-                      for retry in range(3):
-                          try:
-                              params = {
-                                  'pn': str(page), 'pz': '100', 'po': '1', 'np': '1',
-                                  'fltt': '2', 'invt': '2', 'fid': 'f3',
-                                  'fs': 'm:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81+s:2048',
-                                  'fields': 'f12,f14',
-                              }
-                              r = requests.get(url, params=params, headers=headers, timeout=30)
-                              data = r.json()
-                              items = data.get('data', {}).get('diff', [])
-                              if not items:
-                                  success = True
-                                  break
-                              for item in items:
-                                  code = str(item['f12']).zfill(6)
-                                  name = str(item['f14'])
-                                  if code.startswith('6'):
-                                      all_stocks.append(('sh' + code, name))
-                                  elif code.startswith(('0', '3')):
-                                      all_stocks.append(('sz' + code, name))
-                                  elif code.startswith(('4', '8')):
-                                      all_stocks.append(('bj' + code, name))
-                              success = True
-                              break
-                          except Exception:
-                              time.sleep(2)
-                      if success:
-                          consecutive_fail = 0
-                          if page % 10 == 0:
-                              print(f"  [东财分页] 第{page}页, 累计{len(all_stocks)}只")
-                      else:
-                          consecutive_fail += 1
-                          print(f"  [东财分页] 第{page}页 连续失败{consecutive_fail}次")
-                          if consecutive_fail >= 5:
-                              print(f"  [东财分页] 连续5页失败，提前停止")
-                              break
-                      page += 1
-                      time.sleep(1.0)
-                  print(f"  [保险2-东财分页] 最终获取 {len(all_stocks)} 只股票")
-              except Exception as e:
-                  print(f"  [保险2-东财分页] 失败: {e}")
-
-          # ===== 保险3：兜底，只用持仓股 =====
-          if not all_stocks:
-              print(f"  [保险3-兜底] 所有接口失败，只拉持仓股")
+          if all_stocks:
+              print(f"  [本地] 从 data/kline/ 读取到 {len(all_stocks)} 只股票")
+          else:
+              # ===== 兜底：本地为空时，只用持仓股 =====
+              print(f"  [兜底] 本地为空，只拉持仓股")
               all_stocks = [
                   ('sh600584', '长电科技'), ('sz002156', '通富微电'),
                   ('sh603283', '赛腾股份'), ('sz300394', '天孚通信'),
@@ -142,10 +91,10 @@ jobs:
               exit(1)
 
           # ============================================================
-          # 2. 并发拉取全市场日线
+          # 2. 并发拉取日线
           # ============================================================
           print("\n" + "=" * 60)
-          print(f"[2/4] 并发拉取全市场日线（{MAX_WORKERS}线程，{len(all_stocks)}只）...")
+          print(f"[2/4] 并发拉取日线（{MAX_WORKERS}线程，{len(all_stocks)}只）...")
           print("=" * 60)
 
           os.makedirs('data/kline/sh', exist_ok=True)
