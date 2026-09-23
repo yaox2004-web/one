@@ -1,4 +1,4 @@
-name: 每日拉行情数据（全市场版）
+name: 每日拉行情数据（全市场版·日线多源）
 
 on:
   workflow_dispatch:
@@ -121,70 +121,140 @@ jobs:
               all_stocks.append(('sh000001', '上证指数'))
 
           # ============================================================
-          # 2. 并发拉取日线（盘中跳过）
+          # 2. 并发拉取日线（多源切换）
           # ============================================================
           print("\n" + "=" * 60)
           if skip_daily:
               print(f"[2/4] 盘中，跳过日线拉取（避免污染）")
-              daily_ok, daily_fail = 0, 0
           else:
-              print(f"[2/4] 并发拉取日线（{MAX_WORKERS}线程，{len(all_stocks)}只）...")
+              print(f"[2/4] 并发拉取日线（{MAX_WORKERS}线程，{len(all_stocks)}只，多源切换）...")
           print("=" * 60)
 
           os.makedirs('data/kline/sh', exist_ok=True)
           os.makedirs('data/kline/sz', exist_ok=True)
           os.makedirs('data/kline/bj', exist_ok=True)
 
+          # ============ 三个数据源的 fetch 函数 ============
+          def fetch_from_sina(stock_code, datalen):
+              """新浪源（主）：返回 [[date, open, close, high, low, volume], ...]"""
+              url = f'https://quotes.sina.cn/cn/api/jsonp_v2.php/var=/CN_MarketDataService.getKLineData?symbol={stock_code}&scale=240&ma=no&datalen={datalen}'
+              r = requests.get(url, timeout=15, headers={'User-Agent': 'Mozilla/5.0'})
+              text = r.text
+              start = text.find('([') + 1
+              end = text.rfind('])') + 1
+              if start < 1 or end < 2:
+                  return None
+              data = json.loads(text[start:end])
+              if not data:
+                  return None
+              return [[k['day'], k['open'], k['close'], k['high'], k['low'], k['volume']] for k in data]
+
+          def fetch_from_tencent(stock_code, datalen):
+              """腾讯源（备1）：返回 [[date, open, close, high, low, volume], ...]"""
+              url = "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get"
+              params = {'param': f'{stock_code},day,,,{datalen},qfq'}
+              r = requests.get(url, params=params, timeout=15, headers={'User-Agent': 'Mozilla/5.0'})
+              data = r.json()
+              node = data.get('data', {}).get(stock_code, {})
+              klines = node.get('qfqday') or node.get('day')
+              if not klines:
+                  return None
+              # 腾讯前6列: [date, open, close, high, low, volume]
+              result = []
+              for k in klines:
+                  if isinstance(k, list) and len(k) >= 6:
+                      result.append([k[0], k[1], k[2], k[3], k[4], k[5]])
+              return result if result else None
+
+          def fetch_from_eastmoney(stock_code, datalen):
+              """东财源（备2）：返回 [[date, open, close, high, low, volume], ...]"""
+              if stock_code.startswith('sh'):
+                  secid = '1.' + stock_code[2:]
+              else:
+                  secid = '0.' + stock_code[2:]
+              url = "https://push2his.eastmoney.com/api/qt/stock/kline/get"
+              params = {
+                  'secid': secid,
+                  'klt': '101',
+                  'fqt': '1',
+                  'beg': '0',
+                  'end': '20500101',
+                  'lmt': str(datalen),
+                  'fields1': 'f1,f2,f3,f4,f5,f6',
+                  'fields2': 'f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61',
+              }
+              r = requests.get(url, params=params, timeout=15, headers={'User-Agent': 'Mozilla/5.0'})
+              data = r.json()
+              klines = data.get('data', {}).get('klines', [])
+              if not klines:
+                  return None
+              result = []
+              for k in klines:
+                  parts = k.split(',')
+                  if len(parts) >= 6:
+                      result.append([parts[0], parts[1], parts[2], parts[3], parts[4], parts[5]])
+              return result if result else None
+
+          # ============ 多源切换的 fetch_daily ============
           def fetch_daily(stock_code, stock_name):
               local_path = f'data/kline/{stock_code[:2]}/{stock_code}.json'
               datalen = 1023 if IS_SUNDAY else 10
-              for attempt in range(2):
+
+              # ---- 多源尝试 ----
+              new_klines = None
+              sources = [
+                  ('新浪', fetch_from_sina),
+                  ('腾讯', fetch_from_tencent),
+                  ('东财', fetch_from_eastmoney),
+              ]
+              for source_name, fetch_fn in sources:
                   try:
-                      url = f'https://quotes.sina.cn/cn/api/jsonp_v2.php/var=/CN_MarketDataService.getKLineData?symbol={stock_code}&scale=240&ma=no&datalen={datalen}'
-                      r = requests.get(url, timeout=15, headers={'User-Agent': 'Mozilla/5.0'})
-                      text = r.text
-                      start = text.find('([') + 1
-                      end = text.rfind('])') + 1
-                      if start < 1 or end < 2:
-                          continue
-                      data = json.loads(text[start:end])
-                      if not data:
-                          continue
-                      new_klines = [[k['day'], k['open'], k['close'], k['high'], k['low'], k['volume']] for k in data]
-                      # 过滤掉收盘价<=0的行
-                      new_klines = [k for k in new_klines if float(k[2]) > 0]
-
-                      if IS_SUNDAY:
-                          final_klines = new_klines
-                      else:
-                          existing_klines = []
-                          if os.path.exists(local_path):
-                              try:
-                                  with open(local_path, 'r', encoding='utf-8') as f:
-                                      old = json.load(f)
-                                      existing_klines = old.get('klines', [])
-                                      old_name = old.get('name', '')
-                                      if old_name:
-                                          stock_name = old_name
-                              except Exception:
-                                  existing_klines = []
-                          existing_dates = {k[0] for k in existing_klines}
-                          for k in new_klines:
-                              if k[0] not in existing_dates:
-                                  existing_klines.append(k)
-                          existing_klines.sort(key=lambda x: x[0])
-                          if len(existing_klines) > 2000:
-                              existing_klines = existing_klines[-2000:]
-                          final_klines = existing_klines
-
-                      out = {'name': stock_name, 'klines': final_klines}
-                      with open(local_path, 'w', encoding='utf-8') as f:
-                          json.dump(out, f, ensure_ascii=False)
-                      return True
+                      result = fetch_fn(stock_code, datalen)
+                      if result and len(result) > 0:
+                          new_klines = result
+                          break
                   except Exception:
-                      if attempt < 1:
-                          time.sleep(1)
-              return False
+                      continue
+
+              if not new_klines:
+                  return False
+
+              # ---- 过滤 close <= 0 ----
+              try:
+                  new_klines = [k for k in new_klines if float(k[2]) > 0]
+              except Exception:
+                  return False
+              if not new_klines:
+                  return False
+
+              # ---- 合并逻辑 ----
+              if IS_SUNDAY:
+                  final_klines = new_klines
+              else:
+                  existing_klines = []
+                  if os.path.exists(local_path):
+                      try:
+                          with open(local_path, 'r', encoding='utf-8') as f:
+                              old = json.load(f)
+                              existing_klines = old.get('klines', [])
+                              old_name = old.get('name', '')
+                              if old_name:
+                                  stock_name = old_name
+                      except Exception:
+                          existing_klines = []
+                  existing_dates = {k[0] for k in existing_klines}
+                  for k in new_klines:
+                      if k[0] not in existing_dates:
+                          existing_klines.append(k)
+                  existing_klines.sort(key=lambda x: x[0])
+                  if len(existing_klines) > 2000:
+                      existing_klines = existing_klines[-2000:]
+                  final_klines = existing_klines
+
+              out = {'name': stock_name, 'klines': final_klines}
+              with open(local_path, 'w', encoding='utf-8') as f:
+                  json.dump(out, f, ensure_ascii=False)
+              return True
 
           daily_ok, daily_fail = 0, 0
           if not skip_daily:
@@ -201,7 +271,7 @@ jobs:
           print(f"  日线完成: 成功{daily_ok} 失败{daily_fail}")
 
           # ============================================================
-          # 3. 并发拉取1分钟数据（盘中也要拉，用于账本）
+          # 3. 并发拉取1分钟数据（腾讯单源）
           # ============================================================
           print("\n" + "=" * 60)
           print(f"[3/4] 并发拉取1分钟数据（{len(ALL_1MIN)}只）...")
