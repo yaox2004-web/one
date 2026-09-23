@@ -7,10 +7,9 @@
   1. 读取当天1分钟数据，计算真假量柱特征
   2. 写入 data/analysis/truth_ledger.json（永久留档）
   3. 删除原始1分钟数据，节省仓库体积
-原理：
-  1分钟原始数据是"生肉"，占地方；
-  特征数据是"火腿肠"，几KB就能永久留存。
-  后续回测直接查账本，速度提升几十倍。
+核心修复：
+  从1分钟数据里读取"实际日期"作为记账日期，而非用当前系统日期。
+  避免凌晨跑的时候，把昨天数据记成今天。
 """
 import json
 import numpy as np
@@ -24,6 +23,28 @@ DATA_DIR = Path(__file__).parent.parent / "data"
 KLINE_1MIN_DIR = DATA_DIR / "kline_1min"
 ANALYSIS_DIR = DATA_DIR / "analysis"
 LEDGER_PATH = ANALYSIS_DIR / "truth_ledger.json"
+
+
+# ============================================================
+# 从时间戳提取日期（兼容多种格式）
+# ============================================================
+def extract_date_from_timestamp(ts):
+    """
+    从时间戳字符串里提取日期（YYYY-MM-DD）。
+    兼容两种格式：
+      "202609221459"  -> "2026-09-22"
+      "2026-09-22 14:59:00" -> "2026-09-22"
+    """
+    s = str(ts).strip()
+    if not s:
+        return None
+    # 带横杠格式
+    if '-' in s:
+        return s[:10]
+    # 纯数字格式（YYYYMMDDHHMM）
+    if len(s) >= 8 and s[:8].isdigit():
+        return f"{s[:4]}-{s[4:6]}-{s[6:8]}"
+    return None
 
 
 # ============================================================
@@ -50,7 +71,7 @@ def analyze_1min_volatility(klines):
     if len(volumes) < 30:
         return None, None, None, None, None, None
 
-    # 1. 成交量CV（标准差/均值）
+    # 1. 成交量CV
     vol_mean = np.mean(volumes)
     vol_std = np.std(volumes)
     cv = vol_std / vol_mean if vol_mean > 0 else 999
@@ -68,7 +89,7 @@ def analyze_1min_volatility(klines):
     else:
         corr = 0.0
 
-    # 3. 尾盘占比（最后30根 = 最后30分钟）
+    # 3. 尾盘占比
     tail_vol = sum(volumes[-30:])
     total_vol = sum(volumes)
     tail_ratio = tail_vol / total_vol if total_vol > 0 else 0
@@ -87,7 +108,7 @@ def analyze_1min_volatility(klines):
         is_real = False
     elif quant_score == 1:
         verdict = "疑似量化"
-        is_real = None  # 疑似算中性
+        is_real = None
     else:
         verdict = "真金白银"
         is_real = True
@@ -114,16 +135,14 @@ def analyze_1min_volatility(klines):
 def main():
     ANALYSIS_DIR.mkdir(parents=True, exist_ok=True)
 
-    bj_now = datetime.now(timezone.utc) + timedelta(hours=8)
-    today = bj_now.strftime('%Y-%m-%d')
-
     # 1. 加载已有账本
     ledger = {}
     if LEDGER_PATH.exists():
         try:
             with open(LEDGER_PATH, 'r', encoding='utf-8') as f:
                 ledger = json.load(f)
-            print(f"[账本] 已加载 {len(ledger)} 只股票历史记录")
+            total = sum(len(v) for v in ledger.values())
+            print(f"[账本] 已加载 {len(ledger)} 只股票，共 {total} 条记录")
         except Exception as e:
             print(f"[账本] 读取失败，重新开始: {e}")
             ledger = {}
@@ -147,6 +166,18 @@ def main():
             with open(f, 'r', encoding='utf-8') as fp:
                 data = json.load(fp)
             klines = data.get('klines', [])
+            if not klines:
+                print(f"  {code} 无K线数据，跳过")
+                continue
+
+            # ==========================================
+            # 关键修复：从最后一条K线数据里提取实际日期
+            # ==========================================
+            data_date = extract_date_from_timestamp(klines[-1][0])
+            if not data_date:
+                print(f"  {code} 无法解析时间戳: {klines[-1][0]}，跳过")
+                continue
+
             res = analyze_1min_volatility(klines)
             if res[0] is None:
                 print(f"  {code} 数据不足，跳过")
@@ -156,7 +187,7 @@ def main():
 
             if code not in ledger:
                 ledger[code] = {}
-            ledger[code][today] = {
+            ledger[code][data_date] = {
                 "is_real": is_real,
                 "verdict": verdict,
                 "quant_pct": quant_pct,
@@ -165,11 +196,11 @@ def main():
                 "tail_ratio": tail,
             }
             updated += 1
-            print(f"  {code} 记账完成: {verdict} (is_real={is_real})")
+            print(f"  {code} 记账到 {data_date}: {verdict} (is_real={is_real})")
         except Exception as e:
             print(f"  {code} 处理失败: {e}")
 
-    # 3. 安全写入（原子操作，防止中途崩溃）
+    # 3. 安全写入
     if updated > 0:
         tmp_path = LEDGER_PATH.with_suffix('.tmp')
         with open(tmp_path, 'w', encoding='utf-8') as f:
@@ -179,7 +210,7 @@ def main():
     else:
         print("[账本] 无新增记录")
 
-    # 4. 清理1分钟原始数据（账本已留档）
+    # 4. 清理1分钟原始数据
     deleted = 0
     for f in files:
         try:
