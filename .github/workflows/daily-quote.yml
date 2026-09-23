@@ -22,6 +22,11 @@ jobs:
         with:
           token: ${{ secrets.GH_TOKEN }}
 
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy
+
       - name: 拉日线数据
         run: |
           python3 << 'PYEOF'
@@ -130,6 +135,7 @@ jobs:
               ('sh600019', '宝钢股份'),
               ('sh600309', '万华化学'),
               ('sh601888', '中国中免'),
+              # 指数
               ('sh000001', '上证指数'),
               ('sz399001', '深证成指'),
               ('sz399006', '创业板指'),
@@ -253,15 +259,23 @@ jobs:
           print(f'1分钟完成: 成功{ok} 失败{fail}')
           PYEOF
 
+      # ========== 新增：记账 + 清理分钟数据 ==========
+      - name: 记录真假量柱账本并清理分钟数据
+        run: |
+          cd scripts
+          python3 record_truth.py
+          cd ..
+      # =============================================
+
       - name: 提交 + 推送
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/kline/ data/kline_5min/ data/kline_1min/
+          git add data/kline/ data/kline_5min/ data/kline_1min/ data/analysis/truth_ledger.json
           if git diff --cached --quiet; then
             echo "无变化"
           else
-            git commit -m "data: 行情数据 $(date -u +%Y%m%d)"
+            git commit -m "data: 行情数据+真假账本 $(date -u +%Y%m%d)"
             git pull --rebase origin main
             git push
           fi
