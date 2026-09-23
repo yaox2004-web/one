@@ -1,6 +1,6 @@
 {
   "date": "20260923",
-  "generated_at": "2026-09-23 09:29:18",
+  "generated_at": "2026-09-23 11:09:03",
   "model": "agnes-3.0-flash",
   "stocks": {
     "sh600584": {
@@ -16,7 +16,7 @@
       },
       "winrate": 46.9,
       "signals": [],
-      "ai_comment": "【AI请求失败: HTTPSConnectionPool(host='apihub.agnes-ai.cn', por】"
+      "ai_comment": "长电科技处上升趋势，MA20支撑有效。当日缩量回调（量比0.54），属良性整理，显示抛压减轻。多空暂均衡，需关注量能能否温和放大以确认续涨；若跌破MA20或放量下跌，则警惕趋势转弱风险。"
     },
     "sz002156": {
       "name": "通富微电",
@@ -31,7 +31,7 @@
       },
       "winrate": 46.9,
       "signals": [],
-      "ai_comment": "【AI请求失败: HTTPSConnectionPool(host='apihub.agnes-ai.cn', por】"
+      "ai_comment": "通富微电处于上升趋势，股价高于20日均线。当日缩量微跌，显示短期抛压减轻但上攻动能不足，呈整理蓄势态势。历史信号胜率偏低，多空博弈激烈。后续需重点关注能否在62.8元附近企稳并重新放量突破，警惕缩量滞涨引发的回调风险。"
     },
     "sh603283": {
       "name": "赛腾股份",
@@ -46,7 +46,7 @@
       },
       "winrate": 46.9,
       "signals": [],
-      "ai_comment": "【AI请求失败: HTTPSConnectionPool(host='apihub.agnes-ai.cn', por】"
+      "ai_comment": "赛腾股份处于上升趋势，收盘价46.9元高于MA20，多头占优。当日平量上涨，量价配合中性，未现显著放量突破。信号胜率偏低（46.9%），预测可靠性一般。后续需关注量能能否持续放大以确认升势，警惕缩量滞涨或跌破均线风险。客观描述，非投资建议。"
     },
     "sz300394": {
       "name": "天孚通信",
@@ -61,7 +61,7 @@
       },
       "winrate": 46.9,
       "signals": [],
-      "ai_comment": "【AI请求失败: HTTPSConnectionPool(host='apihub.agnes-ai.cn', por】"
+      "ai_comment": "天孚通信处于上升趋势，收盘价站上MA20，但最新交易日平量滞涨（量比0.83），显示多头动能减弱，缺乏量价配合。当前多空处于高位震荡博弈。需警惕缩量上行后的回调风险，后续重点观察成交量能否有效放大以确认趋势延续，若持续缩量需防范短期修正。"
     },
     "sh601138": {
       "name": "工业富联",
@@ -76,7 +76,7 @@
       },
       "winrate": 46.9,
       "signals": [],
-      "ai_comment": "【AI请求失败: HTTPSConnectionPool(host='apihub.agnes-ai.cn', por】"
+      "ai_comment": "工业富联现下跌趋势，收盘价62.98元低于20日均线，呈弱势震荡。量比0.56显示缩量整理，多空力量趋于平衡。参考信号胜率偏低，后市需重点观察能否放量收复MA20；若持续缩量，需警惕阴跌风险。此研判仅基于数据，不构成投资建议。"
     },
     "sh601231": {
       "name": "环旭电子",
@@ -91,7 +91,7 @@
       },
       "winrate": 46.9,
       "signals": [],
-      "ai_comment": "【AI请求失败: HTTPSConnectionPool(host='apihub.agnes-ai.cn', por】"
+      "ai_comment": "环旭电子现26.94元，价站MA20上方，趋势偏多。缩量上涨（量比0.66）显示跟风动能不足，存在高位滞涨风险。参考胜率46.9%，信号偏中性。重点观察后续是否放量突破，若持续缩量滞涨，需警惕回调修正。数据客观描述，不构成投资建议。"
     },
     "sz300476": {
       "name": "胜宏科技",
@@ -106,7 +106,7 @@
       },
       "winrate": 46.9,
       "signals": [],
-      "ai_comment": "【AI请求失败: HTTPSConnectionPool(host='apihub.agnes-ai.cn', por】"
+      "ai_comment": "胜宏科技处于上升趋势，价格高于MA20。缩量上涨显示资金分歧加大，上攻动能偏弱，胜率信号有限。当前量价配合中性，后续需重点观察成交量能否有效放大以确认趋势延续，警惕量能持续萎缩导致的回调风险。"
     },
     "sh603516": {
       "name": "淳中科技",
@@ -121,7 +121,7 @@
       },
       "winrate": 46.9,
       "signals": [],
-      "ai_comment": "【AI请求失败: HTTPSConnectionPool(host='apihub.agnes-ai.cn', por】"
+      "ai_comment": "淳中科技现84.99元，呈下降趋势，股价低于MA20（89.04）。当日平量柱且量比仅0.7，显示量能萎缩，买盘承接不足，量价配合偏弱。当前处于弱势区间，多头反攻乏力。需警惕价格持续低于均线及成交量进一步收缩的风险，关注能否重新放量站上20日线以扭转趋势。胜率约46.9%，不确定性较高。"
     }
   }
 }
