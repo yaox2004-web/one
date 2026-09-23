@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 AI 研判模块 - 调用 Agnes AI 生成个股研报
+日期逻辑：从第一只持仓股的K线数据中提取最新日期，确保与报告脚本读的日期一致
 """
 
 import os
@@ -190,7 +191,21 @@ def main():
     print("=" * 50)
     print("开始生成 AI 个股研判...")
     print("=" * 50)
-    
+
+    # ========== 关键：从第一只持仓股提取最新日期 ==========
+    today = None
+    first_stock = HOLDINGS[0]
+    klines, _ = load_kline(first_stock["market"], first_stock["code"])
+    if klines:
+        # klines[-1][0] 类似 "2026-09-22" 或 "20260922"
+        raw_date = str(klines[-1][0]).strip()
+        today = raw_date.replace("-", "")
+        if len(today) > 8:
+            today = today[:8]
+    if not today:
+        today = datetime.date.today().strftime("%Y%m%d")  # 兜底
+    print(f"[AI研判] 数据日期: {today}")
+
     # 1. 加载胜率
     entries = []
     if os.path.exists(WINRATE_PATH):
@@ -250,7 +265,6 @@ def main():
             print(f"  -> 失败: {e}")
 
     # 6. 保存结果
-    today = datetime.date.today().strftime("%Y%m%d")
     output_path = os.path.join(OUTPUT_DIR, f"ai_comment_{today}.json")
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     
