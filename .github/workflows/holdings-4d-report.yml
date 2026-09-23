@@ -30,13 +30,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install pandas numpy requests
       
-      - name: Run report and AI comment
+      - name: Run AI comment and report
         env:
-          AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}    # <--- 最关键的一行！！！把 Secret 注入环境变量
+          AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
         run: |
           cd scripts
-          python3 level4d_report_html.py
           python3 ai_comment.py
+          python3 level4d_report_html.py
       
       - name: 提交 + 推送
         run: |
