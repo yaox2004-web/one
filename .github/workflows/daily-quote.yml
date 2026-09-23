@@ -25,7 +25,7 @@ jobs:
       - name: 安装依赖
         run: |
           python -m pip install --upgrade pip
-          pip install requests numpy
+          pip install akshare requests numpy
 
       - name: 全市场日线 + 1分钟 + 记账（一体化）
         run: |
@@ -34,23 +34,56 @@ jobs:
           from concurrent.futures import ThreadPoolExecutor, as_completed
           from datetime import datetime, timezone
 
-          # ============================================================
-          # 配置
-          # ============================================================
           MAX_WORKERS = 5
           IS_SUNDAY = datetime.now(timezone.utc).weekday() == 6
 
+          # ============ 构建1分钟股票列表（9只持仓 + 沪深300）============
           HOLDINGS_1MIN = [
               'sh601138', 'sz300476', 'sh603516', 'sz002156',
               'sh603283', 'sh601231', 'sz300394', 'sh600584',
               'sh000001',
           ]
+          HS300_PATH = 'data/hushen300.json'
+          hs300_codes = []
+
+          # 1. 尝试从本地读取沪深300
+          if os.path.exists(HS300_PATH):
+              try:
+                  with open(HS300_PATH, 'r', encoding='utf-8') as f:
+                      data = json.load(f)
+                  hs300_codes = data.get('codes', [])
+                  print(f"  [沪深300] 从本地读取 {len(hs300_codes)} 只")
+              except Exception as e:
+                  print(f"  [沪深300] 本地读取失败: {e}")
+
+          # 2. 本地没有则拉取
+          if not hs300_codes:
+              print(f"  [沪深300] 本地为空，尝试拉取...")
+              try:
+                  import akshare as ak
+                  df = ak.index_stock_cons_csindex(symbol="000300")
+                  for _, row in df.iterrows():
+                      code = str(row['成分券代码']).zfill(6)
+                      if code.startswith('6'):
+                          hs300_codes.append('sh' + code)
+                      elif code.startswith(('0', '3')):
+                          hs300_codes.append('sz' + code)
+                  os.makedirs('data', exist_ok=True)
+                  with open(HS300_PATH, 'w', encoding='utf-8') as f:
+                      json.dump({'updated': datetime.now().isoformat(), 'count': len(hs300_codes), 'codes': hs300_codes}, f, ensure_ascii=False, indent=2)
+                  print(f"  [沪深300] 拉取成功 {len(hs300_codes)} 只，已存储")
+              except Exception as e:
+                  print(f"  [沪深300] 拉取失败: {e}")
+
+          # 3. 合并去重
+          ALL_1MIN = list(set(HOLDINGS_1MIN + hs300_codes))
+          print(f"  [1分钟] 目标股票数: {len(ALL_1MIN)} 只")
 
           # ============================================================
-          # 1. 获取股票列表（本地优先）
+          # 1. 获取日线股票列表（本地优先）
           # ============================================================
-          print("=" * 60)
-          print("[1/4] 获取股票列表...")
+          print("\n" + "=" * 60)
+          print("[1/4] 获取日线股票列表...")
           print(f"    模式: {'周日全量' if IS_SUNDAY else '平日增量(10天)'}")
           print("=" * 60)
 
@@ -85,7 +118,7 @@ jobs:
               all_stocks.append(('sh000001', '上证指数'))
 
           # ============================================================
-          # 2. 并发拉取日线（核心：增量 or 全量）
+          # 2. 并发拉取日线
           # ============================================================
           print("\n" + "=" * 60)
           print(f"[2/4] 并发拉取日线（{MAX_WORKERS}线程，{len(all_stocks)}只）...")
@@ -97,10 +130,7 @@ jobs:
 
           def fetch_daily(stock_code, stock_name):
               local_path = f'data/kline/{stock_code[:2]}/{stock_code}.json'
-
-              # 拉取天数：周日全量1023，平日只拉10天
               datalen = 1023 if IS_SUNDAY else 10
-
               for attempt in range(2):
                   try:
                       url = f'https://quotes.sina.cn/cn/api/jsonp_v2.php/var=/CN_MarketDataService.getKLineData?symbol={stock_code}&scale=240&ma=no&datalen={datalen}'
@@ -115,12 +145,9 @@ jobs:
                           continue
                       new_klines = [[k['day'], k['open'], k['close'], k['high'], k['low'], k['volume']] for k in data]
 
-                      # ===== 合并逻辑 =====
                       if IS_SUNDAY:
-                          # 周日：全量覆盖
                           final_klines = new_klines
                       else:
-                          # 平日：增量追加
                           existing_klines = []
                           if os.path.exists(local_path):
                               try:
@@ -132,23 +159,15 @@ jobs:
                                           stock_name = old_name
                               except Exception:
                                   existing_klines = []
-
-                          # 提取已有日期集合，去重
                           existing_dates = {k[0] for k in existing_klines}
                           for k in new_klines:
                               if k[0] not in existing_dates:
                                   existing_klines.append(k)
-
-                          # 按日期排序
                           existing_klines.sort(key=lambda x: x[0])
-
-                          # 只保留最近2000天，防止无限增长
                           if len(existing_klines) > 2000:
                               existing_klines = existing_klines[-2000:]
-
                           final_klines = existing_klines
 
-                      # 写回文件
                       out = {'name': stock_name, 'klines': final_klines}
                       with open(local_path, 'w', encoding='utf-8') as f:
                           json.dump(out, f, ensure_ascii=False)
@@ -172,10 +191,10 @@ jobs:
           print(f"  日线完成: 成功{daily_ok} 失败{daily_fail}")
 
           # ============================================================
-          # 3. 并发拉取1分钟数据
+          # 3. 并发拉取1分钟数据（9只持仓 + 沪深300，约309只）
           # ============================================================
           print("\n" + "=" * 60)
-          print(f"[3/4] 并发拉取1分钟数据（{len(HOLDINGS_1MIN)}只）...")
+          print(f"[3/4] 并发拉取1分钟数据（{len(ALL_1MIN)}只）...")
           print("=" * 60)
 
           os.makedirs('data/kline_1min', exist_ok=True)
@@ -204,12 +223,14 @@ jobs:
 
           min_ok, min_fail = 0, 0
           with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
-              futures = {executor.submit(fetch_1min, code): code for code in HOLDINGS_1MIN}
-              for future in as_completed(futures):
+              futures = {executor.submit(fetch_1min, code): code for code in ALL_1MIN}
+              for i, future in enumerate(as_completed(futures)):
                   if future.result():
                       min_ok += 1
                   else:
                       min_fail += 1
+                  if (i + 1) % 100 == 0:
+                      print(f"  1分钟进度: {i+1}/{len(ALL_1MIN)} (成功{min_ok} 失败{min_fail})")
 
           print(f"  1分钟完成: 成功{min_ok} 失败{min_fail}")
           PYEOF
@@ -224,7 +245,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/kline/ data/kline_1min/ data/analysis/truth_ledger/ 2>/dev/null || true
+          git add data/kline/ data/kline_1min/ data/hushen300.json data/analysis/truth_ledger/ 2>/dev/null || true
           if git diff --cached --quiet; then
             echo "无变化"
           else
