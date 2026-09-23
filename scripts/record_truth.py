@@ -1,21 +1,28 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-真假量柱账本记录器 (record_truth.py) — 全市场按月分片版
+真假量柱账本记录器 (record_truth.py)
 =================================================
-核心逻辑：
-  1. 按"日期"分组1分钟K线
-  2. 只记账"完整"的交易日（≥230根1分钟K线）
-  3. 跳过"不完整"的当天（说明还在盘中）
-  4. 按月份分片存储，防止单个文件过大
-  5. 清理原始1分钟数据，节省仓库体积
+版本: v1.0 (2026-09-23)
+职责: 读取1分钟数据 → 计算真假特征 → 写入按月分片账本 → 清理原始数据
 
-账本存储结构：
-  data/analysis/truth_ledger/2026-09.json
-  data/analysis/truth_ledger/2026-10.json
-  ...
+上游: daily-quote.yml（每天20:00自动触发）
+下游: backtest_4d.py（回测时优先查账本）
+输出: data/analysis/truth_ledger/YYYY-MM.json
 
-时间规则（北京时间）：
+核心逻辑:
+  1. 按日期分组1分钟K线
+  2. 只记账"完整"交易日（≥230根）
+  3. 跳过盘中不完整数据
+  4. 按月分片存储
+  5. 记账后删除原始1分钟数据
+
+判定规则:
+  3个指标（CV、量价相关、尾盘占比）命中≥2个 → 量化对倒
+  命中1个 → 疑似量化
+  0个 → 真金白银
+
+时间规则（北京时间）:
   - 盘中：数据不完整 → 自动跳过
   - 盘后：数据完整 → 正常记账
   - 周末/节假日：接口返回最后交易日数据 → 自动识别
@@ -111,7 +118,7 @@ def analyze_1min_volatility(day_klines):
 
 def get_ledger_path(date_str):
     """根据日期返回账本文件路径（按月分片）"""
-    month = date_str[:7]  # 例如 "2026-09"
+    month = date_str[:7]
     return LEDGER_DIR / f"{month}.json"
 
 
@@ -155,8 +162,7 @@ def main():
 
     print(f"[账本] 待处理 {len(files)} 个文件\n")
 
-    # 按月份分组处理
-    monthly_ledgers = {}  # {月份: {代码: {日期: {...}}}}
+    monthly_ledgers = {}
     updated = 0
     skipped_incomplete = 0
     skipped_exists = 0
@@ -170,7 +176,6 @@ def main():
             if not klines:
                 continue
 
-            # 按日期分组
             by_date = {}
             for k in klines:
                 d = extract_date_from_timestamp(k[0])
@@ -178,24 +183,20 @@ def main():
                     by_date.setdefault(d, []).append(k)
 
             for d, day_klines in sorted(by_date.items()):
-                # 检查完整度
                 if len(day_klines) < MIN_FULL_DAY_BARS:
                     skipped_incomplete += 1
                     continue
 
-                # 加载对应月份的账本
                 month = d[:7]
                 if month not in monthly_ledgers:
                     monthly_ledgers[month] = load_ledger(d)
 
                 ledger = monthly_ledgers[month]
 
-                # 检查是否已记账
                 if code in ledger and d in ledger[code]:
                     skipped_exists += 1
                     continue
 
-                # 记账
                 res = analyze_1min_volatility(day_klines)
                 if res[0] is None:
                     continue
@@ -219,7 +220,6 @@ def main():
         except Exception as e:
             print(f"  {code} 处理失败: {e}")
 
-    # 保存所有月份账本
     for month, ledger in monthly_ledgers.items():
         save_ledger(f"{month}-01", ledger)
         total = sum(len(v) for v in ledger.values())
@@ -227,7 +227,6 @@ def main():
 
     print(f"\n[统计] 更新: {updated} 条，跳过不完整: {skipped_incomplete} 条，已存在: {skipped_exists} 条")
 
-    # 清理1分钟原始数据
     deleted = 0
     for f in files:
         try:
