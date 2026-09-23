@@ -38,6 +38,7 @@ jobs:
           # 配置
           # ============================================================
           MAX_WORKERS = 5
+          IS_SUNDAY = datetime.now(timezone.utc).weekday() == 6
 
           HOLDINGS_1MIN = [
               'sh601138', 'sz300476', 'sh603516', 'sz002156',
@@ -50,11 +51,10 @@ jobs:
           # ============================================================
           print("=" * 60)
           print("[1/4] 获取股票列表...")
+          print(f"    模式: {'周日全量' if IS_SUNDAY else '平日增量(10天)'}")
           print("=" * 60)
 
           all_stocks = []
-
-          # ===== 优先：从本地 data/kline/ 目录读取 =====
           for market in ['sh', 'sz', 'bj']:
               dir_path = f'data/kline/{market}'
               if os.path.exists(dir_path):
@@ -71,10 +71,9 @@ jobs:
                       all_stocks.append((code, name))
 
           if all_stocks:
-              print(f"  [本地] 从 data/kline/ 读取到 {len(all_stocks)} 只股票")
+              print(f"  [本地] 读取到 {len(all_stocks)} 只股票")
           else:
-              # ===== 兜底：本地为空时，只用持仓股 =====
-              print(f"  [兜底] 本地为空，只拉持仓股")
+              print(f"  [兜底] 本地为空，使用持仓股")
               all_stocks = [
                   ('sh600584', '长电科技'), ('sz002156', '通富微电'),
                   ('sh603283', '赛腾股份'), ('sz300394', '天孚通信'),
@@ -82,16 +81,11 @@ jobs:
                   ('sz300476', '胜宏科技'), ('sh603516', '淳中科技'),
               ]
 
-          # 加指数
           if not any(c == 'sh000001' for c, _ in all_stocks):
               all_stocks.append(('sh000001', '上证指数'))
 
-          if not all_stocks:
-              print("  股票列表为空，退出")
-              exit(1)
-
           # ============================================================
-          # 2. 并发拉取日线
+          # 2. 并发拉取日线（核心：增量 or 全量）
           # ============================================================
           print("\n" + "=" * 60)
           print(f"[2/4] 并发拉取日线（{MAX_WORKERS}线程，{len(all_stocks)}只）...")
@@ -102,9 +96,14 @@ jobs:
           os.makedirs('data/kline/bj', exist_ok=True)
 
           def fetch_daily(stock_code, stock_name):
+              local_path = f'data/kline/{stock_code[:2]}/{stock_code}.json'
+
+              # 拉取天数：周日全量1023，平日只拉10天
+              datalen = 1023 if IS_SUNDAY else 10
+
               for attempt in range(2):
                   try:
-                      url = f'https://quotes.sina.cn/cn/api/jsonp_v2.php/var=/CN_MarketDataService.getKLineData?symbol={stock_code}&scale=240&ma=no&datalen=1023'
+                      url = f'https://quotes.sina.cn/cn/api/jsonp_v2.php/var=/CN_MarketDataService.getKLineData?symbol={stock_code}&scale=240&ma=no&datalen={datalen}'
                       r = requests.get(url, timeout=15, headers={'User-Agent': 'Mozilla/5.0'})
                       text = r.text
                       start = text.find('([') + 1
@@ -114,10 +113,44 @@ jobs:
                       data = json.loads(text[start:end])
                       if not data:
                           continue
-                      klines = [[k['day'], k['open'], k['close'], k['high'], k['low'], k['volume']] for k in data]
-                      out = {'name': stock_name, 'klines': klines}
-                      sub = stock_code[:2]
-                      with open(f'data/kline/{sub}/{stock_code}.json', 'w', encoding='utf-8') as f:
+                      new_klines = [[k['day'], k['open'], k['close'], k['high'], k['low'], k['volume']] for k in data]
+
+                      # ===== 合并逻辑 =====
+                      if IS_SUNDAY:
+                          # 周日：全量覆盖
+                          final_klines = new_klines
+                      else:
+                          # 平日：增量追加
+                          existing_klines = []
+                          if os.path.exists(local_path):
+                              try:
+                                  with open(local_path, 'r', encoding='utf-8') as f:
+                                      old = json.load(f)
+                                      existing_klines = old.get('klines', [])
+                                      old_name = old.get('name', '')
+                                      if old_name:
+                                          stock_name = old_name
+                              except Exception:
+                                  existing_klines = []
+
+                          # 提取已有日期集合，去重
+                          existing_dates = {k[0] for k in existing_klines}
+                          for k in new_klines:
+                              if k[0] not in existing_dates:
+                                  existing_klines.append(k)
+
+                          # 按日期排序
+                          existing_klines.sort(key=lambda x: x[0])
+
+                          # 只保留最近2000天，防止无限增长
+                          if len(existing_klines) > 2000:
+                              existing_klines = existing_klines[-2000:]
+
+                          final_klines = existing_klines
+
+                      # 写回文件
+                      out = {'name': stock_name, 'klines': final_klines}
+                      with open(local_path, 'w', encoding='utf-8') as f:
                           json.dump(out, f, ensure_ascii=False)
                       return True
                   except Exception:
@@ -133,7 +166,7 @@ jobs:
                       daily_ok += 1
                   else:
                       daily_fail += 1
-                  if (i + 1) % 500 == 0:
+                  if (i + 1) % 1000 == 0:
                       print(f"  日线进度: {i+1}/{len(all_stocks)} (成功{daily_ok} 失败{daily_fail})")
 
           print(f"  日线完成: 成功{daily_ok} 失败{daily_fail}")
