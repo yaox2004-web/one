@@ -39,7 +39,6 @@ jobs:
           # ============================================================
           MAX_WORKERS = 5
 
-          # 持仓股（必拉1分钟）
           HOLDINGS_1MIN = [
               'sh601138', 'sz300476', 'sh603516', 'sz002156',
               'sh603283', 'sh601231', 'sz300394', 'sh600584',
@@ -55,49 +54,57 @@ jobs:
 
           all_stocks = []
 
-          # ===== 保险1：东方财富 push2 接口（最稳定）=====
+          # ===== 保险1：akshare 东财全市场实时行情（最稳）=====
           try:
-              url = "https://push2.eastmoney.com/api/qt/clist/get"
-              params = {
-                  'pn': '1', 'pz': '6000', 'po': '1', 'np': '1',
-                  'fltt': '2', 'invt': '2', 'fid': 'f3',
-                  'fs': 'm:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81+s:2048',
-                  'fields': 'f12,f14',
-              }
-              headers = {'User-Agent': 'Mozilla/5.0'}
-              r = requests.get(url, params=params, headers=headers, timeout=30)
-              data = r.json()
-              items = data.get('data', {}).get('diff', [])
-              for item in items:
-                  code = str(item['f12']).zfill(6)
-                  name = str(item['f14'])
+              import akshare as ak
+              df = ak.stock_zh_a_spot_em()
+              for _, row in df.iterrows():
+                  code = str(row['代码']).zfill(6)
+                  name = str(row['名称'])
                   if code.startswith('6'):
                       all_stocks.append(('sh' + code, name))
                   elif code.startswith(('0', '3')):
                       all_stocks.append(('sz' + code, name))
                   elif code.startswith(('4', '8')):
                       all_stocks.append(('bj' + code, name))
-              print(f"  [保险1-东财] 成功获取 {len(all_stocks)} 只股票")
+              print(f"  [保险1-akshare全市场] 成功获取 {len(all_stocks)} 只股票")
           except Exception as e:
-              print(f"  [保险1-东财] 失败: {e}")
+              print(f"  [保险1-akshare全市场] 失败: {e}")
 
-          # ===== 保险2：akshare（如果东财失败）=====
+          # ===== 保险2：东财 push2 分页接口（每页100条，循环拉）=====
           if not all_stocks:
               try:
-                  import akshare as ak
-                  df = ak.stock_info_a_code_name()
-                  for _, row in df.iterrows():
-                      code = str(row['code']).zfill(6)
-                      name = str(row['name'])
-                      if code.startswith('6'):
-                          all_stocks.append(('sh' + code, name))
-                      elif code.startswith(('0', '3')):
-                          all_stocks.append(('sz' + code, name))
-                      elif code.startswith(('4', '8')):
-                          all_stocks.append(('bj' + code, name))
-                  print(f"  [保险2-akshare] 成功获取 {len(all_stocks)} 只股票")
+                  url = "https://push2.eastmoney.com/api/qt/clist/get"
+                  headers = {'User-Agent': 'Mozilla/5.0'}
+                  page = 1
+                  while True:
+                      params = {
+                          'pn': str(page), 'pz': '100', 'po': '1', 'np': '1',
+                          'fltt': '2', 'invt': '2', 'fid': 'f3',
+                          'fs': 'm:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81+s:2048',
+                          'fields': 'f12,f14',
+                      }
+                      r = requests.get(url, params=params, headers=headers, timeout=30)
+                      data = r.json()
+                      items = data.get('data', {}).get('diff', [])
+                      if not items:
+                          break
+                      for item in items:
+                          code = str(item['f12']).zfill(6)
+                          name = str(item['f14'])
+                          if code.startswith('6'):
+                              all_stocks.append(('sh' + code, name))
+                          elif code.startswith(('0', '3')):
+                              all_stocks.append(('sz' + code, name))
+                          elif code.startswith(('4', '8')):
+                              all_stocks.append(('bj' + code, name))
+                      page += 1
+                      if page > 100:
+                          break
+                      time.sleep(0.3)
+                  print(f"  [保险2-东财分页] 成功获取 {len(all_stocks)} 只股票")
               except Exception as e:
-                  print(f"  [保险2-akshare] 失败: {e}")
+                  print(f"  [保险2-东财分页] 失败: {e}")
 
           # ===== 保险3：兜底，只用持仓股 =====
           if not all_stocks:
