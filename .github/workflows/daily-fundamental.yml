@@ -3,7 +3,7 @@ name: 每日拉基本面数据
 on:
   workflow_dispatch:
   schedule:
-    - cron: '30 12 * * *'
+    - cron: '30 14 * * *'
 
 permissions:
   contents: write
