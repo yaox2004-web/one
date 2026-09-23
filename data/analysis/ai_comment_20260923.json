@@ -1,0 +1,127 @@
+{
+  "date": "20260923",
+  "generated_at": "2026-09-23 09:29:18",
+  "model": "agnes-3.0-flash",
+  "stocks": {
+    "sh600584": {
+      "name": "长电科技",
+      "features": {
+        "date": "2026-09-23",
+        "close": 71.82,
+        "pct_chg": -0.58,
+        "vol_ratio": 0.54,
+        "vol_state": "平量柱（普通量能）",
+        "trend": "上升趋势",
+        "ma20": 70.62
+      },
+      "winrate": 46.9,
+      "signals": [],
+      "ai_comment": "【AI请求失败: HTTPSConnectionPool(host='apihub.agnes-ai.cn', por】"
+    },
+    "sz002156": {
+      "name": "通富微电",
+      "features": {
+        "date": "2026-09-23",
+        "close": 62.8,
+        "pct_chg": -1.13,
+        "vol_ratio": 0.52,
+        "vol_state": "平量柱（普通量能）",
+        "trend": "上升趋势",
+        "ma20": 60.11
+      },
+      "winrate": 46.9,
+      "signals": [],
+      "ai_comment": "【AI请求失败: HTTPSConnectionPool(host='apihub.agnes-ai.cn', por】"
+    },
+    "sh603283": {
+      "name": "赛腾股份",
+      "features": {
+        "date": "2026-09-23",
+        "close": 46.9,
+        "pct_chg": 2.29,
+        "vol_ratio": 0.91,
+        "vol_state": "平量柱（普通量能）",
+        "trend": "上升趋势",
+        "ma20": 46.11
+      },
+      "winrate": 46.9,
+      "signals": [],
+      "ai_comment": "【AI请求失败: HTTPSConnectionPool(host='apihub.agnes-ai.cn', por】"
+    },
+    "sz300394": {
+      "name": "天孚通信",
+      "features": {
+        "date": "2026-09-23",
+        "close": 275.4,
+        "pct_chg": -0.16,
+        "vol_ratio": 0.83,
+        "vol_state": "平量柱（普通量能）",
+        "trend": "上升趋势",
+        "ma20": 264.18
+      },
+      "winrate": 46.9,
+      "signals": [],
+      "ai_comment": "【AI请求失败: HTTPSConnectionPool(host='apihub.agnes-ai.cn', por】"
+    },
+    "sh601138": {
+      "name": "工业富联",
+      "features": {
+        "date": "2026-09-23",
+        "close": 62.98,
+        "pct_chg": -0.51,
+        "vol_ratio": 0.56,
+        "vol_state": "平量柱（普通量能）",
+        "trend": "下降趋势",
+        "ma20": 63.37
+      },
+      "winrate": 46.9,
+      "signals": [],
+      "ai_comment": "【AI请求失败: HTTPSConnectionPool(host='apihub.agnes-ai.cn', por】"
+    },
+    "sh601231": {
+      "name": "环旭电子",
+      "features": {
+        "date": "2026-09-23",
+        "close": 26.94,
+        "pct_chg": 0.19,
+        "vol_ratio": 0.66,
+        "vol_state": "缩量柱（缩量上涨）",
+        "trend": "上升趋势",
+        "ma20": 26.25
+      },
+      "winrate": 46.9,
+      "signals": [],
+      "ai_comment": "【AI请求失败: HTTPSConnectionPool(host='apihub.agnes-ai.cn', por】"
+    },
+    "sz300476": {
+      "name": "胜宏科技",
+      "features": {
+        "date": "2026-09-23",
+        "close": 244.3,
+        "pct_chg": 0.91,
+        "vol_ratio": 0.67,
+        "vol_state": "缩量柱（缩量上涨）",
+        "trend": "上升趋势",
+        "ma20": 233.43
+      },
+      "winrate": 46.9,
+      "signals": [],
+      "ai_comment": "【AI请求失败: HTTPSConnectionPool(host='apihub.agnes-ai.cn', por】"
+    },
+    "sh603516": {
+      "name": "淳中科技",
+      "features": {
+        "date": "2026-09-23",
+        "close": 84.99,
+        "pct_chg": -0.67,
+        "vol_ratio": 0.7,
+        "vol_state": "平量柱（普通量能）",
+        "trend": "下降趋势",
+        "ma20": 89.04
+      },
+      "winrate": 46.9,
+      "signals": [],
+      "ai_comment": "【AI请求失败: HTTPSConnectionPool(host='apihub.agnes-ai.cn', por】"
+    }
+  }
+}
