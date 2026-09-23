@@ -216,47 +216,12 @@ TREND_MA_PERIOD = 20
 # 【回测胜率数据】
 # ============================================================
 def load_winrate_data():
-    """加载回测胜率数据，如果文件不存在用默认值兜底"""
     winrate_path = Path(__file__).parent.parent / "data" / "analysis" / "winrate.json"
-    
     default_winrate = {
-        "低位": {
-            "上升趋势": {
-                "过左峰": 63.9, "元帅柱": 67.2, "回踩精准线": 51.7,
-                "阳包阴": 53.7, "地量群": 47.4, "平量柱": 45.0,
-                "黄金柱": 42.6, "将军柱": 35.1,
-            },
-            "下降趋势": {
-                "倍量柱": 57.0, "价升量缩": 55.7, "地量群": 49.2,
-                "平量柱": 50.8, "黄金柱": 50.8,
-            }
-        },
-        "中位": {
-            "上升趋势": {
-                "突破大阴实顶": 68.4, "过左峰": 66.1, "地量群": 65.3,
-                "低量柱（地量）": 64.9, "平量柱": 60.0, "黄金柱": 59.8,
-                "回踩精准线": 58.1, "倍量伸缩": 58.0, "缩量柱": 57.9,
-                "梯量柱": 58.6, "小倍阳（矮将军）": 58.8, "阳胜进": 57.5,
-                "阴胜出": 56.9, "将军柱": 55.8, "倍量柱": 55.9,
-                "倍量不穿": 55.7, "阳包阴": 51.3,
-            },
-            "下降趋势": {
-                "过左峰": 71.4, "倍量柱": 54.5, "将军柱": 52.9,
-                "倍量伸缩": 50.5, "价升量缩": 51.2,
-            }
-        },
-        "高位": {
-            "上升趋势": {
-                "过左峰": 56.2, "阴胜出": 56.8, "低量柱（地量）": 56.6,
-                "平量柱": 51.9, "高量柱": 53.0, "缩量柱": 51.3,
-            },
-            "下降趋势": {
-                "突破大阴实顶": 55.6, "价升量缩": 69.2, "过左峰": 60.0,
-                "倍量柱": 54.8,
-            }
-        }
+        "低位": {"上升趋势": {}, "下降趋势": {}},
+        "中位": {"上升趋势": {}, "下降趋势": {}},
+        "高位": {"上升趋势": {}, "下降趋势": {}},
     }
-    
     try:
         if winrate_path.exists():
             with open(winrate_path, 'r', encoding='utf-8') as f:
@@ -267,6 +232,7 @@ def load_winrate_data():
     except Exception as e:
         print(f"  提示：读取胜率文件失败({e})，使用默认胜率数据")
         return default_winrate
+
 
 BACKTEST_WINRATE = load_winrate_data()
 
@@ -1027,7 +993,7 @@ def get_vol_percentile(df, lookback=20):
 
 
 # ============================================================
-# 数据读取
+# 数据读取（★ 关键修复：过滤掉 close<=0 的行，数据太少直接跳过）
 # ============================================================
 def load_klines(market, code):
     possible_paths = [
@@ -1037,18 +1003,27 @@ def load_klines(market, code):
     ]
     for filepath in possible_paths:
         if filepath.exists():
-            with open(filepath, 'r') as f:
-                data = json.load(f)
-            klines = data.get('klines', [])
-            ncols = len(klines[0])
-            cols = ['date', 'open', 'close', 'high', 'low', 'volume'] if ncols == 6 else ['date', 'open', 'close', 'high', 'low', 'volume', 'amount']
-            df = pd.DataFrame(klines)
-            df = df.iloc[:, :ncols]
-            df.columns = cols[:ncols]
-            for col in ['open', 'close', 'high', 'low', 'volume']:
-                df[col] = pd.to_numeric(df[col], errors='coerce')
-            df = df.dropna(subset=['open', 'close', 'high', 'low', 'volume'])
-            return df, data.get('name', code)
+            try:
+                with open(filepath, 'r') as f:
+                    data = json.load(f)
+                klines = data.get('klines', [])
+                if not klines:
+                    return None, None
+                ncols = len(klines[0])
+                cols = ['date', 'open', 'close', 'high', 'low', 'volume'] if ncols == 6 else ['date', 'open', 'close', 'high', 'low', 'volume', 'amount']
+                df = pd.DataFrame(klines)
+                df = df.iloc[:, :ncols]
+                df.columns = cols[:ncols]
+                for col in ['open', 'close', 'high', 'low', 'volume']:
+                    df[col] = pd.to_numeric(df[col], errors='coerce')
+                df = df.dropna(subset=['open', 'close', 'high', 'low', 'volume'])
+                # ★ 关键修复：过滤掉收盘价<=0的行（防止盘中数据污染导致None）
+                df = df[df['close'] > 0]
+                if len(df) < 20:
+                    return None, None
+                return df, data.get('name', code)
+            except Exception:
+                return None, None
     return None, None
 
 
@@ -1771,8 +1746,8 @@ def generate_interpretation(stock):
     sections.append({
         'title': '【第四步】去伪：这个量柱是真的还是假的？',
         'content': [
-            f"🤖 量能判断：{vol_verdict}（估算占比{quant_pct:.0f}%）",
-            f"📊 指标：CV={cv:.2f} · 量价相关={corr:.2f} · 尾盘占比={tail*100:.0f}%",
+            f"🤖 量能判断：{vol_verdict}（估算占比{quant_pct:.0f}%）" if vol_verdict else "🤖 量能判断：未知",
+            f"📊 指标：CV={cv:.2f} · 量价相关={corr:.2f} · 尾盘占比={tail*100:.0f}%" if cv else "",
             f"<strong>市场机理</strong>：{vol_logic}",
             "<strong>量学依据</strong>：量化对倒出来的量柱是假的！真金白银的量柱才是真的！"
         ]
@@ -1812,7 +1787,7 @@ def generate_interpretation(stock):
             ]
         })
     
-    if stock['big_yin_top']:
+    if stock.get('big_yin_top'):
         above_text = "上方" if bool(stock['price_above_yintop']) else "下方"
         pct_text = f"{stock['price_vs_yintop_pct']:+.2f}%"
         if bool(stock['price_above_yintop']):
@@ -1925,7 +1900,7 @@ def get_stock_data(market, code):
     
     vol_high_20 = recent_20['volume'].max()
     vol_low_20 = recent_20['volume'].min()
-    vol_pos_20 = (today_volume - vol_low_20) / (vol_high_20 - vol_low_20) * 100
+    vol_pos_20 = (today_volume - vol_low_20) / (vol_high_20 - vol_low_20) * 100 if vol_high_20 > vol_low_20 else 50
     if vol_pos_20 > VOL_POS_HIGH:
         vol_length = "长量柱（天量）"
     elif vol_pos_20 < VOL_POS_LOW:
@@ -2022,7 +1997,7 @@ def get_stock_data(market, code):
         long_dist_high = (long_high - today_price) / today_price * 100
         long_dist_low = (today_price - long_low) / today_price * 100
     
-    pos_120 = (today_price - long_low) / (long_high - long_low) * 100 if long_high else 50
+    pos_120 = (today_price - long_low) / (long_high - long_low) * 100 if long_high and long_high > long_low else 50
     if pos_120 > POSITION_HIGH:
         pos_status = "高位"
     elif pos_120 < POSITION_LOW:
@@ -2477,7 +2452,8 @@ def generate_html(stocks_data, today_str):
                 <div style="font-weight: bold; color: #fbbf24; margin-bottom: 6px; font-size: 13px;">{section['title']}</div>
             """
             for line in section['content']:
-                interp_html += f'                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">{line}</p>\n'
+                if line:
+                    interp_html += f'                <p style="margin: 4px 0; font-size: 12px; color: #cbd5e1; line-height: 1.7;">{line}</p>\n'
             interp_html += """            </div>"""
         
         atr_text = f"{stock['atr_pct']:.2f}%" if stock['atr_pct'] else "未知"
@@ -2496,7 +2472,6 @@ def generate_html(stocks_data, today_str):
             pos_trend_color = "#eab308"
             pos_trend_text = "⚠️ 一般，轻仓试错"
 
-        # ========== 新增：提取当前股票的 AI 研判 ==========
         ai_comment_text = ai_comments.get(stock['code'], {}).get('ai_comment', '')
         ai_html = ""
         if ai_comment_text and "未配置" not in ai_comment_text and "失败" not in ai_comment_text:
@@ -2510,7 +2485,6 @@ def generate_html(stocks_data, today_str):
                 </div>
             </div>
             '''
-        # ====================================================
         
         item_html = f"""
         <div class="stock-card">
@@ -2522,7 +2496,6 @@ def generate_html(stocks_data, today_str):
                 <div class="stock-price {price_class}">{stock['close']:.2f}元 ({stock['pct_chg']:+.2f}%)</div>
             </div>
             
-            <!-- 新增：主力意图识别（最重要！放最前面！） -->
             {''.join([f'''
             <div style="background:{color}20; border-radius:8px; padding:12px; margin-bottom:10px; border-left:4px solid {color};">
                 <div style="font-size:16px; font-weight:bold; color:{color};">
@@ -2536,7 +2509,6 @@ def generate_html(stocks_data, today_str):
 
             {ai_html}
             
-            <!-- 新增：大盘环境 -->
             {f'''
             <div style="background:{'#10b981' if stock['market_regime'] == '多头市场' else '#ef4444'}20; border-radius:8px; padding:10px; margin-bottom:10px; border-left:4px solid {'#10b981' if stock['market_regime'] == '多头市场' else '#ef4444'};">
                 <div style="font-size:14px; font-weight:bold; color:{'#10b981' if stock['market_regime'] == '多头市场' else '#ef4444'};">
@@ -2546,9 +2518,8 @@ def generate_html(stocks_data, today_str):
                     上证指数{stock['vs_ma20_pct']:+.1f}%（vs 20日线）
                 </div>
             </div>
-            ''' if stock.get('market_regime') and stock['market_regime'] != '未知' else ''}
+            ''' if stock.get('market_regime') and stock['market_regime'] != '未知' and stock.get('vs_ma20_pct') is not None else ''}
             
-            <!-- 新增：位置+趋势总览 -->
             <div style="background:{pos_trend_color}20; border-radius:8px; padding:12px; margin-bottom:15px; border-left:4px solid {pos_trend_color};">
                 <div style="font-size:16px; font-weight:bold; color:{pos_trend_color};">
                     📊 {stock['position']}（{stock['position_pct']:.0f}%分位）· {stock['stock_trend']}
@@ -2558,7 +2529,6 @@ def generate_html(stocks_data, today_str):
                 </div>
             </div>
             
-            <!-- 新增：三维共振提示 -->
             {f'''
             <div style="background:{'#22c55e' if '最佳买点' in stock.get('resonance', '') or '较好买点' in stock.get('resonance', '') else '#ef4444' if '最佳卖点' in stock.get('resonance', '') or '较好卖点' in stock.get('resonance', '') else '#60a5fa'}20; border-radius:8px; padding:10px; margin-bottom:10px; border-left:4px solid {'#22c55e' if '最佳买点' in stock.get('resonance', '') or '较好买点' in stock.get('resonance', '') else '#ef4444' if '最佳卖点' in stock.get('resonance', '') or '较好卖点' in stock.get('resonance', '') else '#60a5fa'};">
                 <div style="font-size:14px; font-weight:bold; color:{'#22c55e' if '最佳买点' in stock.get('resonance', '') or '较好买点' in stock.get('resonance', '') else '#ef4444' if '最佳卖点' in stock.get('resonance', '') or '较好卖点' in stock.get('resonance', '') else '#60a5fa'};">
@@ -2567,7 +2537,6 @@ def generate_html(stocks_data, today_str):
             </div>
             ''' if stock.get('resonance') else ''}
             
-            <!-- 新增：量化对倒判断 -->
             {f'''
             <div style="background:#ef444420; border-radius:8px; padding:10px; margin-bottom:10px; border-left:4px solid #ef4444;">
                 <div style="font-size:14px; font-weight:bold; color:#ef4444;">
@@ -2577,9 +2546,8 @@ def generate_html(stocks_data, today_str):
                     CV={stock['vol_cv']:.2f} · 量价相关={stock['vol_corr']:.2f} · 尾盘占比={stock['vol_tail']*100:.0f}%
                 </div>
             </div>
-            ''' if stock.get('vol_verdict') else ''}
+            ''' if stock.get('vol_verdict') and stock.get('vol_cv') is not None else ''}
             
-            <!-- 新增：筹码集中/分散 -->
             {f'''
             <div style="background:#60a5fa20; border-radius:8px; padding:10px; margin-bottom:10px; border-left:4px solid #60a5fa;">
                 <div style="font-size:14px; font-weight:bold; color:#60a5fa;">
@@ -2589,9 +2557,8 @@ def generate_html(stocks_data, today_str):
                     股东户数{stock['holders_change']:+.1f}%
                 </div>
             </div>
-            ''' if stock.get('chips_verdict') else ''}
+            ''' if stock.get('chips_verdict') and stock.get('holders_change') is not None else ''}
             
-            <!-- 新增：主力成本区 -->
             {f'''
             <div style="background:#a78bfa20; border-radius:8px; padding:10px; margin-bottom:15px; border-left:4px solid #a78bfa;">
                 <div style="font-size:14px; font-weight:bold; color:#a78bfa;">
@@ -2603,7 +2570,6 @@ def generate_html(stocks_data, today_str):
             </div>
             ''' if stock.get('main_cost') else ''}
             
-            <!-- 新增：龙虎榜 -->
             {f'''
             <div style="background:#f59e0b20; border-radius:8px; padding:10px; margin-bottom:10px; border-left:4px solid #f59e0b;">
                 <div style="font-size:14px; font-weight:bold; color:#f59e0b;">
@@ -2612,7 +2578,6 @@ def generate_html(stocks_data, today_str):
             </div>
             ''' if stock.get('lhb_reason') else ''}
             
-            <!-- 新增：融资融券 -->
             {f'''
             <div style="background:#06b6d420; border-radius:8px; padding:10px; margin-bottom:10px; border-left:4px solid #06b6d4;">
                 <div style="font-size:14px; font-weight:bold; color:#06b6d4;">
@@ -2621,7 +2586,6 @@ def generate_html(stocks_data, today_str):
             </div>
             ''' if stock.get('margin_balance') else ''}
             
-            <!-- 新增：北向资金 -->
             {f'''
             <div style="background:#10b98120; border-radius:8px; padding:10px; margin-bottom:10px; border-left:4px solid #10b981;">
                 <div style="font-size:14px; font-weight:bold; color:#10b981;">
@@ -2630,7 +2594,6 @@ def generate_html(stocks_data, today_str):
             </div>
             ''' if stock.get('north_hold') else ''}
             
-            <!-- 新增：限售解禁 -->
             {f'''
             <div style="background:#dc262620; border-radius:8px; padding:10px; margin-bottom:10px; border-left:4px solid #dc262626;">
                 <div style="font-size:14px; font-weight:bold; color:#dc262626;">
@@ -2642,7 +2605,6 @@ def generate_html(stocks_data, today_str):
             </div>
             ''' if stock.get('restricted_date') else ''}
             
-            <!-- 新增：周线共振 -->
             {f'''
             <div style="background:{'#10b981' if stock['weekly_signal'] in ['金叉','多头'] else '#ef4444'}20; border-radius:8px; padding:10px; margin-bottom:15px; border-left:4px solid {'#10b981' if stock['weekly_signal'] in ['金叉','多头'] else '#ef4444'};">
                 <div style="font-size:14px; font-weight:bold; color:{'#10b981' if stock['weekly_signal'] in ['金叉','多头'] else '#ef4444'};">
@@ -2651,7 +2613,6 @@ def generate_html(stocks_data, today_str):
             </div>
             ''' if stock.get('weekly_desc') else ''}
             
-            <!-- 新增：王牌线 -->
             {f'''
             <div style="background:#f59e0b20; border-radius:8px; padding:10px; margin-bottom:10px; border-left:4px solid #f59e0b;">
                 <div style="font-size:14px; font-weight:bold; color:#f59e0b;">
@@ -2663,7 +2624,6 @@ def generate_html(stocks_data, today_str):
             </div>
             ''' if stock.get('ace_line') else ''}
             
-            <!-- 新增：价柱形态 -->
             {f'''
             <div style="background:#8b5cf620; border-radius:8px; padding:10px; margin-bottom:10px; border-left:4px solid #8b5cf6;">
                 <div style="font-size:14px; font-weight:bold; color:#8b5cf6;">
@@ -2672,7 +2632,6 @@ def generate_html(stocks_data, today_str):
             </div>
             ''' if stock.get('price_pattern') and stock['price_pattern'] != '普通' else ''}
             
-            <!-- 新增：量价背离 -->
             {f'''
             <div style="background:#dc262620; border-radius:8px; padding:10px; margin-bottom:10px; border-left:4px solid #dc262626;">
                 <div style="font-size:14px; font-weight:bold; color:#dc262626;">
@@ -2681,7 +2640,6 @@ def generate_html(stocks_data, today_str):
             </div>
             ''' if stock.get('divergence') else ''}
             
-            <!-- 新增：风险信号 -->
             {''.join([f'''
             <div style="background:#dc262620; border-radius:8px; padding:8px; margin-bottom:8px; border-left:4px solid #dc262626;">
                 <div style="font-size:13px; font-weight:bold; color:#dc262626;">
