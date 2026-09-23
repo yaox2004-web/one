@@ -29,7 +29,7 @@ MIN1_DIR = Path(__file__).parent.parent / "data" / "kline_1min"
 LEDGER_PATH = Path(__file__).parent.parent / "data" / "analysis" / "truth_ledger.json"
 
 # 最大回测股票数：持仓8只 + 沪深300全部，共约308只
-MAX_STOCKS = 8
+MAX_STOCKS = 600
 
 # 持仓股（必跑，用户实际操作的）
 HOLDINGS = [
