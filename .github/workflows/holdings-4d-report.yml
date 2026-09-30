@@ -2,6 +2,8 @@ name: 持仓股四维报告
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '20 12 * * 1-5'
 
 permissions:
   contents: write
@@ -14,22 +16,24 @@ jobs:
   report:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GH_TOKEN }}
 
-      - name: Set up Python
+      - name: 安装Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
-      - name: Install dependencies
+      - name: 安装依赖（锁定版本）
         run: |
           python -m pip install --upgrade pip
-          pip install pandas numpy requests
-      
+          pip install -r requirements.txt
+
       - name: Run AI comment and report
         env:
           AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
@@ -37,7 +41,7 @@ jobs:
           cd scripts
           python3 ai_comment.py
           python3 level4d_report_html.py
-      
+
       - name: 提交 + 推送
         run: |
           git config user.name "github-actions[bot]"
