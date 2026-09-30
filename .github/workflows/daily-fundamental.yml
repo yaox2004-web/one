@@ -16,14 +16,17 @@ jobs:
   fetch:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GH_TOKEN }}
 
-      - name: 装 akshare
-        run: pip install akshare -q
+      - name: 安装依赖（锁定版本）
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
 
       - name: 拉融资融券
         run: |
@@ -46,6 +49,7 @@ jobs:
                       probe_ok += 1
               except Exception:
                   pass
+
           if probe_ok == 0:
               print(f'融资融券: 沪深数据均未生成（{today}），跳过')
           else:
@@ -62,17 +66,20 @@ jobs:
                           wait = 5 * (attempt + 1)
                           time.sleep(wait)
                           continue
+
                       if df is None or len(df) == 0:
                           success = True
                           break
+
                       result['data'][market] = df.to_dict('records')
                       success = True
                       break
+
                   if success:
                       print(f'融资融券 {market}: 完成')
 
-          with open(f'data/margin/{today}.json', 'w') as f:
-              json.dump(result, f, ensure_ascii=False, default=str)
+              with open(f'data/margin/{today}.json', 'w') as f:
+                  json.dump(result, f, ensure_ascii=False, default=str)
           PYEOF
 
       - name: 拉基本面
@@ -104,6 +111,7 @@ jobs:
 
           with open(f'data/fundamental/{today}.json', 'w') as f:
               json.dump(result, f, ensure_ascii=False, default=str)
+
           print(f'基本面完成: {len(result["stocks"])}只')
           PYEOF
 
@@ -136,6 +144,7 @@ jobs:
 
           with open(f'data/holders/{today}.json', 'w') as f:
               json.dump(result, f, ensure_ascii=False, default=str)
+
           print(f'股东户数完成: {len(result["stocks"])}只')
           PYEOF
 
