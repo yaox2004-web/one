@@ -331,7 +331,7 @@ def main():
     print(f"[账本] 待处理 {len(files)} 个文件\n")
 
     monthly_ledgers = {}
-    failed_files = {}   # 记录"含完整交易日却记账失败"的文件：f -> [失败日期,...]，这些文件稍后保留不删
+    failed_files = {}   # 记录"含完整交易日却记账失败"的文件，稍后保留不删
     verdict_stats = {"量化对倒": 0, "疑似量化": 0, "真金白银": 0}
     updated = 0
     skipped_incomplete = 0
@@ -388,18 +388,18 @@ def main():
 
                 if code not in ledger:
                     ledger[code] = {}
-                ledger[code][d] = {
+
+                # ★★★ 你问的那段就在这里！整个账本写入代码块（完整版已整合）★★★
+                ledger.setdefault(code, {})[d] = {
                     "is_real": is_real,
                     "verdict": verdict,
                     "quant_pct": quant_pct,
                     "cv": cv,
                     "corr": corr,
                     "tail_ratio": tail,
-                    # ---- 量波特征（报告T3"量波选时"兜底用）----
-                    "wave_morning": wave_morning,
-                    "wave_close": wave_close,
-                    "wave_pulses": wave_pulses,
-                    # ---- 口径版本 ----
+                    "wave_morning": wave_morning,   # ← 新增：早盘量占比
+                    "wave_close": wave_close,       # ← 新增：尾盘量占比
+                    "wave_pulses": wave_pulses,     # ← 新增：放量脉冲数
                     "ver": LEDGER_VERSION,
                 }
                 updated += 1
@@ -435,7 +435,7 @@ def main():
         if f.stem in INDEX_CODES:
             continue
         # 安全删除：仅当该文件没有"完整交易日记账失败"时才删；
-        # 失败文件保留并告警，避免"既没记账、文件也被删"导致历史真相永久丢失、无法补录
+        # 失败文件保留并告警，避免"既没记账、文件也被删"导致历史真相永久丢失
         if failed_files.get(f):
             kept += 1
             print(f"[清理] ⚠️ 保留 {f.name}，完整交易日记账失败、需人工排查: {failed_files[f]}")
