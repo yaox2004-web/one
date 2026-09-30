@@ -3,14 +3,19 @@ name: 四维看盘法回测
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 18 * * 0'  # 每周日下午6点自动跑一次
+    - cron: '40 12 * * 0'
 
 permissions:
   contents: write
 
+concurrency:
+  group: data-push
+  cancel-in-progress: false
+
 jobs:
   backtest:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
 
     steps:
       - name: 拉取代码
@@ -22,16 +27,18 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
-      - name: 安装依赖
+      - name: 安装依赖（锁定版本）
         run: |
-          pip install pandas numpy
-      
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
       - name: 跑回测脚本
         run: |
           cd scripts
           python3 backtest_4d.py
-      
+
       - name: 提交胜率JSON
         run: |
           git config user.name "github-actions[bot]"
@@ -41,5 +48,6 @@ jobs:
             echo "胜率文件无变化"
           else
             git commit -m "data: 回测胜率更新 $(date -u +%Y%m%d)"
+            git pull --rebase origin main
             git push
           fi
