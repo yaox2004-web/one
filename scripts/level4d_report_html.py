@@ -35,6 +35,18 @@ HOLDINGS = [
 ]
 
 # ============================================================
+# 【统一配置接入】优先使用 config.py 的持仓股；config 缺失时用上面内置默认
+# 为什么这么做：报告与回测/AI研判共用同一份持仓，改 config.py 一处即可，
+# 避免换股时多处同步、漏改；try/except 保证 config 不在也能正常运行。
+# ============================================================
+try:
+    from config import HOLDINGS_TUPLE as _CFG_HOLDINGS
+    HOLDINGS = list(_CFG_HOLDINGS)
+    print("[config] 已从 config.py 加载持仓股")
+except Exception as _cfg_err:
+    print(f"[config] 未加载 config.py，使用脚本内置持仓（{_cfg_err}）")
+
+# ============================================================
 # 【ATR自适应总开关】
 # ============================================================
 ATR_ADAPTIVE = True
@@ -201,6 +213,47 @@ T4_VARIANT_DAYS = 4
 T4_VARIANT_UP_PCT = 5.0
 
 # ============================================================
+# 【B5修复】量价背离：价格创窗口新高/新低 + 量能不配合 双确认
+# 为什么：原逻辑只比10天首尾、且把"价涨量缩(王牌柱强势)"误当顶背离，
+# 与看多信号打架。改为"真创新高/新低 + 量能低于近期均量"才提示。
+# ============================================================
+DIVERGENCE_LOOKBACK = 20        # 背离观察窗口（约1个月）
+DIVERGENCE_VOL_SHRINK = 0.85    # 当根量能 < 窗口其余均量×0.85 才算量能不配合
+
+# ============================================================
+# 【T1】量柱"柱性四分类"（来源：股海明灯·五大法则 2026-09-28）
+# 发烧柱=巨量滞涨出货(避)；启动柱=量能未失控的涨停(擒)；
+# 王牌柱=价涨量缩筹码锁定(持)；战略柱=放量突破、跌后返涨(跟)
+# ============================================================
+ZHUXING_LOOKBACK = 60           # 柱性判定窗口
+ZHUXING_FEVER_VOL_RATIO = 2.5   # 发烧柱：相对昨量≥2.5倍且滞涨/长上影
+ZHUXING_STRATEGIC_VOL_PCTL = 0.90  # 战略柱：量能处于窗口90%分位以上
+
+# ============================================================
+# 【T2】梯量第四柱回落预警（来源：股海明灯·五大法则）
+# 量学经验：梯量连放到第4根，获利盘累积，通常向下回落，不追高
+# ============================================================
+TILIANG_LOOKBACK = 5            # 取最近5根（含今天）判断
+
+# ============================================================
+# 【T3】量波选时（来源：量学三段论 量柱选股→量线选价→量波选时）
+# 用当日1分钟K线识别早盘冲高/尾盘异动/盘中脉冲，给出"何时动手"
+# ============================================================
+WAVE_OPEN_BARS = 30             # 早盘前30分钟
+WAVE_CLOSE_BARS = 30            # 尾盘前30分钟
+WAVE_SURGE_RATIO = 2.0          # 单分钟≥2倍均量记为一个脉冲
+WAVE_MORNING_CONCENTRATE = 0.35 # 早盘量占比>35%且尾盘弱=冲高回落特征
+WAVE_CLOSE_CONCENTRATE = 0.30   # 尾盘量占比>30%需辨真假
+
+# ============================================================
+# 【T5】二次三倍量（自媒体说法、权威性待考——仅标记、不作买入依据）
+# 首次三倍量=异动标记；间隔达标后第二次三倍量才被称主升确认
+# ============================================================
+SANBEI_RATIO = 3.0              # 三倍量阈值
+SANBEI_LOOKBACK = 60            # 二次确认的回看窗口
+SANBEI_MIN_GAP = 3              # 两次三倍量最小间隔（交易日）
+
+# ============================================================
 # 【新增：位置分档参数】
 # ============================================================
 POSITION_LOOKBACK = 120
@@ -238,21 +291,31 @@ BACKTEST_WINRATE = load_winrate_data()
 
 
 # ============================================================
-# 【新增：大盘环境判断】
+# 【大盘环境判断 · 双周期（口径与回测 backtest_4d.py 对齐）】
 # ============================================================
+# 长期战略周期：决定报告的主环境标签（多头/空头市场），等同回测里的"牛/熊市"
+INDEX_TREND_MA = 200
+# 短期战术周期：仅用于提示当前盘面强弱，不参与主环境定性
+INDEX_SHORT_MA = 20
+
+
 def get_market_regime():
+    """判断大盘环境，返回 (长期标签, 长期偏离%, 短期标签, 短期偏离%)。
+    【为什么主环境用 MA200 而不是 MA20】回测 winrate 的"大盘环境"维度是按
+    MA200 牛熊统计的；报告若用 MA20 定性，就和回测口径错位。因此主环境统一
+    用 MA200，MA20 只作短期辅助，避免出现"回测按熊市、报告却显示多头"的错配。"""
     sh_index_path = Path(__file__).parent.parent / "data" / "kline" / "sh" / "sh000001.json"
     if not sh_index_path.exists():
         sh_index_path = Path(__file__).parent.parent / "data" / "kline" / "sh000001.json"
     if not sh_index_path.exists():
-        return "未知", None
+        return "未知", None, "未知", None
 
     try:
         with open(sh_index_path, 'r') as f:
             data = json.load(f)
         klines = data.get('klines', [])
-        if len(klines) < 20:
-            return "未知", None
+        if not klines:
+            return "未知", None, "未知", None
 
         df = pd.DataFrame(klines)
         ncols = len(klines[0])
@@ -262,17 +325,24 @@ def get_market_regime():
         df['close'] = pd.to_numeric(df['close'], errors='coerce')
         df = df.dropna(subset=['close'])
 
-        ma20 = df.iloc[-20:]['close'].mean()
         today_close = df.iloc[-1]['close']
-        vs_ma20_pct = (today_close - ma20) / ma20 * 100
 
-        if today_close > ma20:
-            return "多头市场", vs_ma20_pct
-        else:
-            return "空头市场", vs_ma20_pct
+        def _label(period):
+            """按给定周期均线返回 (多头/空头市场标签, 偏离百分比)；数据不足则未知。"""
+            if len(df) < period:
+                return "未知", None
+            ma = df.iloc[-period:]['close'].mean()
+            pct = (today_close - ma) / ma * 100
+            tag = "多头市场" if today_close > ma else "空头市场"
+            return tag, pct
 
-    except Exception as e:
-        return "未知", None
+        # 长期 MA200 定主环境（对齐回测），短期 MA20 仅辅助
+        long_tag, long_pct = _label(INDEX_TREND_MA)
+        short_tag, short_pct = _label(INDEX_SHORT_MA)
+        return long_tag, long_pct, short_tag, short_pct
+
+    except Exception:
+        return "未知", None, "未知", None
 
 
 # ============================================================
@@ -795,24 +865,14 @@ def identify_price_pattern(df):
 # 【新增：组合信号】
 # ============================================================
 def get_combined_signals(df, vol_pattern, peak_20):
+    # B6修复（去重、统一口径）：
+    # "阳包阴""价升量缩"已在"今日信号(涨停基因)"中按统一口径展示并带胜率，
+    # 这里只保留真正的多条件组合"倍量过左峰"，避免同一信号重复出现、两处定义打架。
     signals = []
     today_price = df.iloc[-1]['close']
-    today_vol = df.iloc[-1]['volume']
-    yesterday_vol = df.iloc[-2]['volume']
 
     if vol_pattern == "倍量柱" and peak_20 and today_price > peak_20:
         signals.append("倍量过左峰")
-
-    today = df.iloc[-1]
-    yesterday = df.iloc[-2]
-    if today['close'] > yesterday['open'] and today['open'] < yesterday['close'] and today['close'] > today['open']:
-        signals.append("阳包阴")
-
-    if len(df) >= 2:
-        pct_1d = (today_price - df.iloc[-2]['close']) / df.iloc[-2]['close'] * 100
-        vol_change = (today_vol - yesterday_vol) / yesterday_vol * 100 if yesterday_vol > 0 else 0
-        if pct_1d > 0 and vol_change < -20:
-            signals.append("价升量缩")
 
     return signals
 
@@ -838,17 +898,25 @@ def get_fenggu_line(peaks, valleys):
 # 【新增：量价背离】
 # ============================================================
 def get_volume_price_divergence(df):
-    if len(df) < 10:
+    # B5修复：背离必须"价格真创窗口新高/新低 + 量能低于近期均量"双确认。
+    # 不再把"价涨量缩"（量学王牌柱/筹码锁定强势）简单命名为顶背离。
+    if len(df) < DIVERGENCE_LOOKBACK:
         return None
 
-    recent_10 = df.iloc[-10:]
-    price_change = (recent_10.iloc[-1]['close'] - recent_10.iloc[0]['close']) / recent_10.iloc[0]['close'] * 100
-    vol_change = (recent_10.iloc[-1]['volume'] - recent_10.iloc[0]['volume']) / recent_10.iloc[0]['volume'] * 100
+    win = df.iloc[-DIVERGENCE_LOOKBACK:]
+    last = win.iloc[-1]
+    prior_avg_vol = win.iloc[:-1]['volume'].mean()
+    if prior_avg_vol <= 0:
+        return None
 
-    if price_change > 5 and vol_change < -20:
-        return "顶背离（价涨量缩）"
-    if price_change < -5 and vol_change > 20:
-        return "底背离（价跌量增）"
+    # 顶背离：收盘创窗口新高，但当根量能明显低于近期均量（上攻动能不足）
+    if last['close'] >= win['high'].max():
+        if last['volume'] < prior_avg_vol * DIVERGENCE_VOL_SHRINK:
+            return "顶背离（创新高·量能低于近期）"
+    # 底背离：收盘创窗口新低，但量能萎缩（卖压衰竭）而非放量恐慌
+    if last['close'] <= win['low'].min():
+        if last['volume'] < prior_avg_vol * DIVERGENCE_VOL_SHRINK:
+            return "底背离（创新低·量能萎缩卖压衰竭）"
 
     return None
 
@@ -856,14 +924,16 @@ def get_volume_price_divergence(df):
 # ============================================================
 # 【新增：风险信号提示】
 # ============================================================
-def get_risk_signals(position, stock_trend, vol_pattern):
+def get_risk_signals(position, stock_trend, vol_pattern, price_above_yintop=None):
     risks = []
 
     if position == "高位" and vol_pattern == "倍量柱":
         risks.append("⚠️ 高位倍量柱（出货信号）")
 
-    if stock_trend == "下降趋势" and "突破大阴实顶" in str(vol_pattern):
-        risks.append("⚠️ 下降趋势突破（假突破）")
+    # B7修复：原 '"突破大阴实顶" in vol_pattern' 永不成立（vol_pattern 不含该名）。
+    # 改为：下降趋势中价格刚站上大阴实顶，属逆势突破、疑似假突破，需量能确认。
+    if stock_trend == "下降趋势" and price_above_yintop is True:
+        risks.append("⚠️ 下降趋势中突破大阴实顶（疑似假突破，需放量确认）")
 
     return risks
 
@@ -915,14 +985,19 @@ def get_san_yin(df):
 # ============================================================
 # 【新增：主力意图识别】
 # ============================================================
-def get_main_force_intent(position, stock_trend, vol_pattern, pillar_type, vol_verdict, price_pattern):
+def get_main_force_intent(position, stock_trend, vol_pattern, pillar_type, vol_verdict, price_pattern,
+                          has_diliang_group=False):
     signals = []
 
     if position == "低位" and vol_pattern == "倍量柱" and vol_verdict == "真金白银" and stock_trend == "上升趋势":
         signals.append(("建仓中", "#10b981", "低位+倍量+真金白银+上升=主力建仓！"))
 
-    if position == "中位" and pillar_type == "黄金柱" and stock_trend == "上升趋势":
-        signals.append(("洗盘", "#f59e0b", "中位+黄金柱+上升=主力洗盘！"))
+    # B7修复：原"中位+黄金柱+上升即洗盘"偏粗（黄金柱本是强势）。
+    # 洗盘应是：中位上升趋势中，王牌柱后缩量/平量回踩（量能萎缩、不破支撑）。
+    if (position == "中位" and stock_trend == "上升趋势"
+            and pillar_type in ["黄金柱", "将军柱"]
+            and vol_pattern in ["缩量柱", "平量柱", "低量柱"]):
+        signals.append(("洗盘", "#f59e0b", "中位+上升+缩量回踩王牌柱=主力洗盘！"))
 
     if position == "中位" and pillar_type == "元帅柱" and vol_pattern == "倍量柱":
         signals.append(("拉升", "#10b981", "中位+元帅柱+倍量=主力拉升！"))
@@ -933,7 +1008,9 @@ def get_main_force_intent(position, stock_trend, vol_pattern, pillar_type, vol_v
     if position == "高位" and price_pattern == "长阴" and vol_pattern in ["倍量柱", "高量柱"]:
         signals.append(("出逃", "#ef4444", "高位+长阴+放量=主力出逃！"))
 
-    if position == "低位" and vol_pattern == "地量群" and vol_verdict == "真金白银":
+    # B2修复：原条件 vol_pattern=="地量群" 永不成立
+    # （identify_vol_pattern 返回集合不含"地量群"）。改为接收显式的地量群标志。
+    if position == "低位" and has_diliang_group and vol_verdict == "真金白银":
         signals.append(("吸筹", "#10b981", "低位+地量群+真金白银=主力吸筹！"))
 
     if position in ["中位", "高位"] and vol_pattern == "倍量柱" and vol_verdict == "量化对倒":
@@ -1032,7 +1109,7 @@ def load_klines(market, code):
 # ============================================================
 def find_big_yin_top(df, lookback_days, yin_body_pct):
     if len(df) < lookback_days:
-        return None, None, None, None, None, None
+        return None, None, None, None, None
     recent_df = df.iloc[-lookback_days:]
     for i in range(len(recent_df)-1, -1, -1):
         row = recent_df.iloc[i]
@@ -1041,7 +1118,7 @@ def find_big_yin_top(df, lookback_days, yin_body_pct):
         body_pct = (row['open'] - row['close']) / row['close'] * 100
         if body_pct >= yin_body_pct:
             return row['open'], row['close'], row['date'], row['volume'], len(df) - lookback_days + i
-    return None, None, None, None, None, None
+    return None, None, None, None, None
 
 
 # ============================================================
@@ -1049,7 +1126,7 @@ def find_big_yin_top(df, lookback_days, yin_body_pct):
 # ============================================================
 def find_gaoliang_lines(recent_df):
     if len(recent_df) < 5:
-        return None, None, None, None, None, None
+        return None, None, None, None, None
     max_vol_idx = recent_df['volume'].idxmax()
     max_vol_row = recent_df.loc[max_vol_idx]
     open_price = max_vol_row['open']
@@ -1059,7 +1136,7 @@ def find_gaoliang_lines(recent_df):
     body_size = abs(close_price - open_price)
     total_range = high_price - low_price
     if total_range == 0:
-        return None, None, None, None, None, None
+        return None, None, None, None, None
     body_ratio = body_size / total_range
     if body_ratio > BODY_RATIO_THRESHOLD:
         safe_line = max(open_price, close_price)
@@ -1429,9 +1506,12 @@ def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top
     if body_pct_down > changyang_threshold and today_vol_pctl < LONG_YIN_SHORT_VOL_PCTL:
         signals.append("长阴短柱")
     
-    if today_close > yesterday_open and today_open < yesterday_close and today_close > today_open:
+    # B3修复：吞没形态必须前一根反向——阳包阴要求昨天阴线，阴包阳要求昨天阳线
+    if (today_close > yesterday_open and today_open < yesterday_close and today_close > today_open
+            and yesterday_close < yesterday_open):
         signals.append("阳包阴")
-    if today_close < yesterday_open and today_open > yesterday_close and today_close < today_open:
+    if (today_close < yesterday_open and today_open > yesterday_close and today_close < today_open
+            and yesterday_close > yesterday_open):
         signals.append("阴包阳")
     
     gap_up_pct = (today_open - yesterday['high']) / yesterday['high'] * 100
@@ -1457,7 +1537,9 @@ def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top
         for i in range(len(prev_5)-2, 0, -1):
             row = prev_5.iloc[i]
             drop_pct = (row['close'] - row['open']) / row['open'] * 100
-            if drop_pct < changyang_threshold:
+            # B4修复：极阴必须是真正的大跌（跌幅 < 负的长阳阈值），
+            # 原 "<正数阈值" 会把小阳线/小阴线误当极阴；与回测侧 "<-cy" 对齐。
+            if drop_pct < -changyang_threshold:
                 if today_close > today_open:
                     yin_body_size = row['open'] - row['close']
                     rebound_size = today_close - row['close']
@@ -1482,7 +1564,9 @@ def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top
                 break
     
     if len(df) >= NIUGU_LOOKBACK:
-        recent_60 = df.iloc[-NIUGU_LOOKBACK:]
+        # B1修复：切片重置索引（标签=位置），避免 idxmax 返回大标签、
+        # iloc 却按位置取值导致越界为空、信号永不触发。
+        recent_60 = df.iloc[-NIUGU_LOOKBACK:].reset_index(drop=True)
         max_vol_idx = recent_60['volume'].idxmax()
         max_vol_row = recent_60.loc[max_vol_idx]
         gaoliang_bottom = max_vol_row['low']
@@ -1626,8 +1710,156 @@ def identify_all_signals(df, valley_price, safe_line, precise_price, big_yin_top
         day4_up_pct = (recent_4.iloc[3]['close'] - recent_4.iloc[3]['open']) / recent_4.iloc[3]['open'] * 100
         if day1_up_pct > changyang_threshold and day2_down and day3_up and day4_up_pct > T4_VARIANT_UP_PCT:
             signals.append("T4变异")
-    
+
     return signals
+
+
+# ============================================================
+# 【T1】量柱柱性四分类（来源：股海明灯·五大法则 2026-09-28）
+# 把"今天这根量柱到底属于什么性质"归成四类，直接对应操作：
+#   发烧柱→规避；启动柱→可擒；王牌柱→持有；战略柱→关注回踩返涨
+# ============================================================
+def classify_zhu_xing(df, pillar_type, code):
+    if len(df) < 20:
+        return None
+    today = df.iloc[-1]
+    yesterday = df.iloc[-2]
+    body_pct = (today['close'] - today['open']) / today['open'] * 100
+    pct_chg = (today['close'] - yesterday['close']) / yesterday['close'] * 100
+    vol_ratio = today['volume'] / yesterday['volume'] if yesterday['volume'] > 0 else 0
+    win = df.iloc[-ZHUXING_LOOKBACK:] if len(df) >= ZHUXING_LOOKBACK else df
+    limit_up = LIMIT_UP_GEM if is_gem_star(code) else LIMIT_UP_MAIN
+
+    body_size = abs(today['close'] - today['open'])
+    upper_shadow = today['high'] - max(today['open'], today['close'])
+
+    # 1) 发烧柱：放出≥2.5倍巨量，但实体滞涨（涨幅<2%）或长上影，主力借巨量出货
+    if vol_ratio >= ZHUXING_FEVER_VOL_RATIO and (body_pct < 2 or (body_size > 0 and upper_shadow / body_size > 1.5)):
+        return ("发烧柱", "#ef4444", "巨量滞涨/长上影=主力发烧出货，规避")
+
+    # 2) 启动柱：涨停且量能未失控（未达发烧巨量），主升启动，可擒
+    if pct_chg >= limit_up and vol_ratio < ZHUXING_FEVER_VOL_RATIO:
+        return ("启动柱", "#f97316", "涨停启动且量能未失控，可擒（注意是否一字板）")
+
+    # 3) 王牌柱：官方黄金/元帅柱，价涨量缩、筹码锁定，持有
+    if pillar_type in ["黄金柱", "元帅柱"]:
+        return ("王牌柱", "#fbbf24", "王牌柱+价涨量缩=筹码锁定，持有为主")
+
+    # 4) 战略柱：放量到窗口90%分位以上的阳线突破，主力战略进场，等回踩后返涨
+    vol_pctl = (win['volume'] < today['volume']).sum() / len(win)
+    if vol_pctl >= ZHUXING_STRATEGIC_VOL_PCTL and today['close'] > today['open']:
+        return ("战略柱", "#a78bfa", "放量突破=主力战略进场，关注回踩不破后返涨")
+
+    return None
+
+
+# ============================================================
+# 【T2】梯量第四柱回落预警（来源：股海明灯·五大法则）
+# ============================================================
+def check_tiliang_fourth(df):
+    if len(df) < TILIANG_LOOKBACK:
+        return None
+    vols = list(df.iloc[-TILIANG_LOOKBACK:]['volume'])
+    # 截至昨天连续4根递增（vols[0]<vols[1]<vols[2]<vols[3]），即处于梯量第4柱高位
+    if vols[0] < vols[1] < vols[2] < vols[3]:
+        if vols[4] < vols[3]:
+            return ("梯量第4柱·已回落", "#f59e0b",
+                    "梯量连放后第4柱回落，符合量学规律，等缩量企稳再看")
+        return ("梯量第4柱·防回落", "#f59e0b",
+                "梯量连放至第4柱，获利盘累积，谨防回落、不追高")
+    return None
+
+
+# ============================================================
+# 【T3】量波选时（来源：量学三段论：量柱选股→量线选价→量波选时）
+# 用当日1分钟K线刻画分时波形，回答"今天什么时点动手更合适"
+# ============================================================
+def analyze_1min_wave(full_code):
+    path = Path(__file__).parent.parent / "data" / "kline_1min" / f"{full_code}.json"
+    if not path.exists():
+        return None
+    try:
+        with open(path, 'r') as f:
+            data = json.load(f)
+        klines = data.get('klines', [])
+        if not klines:
+            return None
+        today_str = klines[-1][0][:10]
+        day = [k for k in klines if k[0].startswith(today_str)]
+        if len(day) < 60:                      # 盘中数据太少不判，避免误判
+            return None
+        vols = np.array([float(k[5]) for k in day])
+        total_vol = vols.sum()
+        avg = vols.mean()
+
+        open_bars = min(WAVE_OPEN_BARS, len(day))
+        morning_pct = vols[:open_bars].sum() / total_vol
+        close_bars = min(WAVE_CLOSE_BARS, len(day))
+        close_pct = vols[-close_bars:].sum() / total_vol
+        pulses = int((vols >= avg * WAVE_SURGE_RATIO).sum())
+
+        tips = []
+        if morning_pct > WAVE_MORNING_CONCENTRATE and close_pct < 0.20:
+            tips.append("早盘集中放量冲高、尾盘量弱，谨防冲高回落，不追早盘")
+        if close_pct > WAVE_CLOSE_CONCENTRATE:
+            tips.append("尾盘放量，需结合真假量柱辨是抢筹还是做线")
+        if pulses >= 8:
+            tips.append(f"盘中{pulses}个放量脉冲、波形跳跃，量化特征明显")
+        if not tips:
+            tips.append("分时量波平稳，无明显早盘/尾盘异动")
+        return ("量波选时", "#38bdf8",
+                f"早盘量{morning_pct*100:.0f}%·尾盘量{close_pct*100:.0f}%·{pulses}脉冲；" + "；".join(tips))
+    except Exception:
+        return None
+
+
+# ============================================================
+# 【T4】三线预判（下线/中线/上线）+ 盯三防四
+# 下线=最近支撑(王牌线/谷底线)；中线=平衡线/主力成本；上线=峰顶压力
+# 用法：回踩下线企稳为强、冲上线不过防回落；连涨3根后防第4根
+# ============================================================
+def get_three_lines(stock):
+    lower = stock.get('ace_line') or stock.get('valley_20') or stock.get('golden_line')
+    middle = stock.get('balance_price') or stock.get('main_cost')
+    upper = stock.get('peak_20')
+    return lower, middle, upper
+
+
+def check_dingsan_fangsi(df):
+    if len(df) < 4:
+        return None
+    last3 = df.iloc[-4:-1]
+    today = df.iloc[-1]
+    up3 = (last3.iloc[0]['close'] < last3.iloc[1]['close'] < last3.iloc[2]['close'])
+    if up3:
+        if today['close'] < last3.iloc[-1]['close']:
+            return ("盯三防四·已回落", "#f59e0b",
+                    "连涨3根后第4根回落，节奏兑现，等回踩企稳")
+        return ("盯三防四", "#f59e0b",
+                "已连涨3根，第4根谨防回落、不追高")
+    return None
+
+
+# ============================================================
+# 【T5】二次三倍量（自媒体说法、权威性待考——仅标记、不作买入依据）
+# ============================================================
+def check_second_sanbei(df):
+    if len(df) < SANBEI_MIN_GAP + 2:
+        return None
+    win = df.iloc[-SANBEI_LOOKBACK:] if len(df) >= SANBEI_LOOKBACK else df
+    sanbei_days = []
+    for j in range(1, len(win)):
+        prev_v = win.iloc[j - 1]['volume']
+        v = win.iloc[j]['volume']
+        if prev_v > 0 and v / prev_v >= SANBEI_RATIO:
+            sanbei_days.append(j)
+    if len(sanbei_days) >= 2 and (sanbei_days[-1] - sanbei_days[-2]) >= SANBEI_MIN_GAP:
+        return ("二次三倍量(待验证)", "#c084fc",
+                "出现第二次三倍量且间隔达标；该说法非官方，仅标记、需回测验证")
+    if len(sanbei_days) >= 1:
+        return ("首次三倍量(待验证)", "#c084fc",
+                "首次三倍量=异动标记，先观察不追，等待二次确认")
+    return None
 
 
 # ============================================================
@@ -1644,44 +1876,55 @@ def generate_interpretation(stock):
         
         advice_lines = []
         for intent, color, desc in main_intent:
+            # 用"信号语言"替代直接操作指令：客观描述信号含义，避免被机械化执行（合规口径）
             if "建仓" in intent or "吸筹" in intent:
-                advice_lines.append("✅ 操作建议：可以逢低买入！")
+                advice_lines.append("✅ 信号偏多：可关注回踩企稳后的机会。")
             elif "洗盘" in intent:
-                advice_lines.append("✅ 操作建议：可以加仓！")
+                advice_lines.append("🔄 洗盘信号：需后续放量确认，暂不宜盲目加仓。")
             elif "拉升" in intent:
-                advice_lines.append("✅ 操作建议：持有！")
+                advice_lines.append("📈 信号偏多：趋势仍在，以持有观察为主。")
             elif "出货" in intent or "出逃" in intent:
-                advice_lines.append("🔴 操作建议：卖出！")
+                advice_lines.append("🔴 信号偏空：注意高位风险。")
             elif "诱多" in intent:
-                advice_lines.append("⚠️ 操作建议：不要追高！")
+                advice_lines.append("⚠️ 警示信号：谨防追高。")
             else:
-                advice_lines.append("⏸️ 操作建议：观望！")
+                advice_lines.append("⏸️ 信号中性：暂无明确方向，以观望为主。")
         
         sections.append({
-            'title': '【总结论】主力意图 + 操作建议',
+            'title': '【总结论】主力意图 + 信号提示',
             'content': intent_lines + advice_lines + [
-                '<strong>怎么看的？</strong>：接下来我一步步给你拆解！'
+                '<strong>怎么看的？</strong>：接下来我一步步给你拆解！',
+                '<strong>风险提示</strong>：以上为基于量学信号的客观研判，<strong>不构成投资建议</strong>，据此操作风险自担。'
             ]
         })
     
     market = stock.get('market_regime', '未知')
-    vs_ma20 = stock.get('vs_ma20_pct', 0)
+    vs_index = stock.get('vs_index_pct')
+    short_market = stock.get('short_regime', '未知')
+    vs_short = stock.get('vs_short_pct')
+
+    market_lines = []
     if market == "多头市场":
-        market_desc = f"上证指数在20日线上方{vs_ma20:+.1f}%，大盘走强！"
-        market_logic = "大盘好的时候，大部分股票都能涨！顺风局！"
+        market_lines.append(f"📊 长期（MA200）：上证指数在200日线上方{vs_index:+.1f}%，长期环境向好！")
+        market_logic = "长期顺风，多数股票中期更容易上涨！"
     elif market == "空头市场":
-        market_desc = f"上证指数在20日线下方{vs_ma20:+.1f}%，大盘走弱！"
-        market_logic = "大盘差的时候，大部分股票都难涨！逆风局！"
+        market_lines.append(f"📊 长期（MA200）：上证指数在200日线下方{vs_index:+.1f}%，长期环境偏弱！")
+        market_logic = "长期逆风，多数股票中期上涨更费力！"
     else:
-        market_desc = "大盘数据未知。"
-        market_logic = "无法判断大盘环境。"
-    
+        market_lines.append("📊 长期环境：数据不足，无法判断。")
+        market_logic = "无法判断长期大盘环境。"
+
+    # 短期 MA20 只作战术提示，不改变长期主环境定性
+    if short_market == "多头市场" and vs_short is not None:
+        market_lines.append(f"📈 短期（MA20）：当前在20日线上方{vs_short:+.1f}%，短线盘面偏强。")
+    elif short_market == "空头市场" and vs_short is not None:
+        market_lines.append(f"📉 短期（MA20）：当前在20日线下方{vs_short:+.1f}%，短线盘面偏弱。")
+
     sections.append({
         'title': '【第一步】天时：大盘环境怎么样？',
-        'content': [
-            f"📊 {market_desc}",
+        'content': market_lines + [
             f"<strong>市场机理</strong>：{market_logic}",
-            "<strong>量学依据</strong>：大盘是水，个股是船！水涨船高，水落船低！"
+            "<strong>量学依据</strong>：大盘是水，个股是船！水涨船高，水落船低！MA200定长期方向，MA20看短期冷热。"
         ]
     })
     
@@ -2090,9 +2333,12 @@ def get_stock_data(market, code):
         'extra_signals': extra_signals,
     }
     
-    market_regime, vs_ma20_pct = get_market_regime()
-    stock_data['market_regime'] = market_regime
-    stock_data['vs_ma20_pct'] = vs_ma20_pct
+    # 大盘环境：长期 MA200 定主环境(对齐回测) + 短期 MA20 仅辅助
+    market_regime, vs_index_pct, short_regime, vs_short_pct = get_market_regime()
+    stock_data['market_regime'] = market_regime      # 长期主环境（多头/空头市场）
+    stock_data['vs_index_pct'] = vs_index_pct       # 相对 MA200 偏离百分比
+    stock_data['short_regime'] = short_regime       # 短期多空（MA20）
+    stock_data['vs_short_pct'] = vs_short_pct       # 相对 MA20 偏离百分比
     
     position, position_pct = get_position_level(df)
     stock_trend = get_stock_trend(df)
@@ -2254,7 +2500,8 @@ def get_stock_data(market, code):
     divergence = get_volume_price_divergence(df)
     stock_data['divergence'] = divergence
     
-    risks = get_risk_signals(position, stock_trend, vol_pattern)
+    # B7修复：传入"是否站上大阴实顶"，用于识别下降趋势中的疑似假突破
+    risks = get_risk_signals(position, stock_trend, vol_pattern, stock_data.get('price_above_yintop'))
     stock_data['risks'] = risks
     
     ao_kou = get_ao_kou(df)
@@ -2266,8 +2513,20 @@ def get_stock_data(market, code):
     main_intent = get_main_force_intent(position, stock_trend, vol_pattern, 
                                         stock_data.get('pillar_type', ''), 
                                         stock_data.get('vol_verdict', ''),
-                                        stock_data.get('price_pattern', ''))
+                                        stock_data.get('price_pattern', ''),
+                                        has_diliang_group=("地量群" in extra_signals))
     stock_data['main_intent'] = main_intent
+
+    # ===== T1-T5 新增研判（在资金面/关键位字段都就绪后计算）=====
+    stock_data['zhu_xing'] = classify_zhu_xing(df, stock_data.get('pillar_type', ''), full_code)  # T1柱性
+    stock_data['tiliang_warn'] = check_tiliang_fourth(df)      # T2梯量第4柱
+    stock_data['wave'] = analyze_1min_wave(full_code)          # T3量波选时
+    three_lower, three_middle, three_upper = get_three_lines(stock_data)  # T4三线
+    stock_data['three_lower'] = three_lower
+    stock_data['three_middle'] = three_middle
+    stock_data['three_upper'] = three_upper
+    stock_data['dingsan'] = check_dingsan_fangsi(df)           # T4盯三防四
+    stock_data['sanbei'] = check_second_sanbei(df)             # T5二次三倍量
     
     stock_data['interpretations'] = generate_interpretation(stock_data)
     
@@ -2472,6 +2731,16 @@ def generate_html(stocks_data, today_str):
             pos_trend_color = "#eab308"
             pos_trend_text = "⚠️ 一般，轻仓试错"
 
+        # T4三线预判：f-string内不能放条件格式表达式，先把三线格式化成文本
+        tl_text = f"{stock['three_lower']:.2f}" if stock.get('three_lower') else "—"
+        tm_text = f"{stock['three_middle']:.2f}" if stock.get('three_middle') else "—"
+        tu_text = f"{stock['three_upper']:.2f}" if stock.get('three_upper') else "—"
+        has_three = bool(stock.get('three_lower') or stock.get('three_middle') or stock.get('three_upper'))
+        zx = stock.get('zhu_xing')   # T1柱性（None或三元组）
+        # T2梯量/T4盯三/T5三倍/T3量波 统一作为"预警/选时"条目，过滤掉空值
+        warn_items = [w for w in [stock.get('tiliang_warn'), stock.get('dingsan'),
+                                  stock.get('sanbei'), stock.get('wave')] if w]
+
         ai_comment_text = ai_comments.get(stock['code'], {}).get('ai_comment', '')
         ai_html = ""
         if ai_comment_text and "未配置" not in ai_comment_text and "失败" not in ai_comment_text:
@@ -2508,17 +2777,46 @@ def generate_html(stocks_data, today_str):
             ''' for intent, color, desc in stock.get('main_intent', [])])}
 
             {ai_html}
-            
+
+            {f'''
+            <div style="background:{zx[1]}20; border-radius:8px; padding:10px; margin-bottom:10px; border-left:4px solid {zx[1]};">
+                <div style="font-size:14px; font-weight:bold; color:{zx[1]};">🔬 今日柱性：{zx[0]}</div>
+                <div style="font-size:12px; color:#cbd5e1; margin-top:3px; line-height:1.5;">{zx[2]}</div>
+            </div>
+            ''' if zx else ''}
+
+            {f'''
+            <div style="background:#0ea5e920; border-radius:8px; padding:11px; margin-bottom:10px; border-left:4px solid #0ea5e9;">
+                <div style="font-size:14px; font-weight:bold; color:#38bdf8;">📏 今日三线预判</div>
+                <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:7px;">
+                    <div style="background:#0f172a; padding:7px; border-radius:6px; font-size:12px;"><div style="color:#22c55e;">下线·支撑</div><div style="font-weight:bold; color:#e2e8f0; margin-top:2px;">{tl_text}</div></div>
+                    <div style="background:#0f172a; padding:7px; border-radius:6px; font-size:12px;"><div style="color:#fbbf24;">中线·成本</div><div style="font-weight:bold; color:#e2e8f0; margin-top:2px;">{tm_text}</div></div>
+                    <div style="background:#0f172a; padding:7px; border-radius:6px; font-size:12px;"><div style="color:#ef4444;">上线·压力</div><div style="font-weight:bold; color:#e2e8f0; margin-top:2px;">{tu_text}</div></div>
+                </div>
+                <div style="font-size:11.5px; color:#94a3b8; margin-top:7px; line-height:1.5;">回踩下线企稳为强、冲上线不过防回落；连涨3根后“盯三防四”。</div>
+            </div>
+            ''' if has_three else ''}
+
+            {''.join([f'''
+            <div style="background:{w[1]}20; border-radius:8px; padding:9px; margin-bottom:8px; border-left:4px solid {w[1]};">
+                <div style="font-size:13px; font-weight:bold; color:{w[1]};">{w[0]}</div>
+                <div style="font-size:12px; color:#cbd5e1; margin-top:2px; line-height:1.5;">{w[2]}</div>
+            </div>
+            ''' for w in warn_items])}
+
             {f'''
             <div style="background:{'#10b981' if stock['market_regime'] == '多头市场' else '#ef4444'}20; border-radius:8px; padding:10px; margin-bottom:10px; border-left:4px solid {'#10b981' if stock['market_regime'] == '多头市场' else '#ef4444'};">
                 <div style="font-size:14px; font-weight:bold; color:{'#10b981' if stock['market_regime'] == '多头市场' else '#ef4444'};">
-                    🏛️ 大盘环境：{stock['market_regime']}
+                    🏛️ 大盘环境：{stock['market_regime']}（长期·MA200）
                 </div>
                 <div style="font-size:12px; color:{'#10b981' if stock['market_regime'] == '多头市场' else '#ef4444'}; margin-top:2px;">
-                    上证指数{stock['vs_ma20_pct']:+.1f}%（vs 20日线）
+                    上证指数{stock['vs_index_pct']:+.1f}%（vs 200日线）
+                </div>
+                <div style="font-size:12px; color:#cbd5e1; margin-top:2px;">
+                    短期MA20：{stock.get('short_regime','未知')}（{(stock.get('vs_short_pct') or 0):+.1f}%）
                 </div>
             </div>
-            ''' if stock.get('market_regime') and stock['market_regime'] != '未知' and stock.get('vs_ma20_pct') is not None else ''}
+            ''' if stock.get('market_regime') and stock['market_regime'] != '未知' and stock.get('vs_index_pct') is not None else ''}
             
             <div style="background:{pos_trend_color}20; border-radius:8px; padding:12px; margin-bottom:15px; border-left:4px solid {pos_trend_color};">
                 <div style="font-size:16px; font-weight:bold; color:{pos_trend_color};">
@@ -2616,7 +2914,7 @@ def generate_html(stocks_data, today_str):
             {f'''
             <div style="background:#f59e0b20; border-radius:8px; padding:10px; margin-bottom:10px; border-left:4px solid #f59e0b;">
                 <div style="font-size:14px; font-weight:bold; color:#f59e0b;">
-                    🛡️ {stock['ace_type']}线：{stock['ace_line']:.2f}元
+                    🛡️ 黄金线（{stock['ace_type']}·基柱实底）：{stock['ace_line']:.2f}元
                 </div>
                 <div style="font-size:12px; color:#f59e0b; margin-top:2px;">
                     当前价格{stock['vs_ace_pct']:+.1f}%
@@ -2785,7 +3083,7 @@ def generate_html(stocks_data, today_str):
                     <div class="grid-2">
                         {pillar_html}
                         <div class="grid-item">
-                            <div class="label">黄金线（基柱最低价）</div>
+                            <div class="label">将军线（基柱最低价）</div>
                             <div class="value">{f"{stock['golden_line']:.2f}" if stock['golden_line'] else "无"}</div>
                         </div>
                         {aokou_html}
