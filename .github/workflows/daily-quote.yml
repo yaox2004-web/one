@@ -339,6 +339,10 @@ jobs:
         run: |
           python3 scripts/wyckoff_events.py
 
+      - name: 威科夫信号兑现率统计（Phase 5）
+        run: |
+          python3 scripts/spring_payoff.py
+
       - name: 提交 + 推送
         run: |
           git config user.name "github-actions[bot]"
