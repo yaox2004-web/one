@@ -45,6 +45,7 @@ jobs:
           cd scripts
           python3 fix_backtest.py
           python3 fix_backtest2.py
+          python3 fix_backtest3.py
 
       - name: 跑回测脚本
         run: |
@@ -59,7 +60,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "胜率文件无变化"
           else
-            git commit -m "data: 回测胜率+账本迁移+修补后脚本 $(date -u +%Y%m%d)"
+            git commit -m "data: 回测胜率+fix3修补 $(date -u +%Y%m%d)"
             git pull --rebase origin main
             git push
           fi
