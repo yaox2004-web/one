@@ -28,6 +28,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: 一键修补记账脚本
+        run: |
+          cd scripts
+          python3 fix_record_truth.py
+
       - name: 全市场日线 + 1分钟 + 记账（一体化）
         run: |
           python3 << 'PYEOF'
