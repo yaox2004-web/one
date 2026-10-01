@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""给已修补的 backtest_4d.py 再加一道日期归一化保险（幂等）
+"""给已修补的 backtest_4d.py 再加一道日期归一化保险（幂等可重复运行）
 兜住紧凑格式 20260930 -> 2026-09-30"""
 from pathlib import Path
 
