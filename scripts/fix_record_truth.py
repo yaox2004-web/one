@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""一键修补 record_truth.py v2.1 -> v2.2（小白版，幂等可重复运行）
+"""一键修补 record_truth.py v2.1 -> v2.2（小白版，幂等，缩进已对照原文逐字核实）
 A: 残缺日诊断日志（解304之谜）
-B: 残缺的历史日期 → 保留文件次日重试，不再丢真相
+B: 仅"今天"的残缺日保留文件（历史残缺日超出640根窗口，保留无意义）
 C: 账本新增 market_vol_ratio（上证量比，回测可剔大盘因素）
-D: 指数1分钟文件也清理，防磁盘无限堆积
-用法：python3 fix_record_truth.py  （自动备份，语法失败自动还原）"""
+D: 指数1分钟文件也清理，防磁盘堆积
+用法：python3 fix_record_truth.py （自动备份，语法失败自动还原）"""
 from pathlib import Path
 
 SCRIPT = Path(__file__).parent / "record_truth.py"
@@ -13,7 +13,6 @@ SCRIPT = Path(__file__).parent / "record_truth.py"
 MKT_FUNC = '''
 # ============================================================
 # 【v2.2 补丁C】大盘背景量：上证当日量能 / 自身5日均量
-# 供账本记录 market_vol_ratio，回测时可剔除大盘放量的干扰
 # ============================================================
 def load_market_volume():
     path = DATA_DIR / "kline" / "sh" / "sh000001.json"
@@ -72,7 +71,7 @@ def main():
     anchor2 = '''print(f"[账本] 北京时间: {bj_now.strftime('%Y-%m-%d %H:%M:%S')}")'''
     if anchor2 in text:
         text = text.replace(anchor2,
-                            anchor2 + '\n    today_str = bj_now.strftime(\'%Y-%m-%d\')', 1)
+                            anchor2 + "\n    today_str = bj_now.strftime('%Y-%m-%d')", 1)
         print("  ✔ 2/5 定义 today_str")
     else:
         print("  ✘ 2/5 未找到北京时间打印锚点")
@@ -88,34 +87,36 @@ def main():
         print("  ✘ 3/5 未找到历史索引锚点")
         ok = False
 
-    # ---- 4/5 补丁A+B：残缺日诊断日志 + 历史残缺保留文件 ----
-    old4 = ("            if len(day_klines) < MIN_FULL_DAY_BARS:\n"
-            "                skipped_incomplete += 1\n"
-            "                continue")
-    new4 = ("            if len(day_klines) < MIN_FULL_DAY_BARS:\n"
-            "                skipped_incomplete += 1\n"
-            "                print(f\"  [残缺] {code} {d} 仅{len(day_klines)}根(<{MIN_FULL_DAY_BARS})\")\n"
-            "                # 补丁B：残缺的\"历史\"日期不是今天 → 保留文件次日重试\n"
-            "                if d != today_str:\n"
-            "                    failed_files.setdefault(f, []).append(f\"残缺:{d}:{len(day_klines)}根\")\n"
-            "                continue")
+    # ---- 4/5 补丁A+B：残缺日诊断日志 + 仅今日残缺保留文件（缩进16/20，已对照原文）----
+    old4 = ("                if len(day_klines) < MIN_FULL_DAY_BARS:\n"
+            "                    skipped_incomplete += 1\n"
+            "                    continue")
+    new4 = ("                if len(day_klines) < MIN_FULL_DAY_BARS:\n"
+            "                    skipped_incomplete += 1\n"
+            "                    print(f\"  [残缺] {code} {d} 仅{len(day_klines)}根(<{MIN_FULL_DAY_BARS})\")\n"
+            "                    # 补丁B：只有\"今天\"的残缺日明天能补全→保留文件；\n"
+            "                    # 历史残缺日已超出640根滚动窗口，永远补不全，保留无意义\n"
+            "                    if d >= today_str:\n"
+            "                        failed_files.setdefault(f, []).append(f\"残缺:{d}:{len(day_klines)}根\")\n"
+            "                    continue")
     if old4 in text:
         text = text.replace(old4, new4, 1)
-        print("  ✔ 4/5 补丁A+B（诊断日志+残缺保留）")
+        print("  ✔ 4/5 补丁A+B（诊断日志+仅今日残缺保留）")
     else:
-        print("  ✘ 4/5 未找到残缺跳过锚点")
+        print("  ✘ 4/5 未找到残缺跳过锚点（缩进不符？）")
         ok = False
 
-    # ---- 5/5 补丁C+D：账本加大盘量比字段 + 指数文件也清理 ----
-    anchor5 = '                "ver": LEDGER_VERSION,'
+    # ---- 5a/5 补丁C：账本新增 market_vol_ratio（锚点20空格，已对照原文）----
+    anchor5 = '                    "ver": LEDGER_VERSION,'
     if anchor5 in text:
         text = text.replace(anchor5,
-                            '                "market_vol_ratio": mkt_vol.get(d),\n' + anchor5, 1)
+                            '                    "market_vol_ratio": mkt_vol.get(d),\n' + anchor5, 1)
         print("  ✔ 5a/5 账本新增 market_vol_ratio 字段")
     else:
-        print("  ✘ 5a/5 未找到账本写入锚点")
+        print("  ✘ 5a/5 未找到账本写入锚点（缩进不符？）")
         ok = False
 
+    # ---- 5b/5 补丁D：指数文件也清理 ----
     old5b = ("        if f.stem in INDEX_CODES:\n"
              "            continue")
     new5b = ("        if f.stem in INDEX_CODES:\n"
@@ -144,7 +145,7 @@ def main():
     if ok:
         SCRIPT.write_text(text, encoding="utf-8")
         print("\n🎉 record_truth.py 修补完成（v2.2）！")
-        print("   下次记账时验证：出现 [残缺] 诊断行、账本记录含 market_vol_ratio")
+        print("   下次记账验证：[残缺] 诊断行 + 账本新字段 market_vol_ratio")
     else:
         print("\n❌ 修补未完成，已还原备份，请把本输出发给助手")
 
