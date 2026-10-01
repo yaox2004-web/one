@@ -2,41 +2,65 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
 <title>兑现率报告</title>
 <style>
-body { font-family: -apple-system, sans-serif; margin: 12px; background: #fafafa; }
-h1 { font-size: 1.3em; }
-h2 { font-size: 1.1em; margin-top: 1.4em; }
-table { border-collapse: collapse; width: 100%; font-size: 0.85em; background: #fff; }
-th, td { border: 1px solid #ddd; padding: 6px 4px; text-align: center; }
-th { background: #444; color: #fff; }
-td.gn { text-align: left; white-space: nowrap; }
-small { color: #999; font-size: 0.75em; }
-.dim { color: #bbb; }
-.ok { background: #2e7d32; color: #fff; font-size: 0.7em; padding: 1px 4px; border-radius: 3px; }
-.warn { background: #e65100; color: #fff; font-size: 0.7em; padding: 1px 4px; border-radius: 3px; }
-.note { color: #666; font-size: 0.85em; }
-.meta { color: #999; font-size: 0.8em; }
+* { -webkit-tap-highlight-color: transparent; }
+body {
+  font-family: -apple-system, "HarmonyOS Sans SC", "HuaweiFont", sans-serif;
+  margin: 0; padding: 14px 10px 30px;
+  background: #121212; color: #e0e0e0;
+}
+h1 { font-size: 1.25em; color: #fff; }
+h2 { font-size: 1.05em; margin: 1.5em 0 0.6em; color: #f0f0f0;
+     border-left: 4px solid #ff5d5d; padding-left: 8px; }
+.meta { color: #8a8a8a; font-size: 0.78em; }
+.note { color: #9e9e9e; font-size: 0.8em; line-height: 1.5; margin: 0.5em 0 0.6em; }
+.scroll {
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  border-radius: 10px; border: 1px solid #2a2a2a; background: #1c1c1c;
+}
+table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 0.85em; }
+th, td { border-bottom: 1px solid #2a2a2a; padding: 9px 6px; text-align: center; white-space: nowrap; }
+th { background: #262626; color: #bbb; font-weight: 500; position: sticky; top: 0; }
+tr:last-child td { border-bottom: none; }
+td.gn, th.gn {
+  text-align: left; position: sticky; left: 0; z-index: 2;
+  background: #1c1c1c; max-width: 46vw;
+}
+th.gn { background: #262626; z-index: 3; }
+td.gn { white-space: normal; word-break: break-all; font-weight: 600; color: #f0f0f0; }
+small { color: #777; font-size: 0.72em; }
+.dim { color: #555; }
+.ok { background: #1b4d2a; color: #6ee08a; font-size: 0.7em;
+      padding: 2px 5px; border-radius: 4px; font-weight: 500; }
+.warn { background: #4d2a00; color: #ffab40; font-size: 0.7em;
+        padding: 2px 5px; border-radius: 4px; font-weight: 500; }
+tr:hover td { background: #222; }
 </style>
 </head>
 <body>
 <h1>📊 兑现率日报</h1>
-<p class="meta">生成: 2026-10-02 00:59 (北京时间) · 数据时点: None</p>
+<p class="meta">生成: 2026-10-02 01:09 (北京时间) · 数据时点: 当日</p>
 
 <h2>一、威科夫信号兑现率（Phase 5 v0.5）</h2>
-<p class="note">正式策略=前置链Spring收盘进场持20日。胜=T+N收盘>事件日收盘；n&lt;30标"不足"不下结论；回溯组含未来信息仅归因，禁止作交易信号。</p>
+<p class="note">正式策略=前置链Spring收盘进场持20日。胜=T+N收盘&gt;事件日收盘；n&lt;30标"不足"不下结论；回溯组含未来信息仅归因，禁止作交易信号。</p>
+<div class="scroll">
 <table>
-<tr><th>分组</th><th>T+1</th><th>T+3</th><th>T+5</th><th>T+10</th><th>T+20</th><th>T+20均收益</th></tr>
-<tr><td class="gn">SOS_全体 <span class="ok">✅可交易</span></td><td><span style="color:#e08214;font-weight:600">52.2%</span><br><small>n=2205</small></td><td><span style="color:#333333;font-weight:600">50.3%</span><br><small>n=2204</small></td><td><span style="color:#333333;font-weight:600">49.7%</span><br><small>n=2204</small></td><td><span style="color:#333333;font-weight:600">49.6%</span><br><small>n=2201</small></td><td><span style="color:#333333;font-weight:600">49.9%</span><br><small>n=2188</small></td><td><span style="color:#d73027;font-weight:600">+3.14%</span></td></tr><tr><td class="gn">SOS_前置链背景 <span class="ok">✅可交易</span> <small>(样本不足)</small></td><td><span style="color:#999;font-weight:600">61.5%</span><br><small>n=13·不足</small></td><td><span style="color:#999;font-weight:600">69.2%</span><br><small>n=13·不足</small></td><td><span style="color:#999;font-weight:600">53.8%</span><br><small>n=13·不足</small></td><td><span style="color:#999;font-weight:600">61.5%</span><br><small>n=13·不足</small></td><td><span style="color:#999;font-weight:600">76.9%</span><br><small>n=13·不足</small></td><td><span style="color:#d73027;font-weight:600">+6.20%</span></td></tr><tr><td class="gn">SOS_无前置链背景 <span class="ok">✅可交易</span></td><td><span style="color:#e08214;font-weight:600">52.1%</span><br><small>n=2192</small></td><td><span style="color:#333333;font-weight:600">50.2%</span><br><small>n=2191</small></td><td><span style="color:#333333;font-weight:600">49.7%</span><br><small>n=2191</small></td><td><span style="color:#333333;font-weight:600">49.5%</span><br><small>n=2188</small></td><td><span style="color:#333333;font-weight:600">49.7%</span><br><small>n=2175</small></td><td><span style="color:#d73027;font-weight:600">+3.12%</span></td></tr><tr><td class="gn">Spring_全体 <span class="ok">✅可交易</span></td><td><span style="color:#1a6ec0;font-weight:600">46.5%</span><br><small>n=2105</small></td><td><span style="color:#1a6ec0;font-weight:600">46.3%</span><br><small>n=2098</small></td><td><span style="color:#e08214;font-weight:600">53.5%</span><br><small>n=2095</small></td><td><span style="color:#333333;font-weight:600">51.4%</span><br><small>n=2081</small></td><td><span style="color:#e08214;font-weight:600">59.9%</span><br><small>n=2070</small></td><td><span style="color:#d73027;font-weight:600">+4.29%</span></td></tr><tr><td class="gn">Spring_前置链 <span class="ok">✅可交易</span></td><td><span style="color:#1a6ec0;font-weight:600">42.9%</span><br><small>n=98</small></td><td><span style="color:#1a6ec0;font-weight:600">41.8%</span><br><small>n=98</small></td><td><span style="color:#d73027;font-weight:600">60.2%</span><br><small>n=98</small></td><td><span style="color:#d73027;font-weight:600">62.9%</span><br><small>n=97</small></td><td><span style="color:#d73027;font-weight:600">68.0%</span><br><small>n=97</small></td><td><span style="color:#d73027;font-weight:600">+8.54%</span></td></tr><tr><td class="gn">Spring_完整链_回溯 <span class="warn">⚠️仅归因</span> <small>(样本不足)</small></td><td><span style="color:#999;font-weight:600">52.6%</span><br><small>n=19·不足</small></td><td><span style="color:#999;font-weight:600">63.2%</span><br><small>n=19·不足</small></td><td><span style="color:#999;font-weight:600">68.4%</span><br><small>n=19·不足</small></td><td><span style="color:#999;font-weight:600">68.4%</span><br><small>n=19·不足</small></td><td><span style="color:#999;font-weight:600">78.9%</span><br><small>n=19·不足</small></td><td><span style="color:#d73027;font-weight:600">+19.79%</span></td></tr><tr><td class="gn">Spring_真金 <span class="ok">✅可交易</span> <small>(样本不足)</small></td><td><span style="color:#999;font-weight:600">100.0%</span><br><small>n=1·不足</small></td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td></tr><tr><td class="gn">Spring_非前置链 <span class="ok">✅可交易</span></td><td><span style="color:#1a6ec0;font-weight:600">46.7%</span><br><small>n=2007</small></td><td><span style="color:#1a6ec0;font-weight:600">46.5%</span><br><small>n=2000</small></td><td><span style="color:#e08214;font-weight:600">53.1%</span><br><small>n=1997</small></td><td><span style="color:#333333;font-weight:600">50.8%</span><br><small>n=1984</small></td><td><span style="color:#e08214;font-weight:600">59.5%</span><br><small>n=1973</small></td><td><span style="color:#d73027;font-weight:600">+4.08%</span></td></tr>
+<tr><th class="gn">分组</th><th>T+1</th><th>T+3</th><th>T+5</th><th>T+10</th><th>T+20</th><th>均收益</th></tr>
+<tr><td class="gn">SOS_全体 <span class="ok">✅可交易</span></td><td><span style="color:#ffb340;font-weight:700">52.2%</span><br><small>n=2205</small></td><td><span style="color:#d4d4d4;font-weight:700">50.3%</span><br><small>n=2204</small></td><td><span style="color:#d4d4d4;font-weight:700">49.7%</span><br><small>n=2204</small></td><td><span style="color:#d4d4d4;font-weight:700">49.6%</span><br><small>n=2201</small></td><td><span style="color:#d4d4d4;font-weight:700">49.9%</span><br><small>n=2188</small></td><td><span style="color:#ff5d5d;font-weight:700">+3.14%</span></td></tr><tr><td class="gn">SOS_前置链背景 <span class="ok">✅可交易</span> <small>(样本不足)</small></td><td><span style="color:#8a8a8a;font-weight:700">61.5%</span><br><small>n=13·不足</small></td><td><span style="color:#8a8a8a;font-weight:700">69.2%</span><br><small>n=13·不足</small></td><td><span style="color:#8a8a8a;font-weight:700">53.8%</span><br><small>n=13·不足</small></td><td><span style="color:#8a8a8a;font-weight:700">61.5%</span><br><small>n=13·不足</small></td><td><span style="color:#8a8a8a;font-weight:700">76.9%</span><br><small>n=13·不足</small></td><td><span style="color:#ff5d5d;font-weight:700">+6.20%</span></td></tr><tr><td class="gn">SOS_无前置链背景 <span class="ok">✅可交易</span></td><td><span style="color:#ffb340;font-weight:700">52.1%</span><br><small>n=2192</small></td><td><span style="color:#d4d4d4;font-weight:700">50.2%</span><br><small>n=2191</small></td><td><span style="color:#d4d4d4;font-weight:700">49.7%</span><br><small>n=2191</small></td><td><span style="color:#d4d4d4;font-weight:700">49.5%</span><br><small>n=2188</small></td><td><span style="color:#d4d4d4;font-weight:700">49.7%</span><br><small>n=2175</small></td><td><span style="color:#ff5d5d;font-weight:700">+3.12%</span></td></tr><tr><td class="gn">Spring_全体 <span class="ok">✅可交易</span></td><td><span style="color:#5da9ff;font-weight:700">46.5%</span><br><small>n=2105</small></td><td><span style="color:#5da9ff;font-weight:700">46.3%</span><br><small>n=2098</small></td><td><span style="color:#ffb340;font-weight:700">53.5%</span><br><small>n=2095</small></td><td><span style="color:#d4d4d4;font-weight:700">51.4%</span><br><small>n=2081</small></td><td><span style="color:#ffb340;font-weight:700">59.9%</span><br><small>n=2070</small></td><td><span style="color:#ff5d5d;font-weight:700">+4.29%</span></td></tr><tr><td class="gn">Spring_前置链 <span class="ok">✅可交易</span></td><td><span style="color:#5da9ff;font-weight:700">42.9%</span><br><small>n=98</small></td><td><span style="color:#5da9ff;font-weight:700">41.8%</span><br><small>n=98</small></td><td><span style="color:#ff5d5d;font-weight:700">60.2%</span><br><small>n=98</small></td><td><span style="color:#ff5d5d;font-weight:700">62.9%</span><br><small>n=97</small></td><td><span style="color:#ff5d5d;font-weight:700">68.0%</span><br><small>n=97</small></td><td><span style="color:#ff5d5d;font-weight:700">+8.54%</span></td></tr><tr><td class="gn">Spring_完整链_回溯 <span class="warn">⚠️仅归因</span> <small>(样本不足)</small></td><td><span style="color:#8a8a8a;font-weight:700">52.6%</span><br><small>n=19·不足</small></td><td><span style="color:#8a8a8a;font-weight:700">63.2%</span><br><small>n=19·不足</small></td><td><span style="color:#8a8a8a;font-weight:700">68.4%</span><br><small>n=19·不足</small></td><td><span style="color:#8a8a8a;font-weight:700">68.4%</span><br><small>n=19·不足</small></td><td><span style="color:#8a8a8a;font-weight:700">78.9%</span><br><small>n=19·不足</small></td><td><span style="color:#ff5d5d;font-weight:700">+19.79%</span></td></tr><tr><td class="gn">Spring_真金 <span class="ok">✅可交易</span> <small>(样本不足)</small></td><td><span style="color:#8a8a8a;font-weight:700">100.0%</span><br><small>n=1·不足</small></td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td></tr><tr><td class="gn">Spring_非前置链 <span class="ok">✅可交易</span></td><td><span style="color:#5da9ff;font-weight:700">46.7%</span><br><small>n=2007</small></td><td><span style="color:#5da9ff;font-weight:700">46.5%</span><br><small>n=2000</small></td><td><span style="color:#ffb340;font-weight:700">53.1%</span><br><small>n=1997</small></td><td><span style="color:#d4d4d4;font-weight:700">50.8%</span><br><small>n=1984</small></td><td><span style="color:#ffb340;font-weight:700">59.5%</span><br><small>n=1973</small></td><td><span style="color:#ff5d5d;font-weight:700">+4.08%</span></td></tr>
 </table>
+</div>
 
 <h2>二、死信号对照组（v0.1）</h2>
 <p class="note">基线=全市场任意日(全历史536万股票日, T+20=47.3%/+0.70%)。放量破位为反指: 恐慌破位有承接，恰是Spring逻辑的独立证据。</p>
+<div class="scroll">
 <table>
-<tr><th>分组</th><th>T+1</th><th>T+3</th><th>T+5</th><th>T+10</th><th>T+20</th><th>T+20均收益</th></tr>
-<tr><td class="gn">巨量阴线</td><td><span style="color:#1a6ec0;font-weight:600">44.0%</span><br><small>n=120794</small></td><td><span style="color:#1a6ec0;font-weight:600">42.4%</span><br><small>n=120583</small></td><td><span style="color:#1a6ec0;font-weight:600">42.4%</span><br><small>n=120371</small></td><td><span style="color:#1a6ec0;font-weight:600">44.2%</span><br><small>n=119969</small></td><td><span style="color:#1a6ec0;font-weight:600">45.2%</span><br><small>n=118828</small></td><td><span style="color:#d73027;font-weight:600">+0.73%</span></td></tr><tr><td class="gn">长上影线</td><td><span style="color:#1a6ec0;font-weight:600">47.6%</span><br><small>n=381761</small></td><td><span style="color:#1a6ec0;font-weight:600">46.6%</span><br><small>n=381047</small></td><td><span style="color:#1a6ec0;font-weight:600">46.2%</span><br><small>n=380081</small></td><td><span style="color:#1a6ec0;font-weight:600">46.8%</span><br><small>n=378257</small></td><td><span style="color:#1a6ec0;font-weight:600">46.1%</span><br><small>n=373945</small></td><td><span style="color:#d73027;font-weight:600">+0.71%</span></td></tr><tr><td class="gn">放量破位</td><td><span style="color:#1a6ec0;font-weight:600">47.6%</span><br><small>n=50001</small></td><td><span style="color:#e08214;font-weight:600">52.1%</span><br><small>n=49917</small></td><td><span style="color:#e08214;font-weight:600">54.0%</span><br><small>n=49857</small></td><td><span style="color:#e08214;font-weight:600">54.5%</span><br><small>n=49758</small></td><td><span style="color:#e08214;font-weight:600">56.6%</span><br><small>n=49233</small></td><td><span style="color:#d73027;font-weight:600">+3.93%</span></td></tr><tr><td class="gn">全市场任意日</td><td><span style="color:#1a6ec0;font-weight:600">47.4%</span><br><small>n=5357276</small></td><td><span style="color:#1a6ec0;font-weight:600">47.2%</span><br><small>n=5346184</small></td><td><span style="color:#1a6ec0;font-weight:600">47.2%</span><br><small>n=5335092</small></td><td><span style="color:#1a6ec0;font-weight:600">47.5%</span><br><small>n=5307367</small></td><td><span style="color:#1a6ec0;font-weight:600">47.3%</span><br><small>n=5251957</small></td><td><span style="color:#d73027;font-weight:600">+0.70%</span></td></tr>
+<tr><th class="gn">分组</th><th>T+1</th><th>T+3</th><th>T+5</th><th>T+10</th><th>T+20</th><th>均收益</th></tr>
+<tr><td class="gn">巨量阴线</td><td><span style="color:#5da9ff;font-weight:700">44.0%</span><br><small>n=120794</small></td><td><span style="color:#5da9ff;font-weight:700">42.4%</span><br><small>n=120583</small></td><td><span style="color:#5da9ff;font-weight:700">42.4%</span><br><small>n=120371</small></td><td><span style="color:#5da9ff;font-weight:700">44.2%</span><br><small>n=119969</small></td><td><span style="color:#5da9ff;font-weight:700">45.2%</span><br><small>n=118828</small></td><td><span style="color:#ff5d5d;font-weight:700">+0.73%</span></td></tr><tr><td class="gn">长上影线</td><td><span style="color:#5da9ff;font-weight:700">47.6%</span><br><small>n=381761</small></td><td><span style="color:#5da9ff;font-weight:700">46.6%</span><br><small>n=381047</small></td><td><span style="color:#5da9ff;font-weight:700">46.2%</span><br><small>n=380081</small></td><td><span style="color:#5da9ff;font-weight:700">46.8%</span><br><small>n=378257</small></td><td><span style="color:#5da9ff;font-weight:700">46.1%</span><br><small>n=373945</small></td><td><span style="color:#ff5d5d;font-weight:700">+0.71%</span></td></tr><tr><td class="gn">放量破位</td><td><span style="color:#5da9ff;font-weight:700">47.6%</span><br><small>n=50001</small></td><td><span style="color:#ffb340;font-weight:700">52.1%</span><br><small>n=49917</small></td><td><span style="color:#ffb340;font-weight:700">54.0%</span><br><small>n=49857</small></td><td><span style="color:#ffb340;font-weight:700">54.5%</span><br><small>n=49758</small></td><td><span style="color:#ffb340;font-weight:700">56.6%</span><br><small>n=49233</small></td><td><span style="color:#ff5d5d;font-weight:700">+3.93%</span></td></tr><tr><td class="gn">全市场任意日</td><td><span style="color:#5da9ff;font-weight:700">47.4%</span><br><small>n=5357276</small></td><td><span style="color:#5da9ff;font-weight:700">47.2%</span><br><small>n=5346184</small></td><td><span style="color:#5da9ff;font-weight:700">47.2%</span><br><small>n=5335092</small></td><td><span style="color:#5da9ff;font-weight:700">47.5%</span><br><small>n=5307367</small></td><td><span style="color:#5da9ff;font-weight:700">47.3%</span><br><small>n=5251957</small></td><td><span style="color:#ff5d5d;font-weight:700">+0.70%</span></td></tr>
 </table>
+</div>
 <p class="note">铁律: 信号分组只用事件日收盘前已知信息(无未来函数)。本页由cron每日13:30 UTC自动生成。</p>
 </body>
 </html>
