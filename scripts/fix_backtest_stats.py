@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-一键修补回测统计口径 (fix_backtest_stats.py) v1.0
+一键修补回测统计口径 (fix_backtest_stats.py) v1.1
 =================================================
 修补对象: scripts/backtest_4d.py 的 winrate 统计块
 
@@ -10,7 +10,13 @@
   2. 每个胜率格子增加 "n": 样本数 字段（报告层可据此打"噪声警示"标签）
 
 幂等设计: 已修补过的文件再跑一次不会有任何变化。
-自检: 模式匹配数 != 4 时打印警告并以非零码退出，防止静默失败。
+
+v1.1 (2026-10-01) 修复自检误报:
+  v1.0 自检只看"本次替换计数"，遇到半修补状态的文件（如门槛已补、
+  n字段未补）时，明明把活干完了却因计数非4+4而 exit(1) 误报失败。
+  v1.1 改为【终态校验】: 修补后直接验证目标文件是否包含全部
+  4个新门槛 + 4个n字段——在终态即成功，与本次替换了几处无关。
+  仅当终态不完整时才报错退出，防止静默失败的初衷不变。
 """
 
 import sys
@@ -21,6 +27,16 @@ GATE_OLD = "if len({name}) >= 5:"
 GATE_NEW = "if len({name}) >= 30:"
 WINRATE_OLD = '"win_rate": round(sum(1 for r in {name} if r > 0) / len({name}) * 100, 1),'
 NFIELD_NEW = '"n": len({name}), "win_rate": round(sum(1 for r in {name} if r > 0) / len({name}) * 100, 1),'
+
+
+def final_state_ok(text):
+    """终态校验: 全部4个新门槛 + 全部4个n字段都在 = 修补完成"""
+    for name in TARGETS:
+        if GATE_NEW.format(name=name) not in text:
+            return False
+        if '"n": len(%s),' % name not in text:
+            return False
+    return True
 
 
 def main():
@@ -57,19 +73,17 @@ def main():
     target.write_text(text, encoding="utf-8")
     print(f"[补丁] 门槛替换 {n_gate} 处, n 注入 {n_field} 处")
 
-    # 自检：首次运行必须 4+4 全中；之后幂等运行 0+0 也算正常
-    if (n_gate + n_field) == 0:
-        already = GATE_NEW.format(name=TARGETS[0]) in text and '"n": len(all_returns),' in text
-        if already:
-            print("[补丁] ✅ 此前已修补过，本次无变化（幂等）")
+    # v1.1 自检：只认终态，不认过程计数。
+    # 无论本次替换了几处（4+4 / 0+0 / 半修补的0+4等），
+    # 只要目标文件终态完整即为成功。
+    if final_state_ok(text):
+        if n_gate + n_field > 0:
+            print(f"[补丁] ✅ 修补完成: 本次门槛{n_gate}处 + n字段{n_field}处，终态校验通过")
         else:
-            print("[补丁] ❌ 首次运行但零匹配——backtest_4d.py 结构与预期不符，需人工核对！")
-            sys.exit(1)
-    elif n_gate != 4 or n_field != 4:
-        print("[补丁] ⚠️ 部分匹配成功——可能文件版本混杂，建议人工核对后再提交")
-        sys.exit(1)
+            print("[补丁] ✅ 此前已修补过，本次无变化（幂等），终态校验通过")
     else:
-        print("[补丁] ✅ 修补完成: 4处门槛(5→30) + 4处n字段")
+        print("[补丁] ❌ 终态校验失败——backtest_4d.py 补后仍不完整，结构与预期不符，需人工核对！")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
