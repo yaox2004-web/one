@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-账本横向截面分析 (cross_section.py) v1.0
+账本横向截面分析 (cross_section.py) v1.1
 =================================================
 【矿脉B】账本二次加工——同一交易日，305只股票互相对比。
 
@@ -15,6 +15,10 @@
 
 字段清单【动态检测】：v3.0 上线后 vwap_hold_ratio 等新字段自动纳入，无需改本脚本。
 防脏数据：某字段当日有效样本 < MIN_STOCKS 时不算该字段分位。
+v1.1 (2026-10-01): 新增 INDEX_CODES 样本级排除——指数迁移遗留记录(sh000001等)
+                   不再参与个股截面（中位数/分位/quant_env 均受影响，虽仅~0.3%
+                   但会持续污染 v3.0 行为指纹字段分布）。
+                   样本级排除(INDEX_CODES)与字段级排除(EXCLUDE_FIELDS)各司其职。
 
 只读账本、只写 data/analysis/cross_section.json（分析产物，可随时全量重算）。
 """
@@ -28,7 +32,8 @@ LEDGER_DIR = Path(__file__).parent.parent / "data" / "analysis" / "truth_ledger"
 OUT_PATH = Path(__file__).parent.parent / "data" / "analysis" / "cross_section.json"
 
 MIN_STOCKS = 50          # 有效交易日下限（过滤稀疏日，如9-10仅1条）
-EXCLUDE_FIELDS = {"ver"}  # 版本号不是特征
+EXCLUDE_FIELDS = {"ver"}  # 字段级排除：版本号不是特征
+INDEX_CODES = {"sh000001", "sz399001", "sz399006"}  # 样本级排除：指数不是个股（与 record_truth.py 口径一致）
 
 
 def main():
@@ -43,6 +48,7 @@ def main():
     # ---- 载入全部分片 → {date: {code: entry}} ----
     by_date = defaultdict(dict)
     n_records = 0
+    n_index_skipped = 0
     for fp in sorted(LEDGER_DIR.glob("*.json")):
         try:
             with open(fp, 'r', encoding='utf-8') as f:
@@ -51,10 +57,15 @@ def main():
             print(f"[截面] 读取 {fp.name} 失败: {e}")
             continue
         for code, dmap in monthly.items():
+            if code in INDEX_CODES:          # 样本级排除：指数不参与个股截面
+                n_index_skipped += len(dmap)
+                continue
             for d, entry in dmap.items():
                 by_date[str(d)[:10]][code] = entry
                 n_records += 1
     print(f"[截面] 账本载入 {n_records} 条记录，覆盖 {len(by_date)} 个日期")
+    if n_index_skipped:
+        print(f"[截面] 已排除指数记录 {n_index_skipped} 条（样本级守卫）")
 
     # ---- 动态检测数值字段（v3.0 新字段自动纳入）----
     field_counter = Counter()
