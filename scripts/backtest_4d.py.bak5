@@ -262,23 +262,9 @@ def load_index_data():
     return df.dropna(subset=['open', 'close', 'high', 'low', 'volume'])
 
 
-_REGIME_CACHE = {}  # fix5: 大盘环境按日期缓存（指数日历不变，算一次够用）
-
 def get_market_regime(index_df, target_date):
-    """fix5: 预计算+缓存，语义与原版一致；日期不在日历时回退原算法"""
     if index_df is None:
         return "未知"
-    if not _REGIME_CACHE:
-        closes = index_df['close'].values
-        ma = pd.Series(closes).rolling(INDEX_TREND_MA).mean().values
-        for d, c, m in zip(index_df['date'].tolist(), closes, ma):
-            if np.isnan(m):
-                _REGIME_CACHE[d] = "未知"
-            else:
-                _REGIME_CACHE[d] = "牛市" if c > m else "熊市"
-    if target_date in _REGIME_CACHE:
-        return _REGIME_CACHE[target_date]
-    # fix5兜底：股票日期不在指数日历（理论不发生），走原算法
     date_mask = index_df['date'] <= target_date
     if date_mask.sum() < INDEX_TREND_MA:
         return "未知"
@@ -434,7 +420,7 @@ def check_chang_duan_yin(df, i, atr_pct):
     body_pct = (today['open'] - today['close']) / today['close'] * 100
     return (True, today['low']) if \
         (body_pct > get_atr_threshold(atr_pct, CHANGYANG_ATR_MULT, CHANGYANG_FALLBACK) and
-         get_vol_percentile(df.iloc[max(0, i-VOL_LOOKBACK+1):i+1], VOL_LOOKBACK) < LONG_YIN_SHORT_VOL_PCTL) \
+         get_vol_percentile(df.iloc[:i+1], VOL_LOOKBACK) < LONG_YIN_SHORT_VOL_PCTL) \
         else (False, None)
 
 
@@ -487,7 +473,7 @@ def check_changyang_aizhu(df, i, atr_pct):
     today, yesterday = df.iloc[i], df.iloc[i-1]
     if (today['close'] - yesterday['close']) / yesterday['close'] * 100 > \
        get_atr_threshold(atr_pct, CHANGYANG_ATR_MULT, CHANGYANG_FALLBACK) and \
-       get_vol_percentile(df.iloc[max(0, i-VOL_LOOKBACK+1):i+1], VOL_LOOKBACK) < 0.5:
+       get_vol_percentile(df.iloc[:i+1], VOL_LOOKBACK) < 0.5:
         return True, today['open']
     return False, None
 
@@ -661,21 +647,19 @@ def find_fenggu_at(df, end_idx, lookback_days, peak_side, confirm_days, vol_perc
     if end_idx < lookback_days + confirm_days + peak_side:
         return None, None
     recent_df = df.iloc[end_idx-lookback_days+1:end_idx+1]
-    # fix5: numpy端口（峰谷），沙盘验证与原版逐日一致
-    Hh, Ll, Vv, Cc = (recent_df['high'].values, recent_df['low'].values,
-                      recent_df['volume'].values, recent_df['close'].values)
-    vt = np.quantile(Vv, vol_percentile)
+    vt = recent_df['volume'].quantile(vol_percentile)
     peaks, valleys = [], []
     for i in range(peak_side, len(recent_df) - max(peak_side, confirm_days)):
-        w = slice(i - peak_side, i + peak_side + 1)
-        if Hh[i] == Hh[w].max() and Vv[i] >= vt:
-            if np.all(Cc[i+1:i+1+confirm_days] < Hh[i]):
-                peaks.append(Hh[i])
-        if Ll[i] == Ll[w].min() and Vv[i] >= vt:
-            if np.all(Cc[i+1:i+1+confirm_days] > Ll[i]):
-                valleys.append(Ll[i])
-    return (peaks[-1] if peaks else None,
-            valleys[-1] if valleys else None)
+        row = recent_df.iloc[i]
+        window = recent_df.iloc[i-peak_side:i+peak_side+1]
+        if row['high'] == window['high'].max() and row['volume'] >= vt:
+            if all(recent_df.iloc[i+1:i+1+confirm_days]['close'] < row['high']):
+                peaks.append({'price': row['high']})
+        if row['low'] == window['low'].min() and row['volume'] >= vt:
+            if all(recent_df.iloc[i+1:i+1+confirm_days]['close'] > row['low']):
+                valleys.append({'price': row['low']})
+    return (peaks[-1]['price'] if peaks else None,
+            valleys[-1]['price'] if valleys else None)
 
 
 def find_precise_at(df, end_idx, lookback_days=120, min_points=3, price_tolerance=1.0):
@@ -685,19 +669,20 @@ def find_precise_at(df, end_idx, lookback_days=120, min_points=3, price_toleranc
     prices = recent_df['close'].values
     if len(prices) < min_points:
         return None
-    # fix5: numpy向量化，聚类逻辑与原O(m^2)版本逐行等价（沙盘验证0差异）
-    m = len(prices)
-    rel = np.abs(prices[:, None] - prices[None, :]) / prices[:, None] * 100 <= price_tolerance
-    np.fill_diagonal(rel, True)
-    used = np.zeros(m, dtype=bool)
-    clusters = {}
-    for i in range(m):
-        if used[i]:
+    clusters, used = {}, set()
+    for i in range(len(prices)):
+        if i in used:
             continue
-        cluster = np.where(rel[i] & ~used)[0]
+        cluster = [i]
+        for j in range(len(prices)):
+            if i == j or j in used:
+                continue
+            if abs(prices[i] - prices[j]) / prices[i] * 100 <= price_tolerance:
+                cluster.append(j)
         if len(cluster) >= min_points:
-            clusters[len(cluster)] = float(prices[cluster].mean())
-            used[cluster] = True
+            clusters[len(cluster)] = np.mean([prices[idx] for idx in cluster])
+            for idx in cluster:
+                used.add(idx)
     return clusters[max(clusters.keys())] if clusters else None
 
 
@@ -705,45 +690,39 @@ def find_big_yin_top_at(df, end_idx, lookback_days, yin_body_pct):
     if end_idx < lookback_days:
         return None, None
     recent_df = df.iloc[end_idx-lookback_days+1:end_idx+1]
-    # fix5: numpy端口（大阴顶），沙盘验证与原版逐日一致
-    Oo, Cc, Dd = recent_df['open'].values, recent_df['close'].values, recent_df['date'].values
-    mask = (Cc < Oo) & ((Oo - Cc) / Cc * 100 >= yin_body_pct)
-    idx = np.where(mask)[0]
-    if len(idx) == 0:
-        return None, None
-    k = idx[-1]
-    return Oo[k], str(Dd[k])
+    for i in range(len(recent_df)-1, -1, -1):
+        row = recent_df.iloc[i]
+        if row['close'] < row['open'] and \
+           (row['open'] - row['close']) / row['close'] * 100 >= yin_body_pct:
+            return row['open'], row['date']
+    return None, None
 
 
 def find_pillars_at(df, end_idx, lookback_days=60):
     if end_idx < lookback_days + GENERAL_CONFIRM_DAYS + 20:
         return "无", None
     recent_df = df.iloc[end_idx-lookback_days+1:end_idx+1]
-    # fix5: numpy端口（王牌柱），沙盘验证与原版逐日一致
-    Oo, Cc = recent_df['open'].values, recent_df['close'].values
-    Vv, Ll, Hh = (recent_df['volume'].values, recent_df['low'].values,
-                  recent_df['high'].values)
-    m = len(recent_df)
     marshals, goldens, generals = [], [], []
-    for i in range(m - GENERAL_CONFIRM_DAYS - 1, 5, -1):
-        if Cc[i] <= Oo[i] or i < 20:
+    for i in range(len(recent_df) - GENERAL_CONFIRM_DAYS - 1, 5, -1):
+        row = recent_df.iloc[i]
+        if row['close'] <= row['open'] or i < 20:
             continue
-        wv = Vv[max(0, i-20):i]
-        if (wv < Vv[i]).sum() / len(wv) < BASE_VOL_PCTL:
+        vol_window = recent_df.iloc[max(0, i-20):i]['volume']
+        if (vol_window < row['volume']).sum() / len(vol_window) < BASE_VOL_PCTL:
             continue
-        if m - (i + 1) < GENERAL_CONFIRM_DAYS:
+        future = recent_df.iloc[i+1:i+1+GENERAL_CONFIRM_DAYS]
+        if len(future) < GENERAL_CONFIRM_DAYS:
             continue
-        fm = Cc[i+1:i+1+GENERAL_CONFIRM_DAYS].mean()
-        if fm < Oo[i] or Vv[i+GENERAL_CONFIRM_DAYS] >= Vv[i]:
+        if future['close'].mean() < row['open'] or future.iloc[-1]['volume'] >= row['volume']:
             continue
-        is_golden = fm >= Cc[i]
-        is_gap_up = Oo[i] > Hh[i-1] if i > 0 else False
+        is_golden = future['close'].mean() >= row['close']
+        is_gap_up = row['open'] > recent_df.iloc[i-1]['high'] if i > 0 else False
         if is_golden and is_gap_up:
-            marshals.append(Ll[i])
+            marshals.append(row['low'])
         elif is_golden:
-            goldens.append(Ll[i])
+            goldens.append(row['low'])
         else:
-            generals.append(Ll[i])
+            generals.append(row['low'])
     if marshals:
         return "元帅柱", marshals[0]
     if goldens:
@@ -782,7 +761,7 @@ def main():
         n = len(df)
 
         for i in range(START_IDX, n):  # fix3: 放宽上界，最近信号进回测（账本在近端）
-            atr_v, atr_pct = calculate_atr(df.iloc[max(0, i-ATR_PERIOD):i+1], ATR_PERIOD)  # fix5: 只切最近ATR_PERIOD+1行，等价
+            atr_v, atr_pct = calculate_atr(df.iloc[:i+1], ATR_PERIOD)
             ybt = get_atr_threshold(atr_pct, YIN_BODY_ATR_MULT, YIN_BODY_FALLBACK)
 
             peak_20, valley_20 = find_fenggu_at(df, i, SHORT_WINDOW, PEAK_SIDE_SHORT,
@@ -799,7 +778,6 @@ def main():
             vol_pattern = identify_vol_pattern_bt(df, i)
 
             # 【关键修复】：用 lambda 包装所有信号检测
-            _dl_ok, _dl_sup = check_diliang_qun(df, i)  # fix5: 地量群每日只算一次
             signal_checks = [
                 ("倍量柱", lambda: check_bei_liang(df, i)),
                 ("高量柱", lambda: check_gao_liang(df, i)),
@@ -818,7 +796,7 @@ def main():
                 ("长阳矮柱", lambda: check_changyang_aizhu(df, i, atr_pct)),
                 ("倍量不穿", lambda: check_beiliang_buchuan(df, i, full_code)),
                 ("高量不破", lambda: check_gaoliang_bupo(df, i)),
-                ("地量群", lambda: (_dl_ok, _dl_sup)),  # fix5: 复用当日结果
+                ("地量群", lambda: check_diliang_qun(df, i)),
                 ("价升量缩", lambda: check_jiasheng_liangsou(df, i)),
                 ("倍量伸缩", lambda: check_beishuo_shensuo(df, i)),
                 ("回踩精准线", lambda: check_huicai_jingzhun(df, i, precise_price)),
@@ -853,7 +831,7 @@ def main():
 
             # 意图判断需真假量与地量群，先取（is_real_money 带缓存）
             is_real_sig, _ = is_real_money(market, code, df.iloc[i]['date'])
-            has_diliang = _dl_ok  # fix5: 复用当日结果
+            has_diliang, _ = check_diliang_qun(df, i)
             for intent_name, intent_support in check_main_intent(
                     position, stock_trend, vol_pattern, pillar_type,
                     price_pattern, is_real_sig, has_diliang):
