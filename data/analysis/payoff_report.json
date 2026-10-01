@@ -7,8 +7,16 @@
     ],
     "win_def": "T+N收盘>事件日收盘",
     "min_sample": 30,
-    "chain_link_days": 90,
-    "chain_min_score": 9
+    "iron_rule": "信号分组无未来函数; 回溯分组仅归因",
+    "tradeable": [
+      "Spring_全体",
+      "Spring_前置链",
+      "Spring_非前置链",
+      "SOS_全体"
+    ],
+    "retrospective_only": [
+      "Spring_完整链_回溯"
+    ]
   },
   "groups": {
     "SOS_全体": {
@@ -18,7 +26,8 @@
       "T3_winrate": 50.3,
       "T5_n": 2204,
       "T5_winrate": 49.7,
-      "T5_avg_return": 1.75
+      "T5_avg_return": 1.75,
+      "tradeable": true
     },
     "Spring_全体": {
       "T1_n": 2105,
@@ -27,31 +36,45 @@
       "T3_winrate": 46.3,
       "T5_n": 2095,
       "T5_winrate": 53.5,
-      "T5_avg_return": 1.11
+      "T5_avg_return": 1.11,
+      "tradeable": true
     },
-    "Spring_完整链": {
-      "T1_n": 20,
-      "T1_winrate": 50.0,
-      "T3_n": 20,
-      "T3_winrate": 65.0,
-      "T5_n": 20,
-      "T5_winrate": 70.0,
-      "T5_avg_return": 7.3,
-      "note": "样本不足"
+    "Spring_前置链": {
+      "T1_n": 98,
+      "T1_winrate": 42.9,
+      "T3_n": 98,
+      "T3_winrate": 41.8,
+      "T5_n": 98,
+      "T5_winrate": 60.2,
+      "T5_avg_return": 2.72,
+      "tradeable": true
+    },
+    "Spring_完整链_回溯": {
+      "T1_n": 19,
+      "T1_winrate": 52.6,
+      "T3_n": 19,
+      "T3_winrate": 63.2,
+      "T5_n": 19,
+      "T5_winrate": 68.4,
+      "T5_avg_return": 7.55,
+      "note": "样本不足",
+      "tradeable": false
     },
     "Spring_真金": {
       "T1_n": 1,
       "T1_winrate": 100.0,
-      "note": "样本不足"
+      "note": "样本不足",
+      "tradeable": true
     },
-    "Spring_非完整链": {
-      "T1_n": 2085,
-      "T1_winrate": 46.5,
-      "T3_n": 2078,
-      "T3_winrate": 46.1,
-      "T5_n": 2075,
-      "T5_winrate": 53.3,
-      "T5_avg_return": 1.05
+    "Spring_非前置链": {
+      "T1_n": 2007,
+      "T1_winrate": 46.7,
+      "T3_n": 2000,
+      "T3_winrate": 46.5,
+      "T5_n": 1997,
+      "T5_winrate": 53.1,
+      "T5_avg_return": 1.03,
+      "tradeable": true
     }
   }
 }
