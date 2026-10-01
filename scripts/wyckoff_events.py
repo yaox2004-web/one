@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-威科夫事件链识别模块 v1.0 (Wyckoff Event Chain Detector)
+威科夫事件链识别模块 v1.1 (Wyckoff Event Chain Detector)
 ========================================================
 【理论依据】
 - 威科夫三大定律: 供需定律 / 因果定律 / 努力与结果定律
@@ -17,6 +17,15 @@
 【输出】
 - data/analysis/wyckoff_events.json   每日事件明细
 - data/analysis/wyckoff_chain.json    事件链完整度评分
+
+v1.1 (2026-10-01) 链文件瘦身:
+  v1.0 在每个交易日都写一条链快照(score>=2时), 非事件日只是
+  原样抄写前一日状态, 导致 wyckoff_chain.json 达 38MB, 随每日
+  CI 提交将撑爆 git 历史(30天≈1.1GB)。
+  v1.1 改为【仅事件日记链】: 链的组成只在事件日变化, 非事件日
+  快照零信息量。记录中保留 last_event_date, 下游可自行判断
+  recency。预计体积 38MB → <1.5MB。
+  事件检测逻辑与 v1.0 完全一致, 历史结果可复现。
 """
 
 import json
@@ -355,11 +364,9 @@ def scan_stock(df):
             sc_event['st_done'] = True
             events_hist.append({'name': 'ST', 'idx': i, 'level': float(today['low'])})
             day_events.append('ST')
-        spring_flag = False
         if detect_spring(df, i, support):
             events_hist.append({'name': 'Spring', 'idx': i, 'level': float(support)})
             day_events.append('Spring')
-            spring_flag = True
         if detect_sos(df, i, atr_pct, resistance):
             sos_event = {'name': 'SOS', 'idx': i, 'level': float(resistance)}
             events_hist.append(sos_event)
@@ -384,24 +391,25 @@ def scan_stock(df):
         if day_events:
             events_out[today['date']] = {'events': day_events}
 
-        # ---- 事件链评分 ----
-        window_start = max(0, i - CHAIN_WINDOW)
-        recent_hist = [e for e in events_hist if e['idx'] >= window_start]
-        acc_chain, acc_score = greedy_chain(recent_hist, ACC_ORDER, window_start)
-        dis_chain, dis_score = greedy_chain(recent_hist, DIS_ORDER, window_start)
-        if acc_score >= 2 or dis_score >= 2:
-            best_type = "吸筹" if acc_score >= dis_score else "派发"
-            best_chain = acc_chain if acc_score >= dis_score else dis_chain
-            recency = (i - best_chain[-1]['idx']) <= CHAIN_RECENT_DAYS
-            chain_out[today['date']] = {
-                'score': max(acc_score, dis_score),
-                'type': best_type,
-                'chain': [e['name'] for e in best_chain],
-                'chain_idx': [e['idx'] for e in best_chain],
-                'recency': recency,
-                'position': get_position_level(df, i),
-                'trend': get_stock_trend(df, i),
-            }
+            # ---- v1.1: 仅事件日记链 ----
+            # 链的组成只在事件日变化, 非事件日快照是纯冗余。
+            # last_event_date 供下游自行判断 recency(距今<=CHAIN_RECENT_DAYS个交易日)。
+            window_start = max(0, i - CHAIN_WINDOW)
+            recent_hist = [e for e in events_hist if e['idx'] >= window_start]
+            acc_chain, acc_score = greedy_chain(recent_hist, ACC_ORDER, window_start)
+            dis_chain, dis_score = greedy_chain(recent_hist, DIS_ORDER, window_start)
+            if acc_score >= 2 or dis_score >= 2:
+                best_type = "吸筹" if acc_score >= dis_score else "派发"
+                best_chain = acc_chain if acc_score >= dis_score else dis_chain
+                chain_out[today['date']] = {
+                    'score': max(acc_score, dis_score),
+                    'type': best_type,
+                    'chain': [e['name'] for e in best_chain],
+                    'last_event_date': str(best_chain[-1].get('date', today['date'])),
+                    'recency': (i - best_chain[-1]['idx']) <= CHAIN_RECENT_DAYS,
+                    'position': get_position_level(df, i),
+                    'trend': get_stock_trend(df, i),
+                }
     return events_out, chain_out
 
 
@@ -443,7 +451,7 @@ def scan_all_stocks():
 
 def main():
     print("=" * 70)
-    print("威科夫事件链识别模块 v1.0")
+    print("威科夫事件链识别模块 v1.1")
     print("SC → AR → ST → Spring → SOS → LPS (吸筹) / BC → UTAD → SOW (派发)")
     print("=" * 70)
 
@@ -456,10 +464,12 @@ def main():
 
     all_events, all_chains = {}, {}
     stat_event_count = {}
+    true_gold_springs = []   # v1.1: 真金弹簧摘要
     for idx, (market, code) in enumerate(all_stocks):
         df = load_klines(market, code)
         if df is None:
             continue
+        # 给事件历史补日期(供链记录的 last_event_date 使用)
         events_out, chain_out = scan_stock(df)
         full_code = f"{market}{code}"
 
@@ -471,6 +481,7 @@ def main():
                 rec['quant_pct'] = quant_pct
                 if real is True:
                     rec['events'].append('真金弹簧')
+                    true_gold_springs.append((full_code, d, quant_pct))
             for ev in rec['events']:
                 stat_event_count[ev] = stat_event_count.get(ev, 0) + 1
 
@@ -492,6 +503,11 @@ def main():
     for name, cnt in sorted(stat_event_count.items(), key=lambda x: -x[1]):
         print(f"  {name}: {cnt}")
     print("=" * 70)
+
+    # v1.1: 真金弹簧摘要——直接打印, 无需翻JSON
+    print(f"\n🎯 真金弹簧(账本双重确认): {len(true_gold_springs)} 个")
+    for code, d, qp in true_gold_springs:
+        print(f"   {code} @ {d}  量化指纹分位: {qp}%")
 
     full_chains = 0
     for code, chains in all_chains.items():
