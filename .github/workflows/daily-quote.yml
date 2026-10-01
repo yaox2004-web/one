@@ -335,6 +335,10 @@ jobs:
           python3 scripts/market_breadth.py
           python3 scripts/cross_section.py
 
+      - name: 威科夫事件链识别（矿脉D：SC→AR→ST→Spring→SOS→LPS）
+        run: |
+          python3 scripts/wyckoff_events.py
+
       - name: 提交 + 推送
         run: |
           git config user.name "github-actions[bot]"
@@ -343,7 +347,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "无变化"
           else
-            git commit -m "data: 全市场行情+账本+BC矿分析 $(date -u +%Y%m%d)"
+            git commit -m "data: 全市场行情+账本+BC矿+威科夫事件链 $(date -u +%Y%m%d)"
             git pull --rebase origin main
             git push
           fi
