@@ -138,7 +138,6 @@ def calculate_atr(df, period=14):
 # ============================================================
 _real_money_cache = {}
 _ledger_cache = None
-_ledger_hits = [0]
 
 
 def _load_ledger():
@@ -170,24 +169,16 @@ def _load_ledger():
 
 
 def is_real_money(market, code, trade_date):
-    """真假判定 v2.2：只认账本（ver>=2），账本无记录=未知(None)。
-    修复：日期双格式匹配（2026-09-30 / 09-30）+ 命中计数自证。"""
-    trade_date = str(trade_date)[:10]
-    if len(trade_date) == 8 and trade_date.isdigit():
-        trade_date = f"{trade_date[:4]}-{trade_date[4:6]}-{trade_date[6:8]}"
     cache_key = f"{market}{code}_{trade_date}"
     if cache_key in _real_money_cache:
         return _real_money_cache[cache_key]
 
     ledger = _load_ledger()
     key = f"{market}{code}"
-    dates = ledger.get(key, {})
-    # 双格式匹配：账本键可能是 "2026-09-30" 也可能是 "09-30"
-    entry = dates.get(trade_date) or dates.get(trade_date[5:])
-
-    if entry is not None:
-        _ledger_hits[0] += 1
-        # ver=1 旧口径不可信 -> 未知；ver>=2 可信
+    if key in ledger and trade_date in ledger[key]:
+        entry = ledger[key][trade_date]
+        # ★ v2口径过滤：ver=1 为旧口径（绝对阈值脱靶、~90%误判"疑似量化"），
+        #   不可信，返回未知；ver>=2 为校准后口径，可信。
         if entry.get("ver", 1) < 2:
             result = (None, None)
         else:
@@ -195,10 +186,64 @@ def is_real_money(market, code, trade_date):
         _real_money_cache[cache_key] = result
         return result
 
-    # 账本无此日记录 -> 未知（不再用1分钟数据兜底，口径唯一）
-    result = (None, None)
-    _real_money_cache[cache_key] = result
-    return result
+    filepath = MIN1_DIR / f"{market}{code}.json"
+    if not filepath.exists():
+        # 无任何数据可判 → 第三态"未知"(None)，不再乐观当真金，避免系统性高估真金样本
+        result = (None, None)
+        _real_money_cache[cache_key] = result
+        return result
+
+    try:
+        with open(filepath, 'r') as f:
+            data = json.load(f)
+        klines = data.get('klines', [])
+        if len(klines) < 100:
+            # 1分钟样本太少、无法可靠判真假 → 未知，不混入真金
+            result = (None, None)
+            _real_money_cache[cache_key] = result
+            return result
+
+        day_klines = [k for k in klines if k[0].startswith(trade_date)]
+        if len(day_klines) < 200:
+            # 当天1分钟K线不足（停牌/数据残缺）→ 未知，不乐观当真金
+            result = (None, None)
+            _real_money_cache[cache_key] = result
+            return result
+
+        volumes = [float(k[5]) for k in day_klines]
+        closes = [float(k[2]) for k in day_klines]
+
+        vol_mean, vol_std = np.mean(volumes), np.std(volumes)
+        cv = vol_std / vol_mean if vol_mean > 0 else 1
+
+        price_changes, vol_changes = np.diff(closes), np.diff(volumes)
+        if len(price_changes) > 10:
+            corr = np.corrcoef(price_changes, vol_changes)[0, 1]
+            if np.isnan(corr):
+                corr = 0.5
+        else:
+            corr = 0.5
+
+        tail_ratio = sum(volumes[-30:]) / sum(volumes) if sum(volumes) > 0 else 0
+
+        quant_count = (1 if cv < 0.5 else 0) + \
+                      (1 if abs(corr) < 0.3 else 0) + \
+                      (1 if tail_ratio > 0.3 else 0)
+
+        cv_score = 0.7 if cv < 0.5 else (0.4 if cv < 1.0 else 0.1)
+        corr_score = 0.6 if abs(corr) < 0.3 else (0.3 if abs(corr) < 0.5 else 0.1)
+        tail_score = 0.7 if tail_ratio > 0.3 else (0.4 if tail_ratio > 0.2 else 0.1)
+        quant_ratio = (cv_score + corr_score + tail_score) / 3 * 100
+
+        result = (quant_count < 2, round(quant_ratio, 1))
+        _real_money_cache[cache_key] = result
+        return result
+    except Exception:
+        # 解析异常属于"判不出来"→ 未知，避免异常样本被默认真金
+        result = (None, None)
+        _real_money_cache[cache_key] = result
+        return result
+
 
 def get_atr_threshold(atr_pct, mult, fallback):
     return atr_pct * mult if (ATR_ADAPTIVE and atr_pct is not None) else fallback
@@ -751,7 +796,7 @@ def main():
         full_code = f"{market}{code}"
         n = len(df)
 
-        for i in range(START_IDX, n - MAX_WAIT_DAYS - 2):
+        for i in range(START_IDX, n - 60 - MAX_WAIT_DAYS - 2):
             atr_v, atr_pct = calculate_atr(df.iloc[:i+1], ATR_PERIOD)
             ybt = get_atr_threshold(atr_pct, YIN_BODY_ATR_MULT, YIN_BODY_FALLBACK)
 
@@ -853,7 +898,6 @@ def main():
                     all_trades[signal_name][position][stock_trend][market_regime][hold_days]\
                         .append((ret, is_real_sig))
 
-    print(f"\n[账本自证] 查询 {len(_real_money_cache)} 次，命中判定 {_ledger_hits[0]} 次")
     print("\n" + "=" * 70)
     print("回测完成，生成 winrate.json ...")
     print("=" * 70)

@@ -173,8 +173,6 @@ def is_real_money(market, code, trade_date):
     """真假判定 v2.2：只认账本（ver>=2），账本无记录=未知(None)。
     修复：日期双格式匹配（2026-09-30 / 09-30）+ 命中计数自证。"""
     trade_date = str(trade_date)[:10]
-    if len(trade_date) == 8 and trade_date.isdigit():
-        trade_date = f"{trade_date[:4]}-{trade_date[4:6]}-{trade_date[6:8]}"
     cache_key = f"{market}{code}_{trade_date}"
     if cache_key in _real_money_cache:
         return _real_money_cache[cache_key]
