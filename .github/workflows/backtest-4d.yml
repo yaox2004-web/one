@@ -34,6 +34,9 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: 账本法医诊断
+        run: python3 scripts/diag_ledger.py
+
       - name: 一键修补回测脚本
         run: |
           cd scripts
