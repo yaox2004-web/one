@@ -64,8 +64,8 @@ else:
 
 print("\n" + "=" * 60)
 print("判读指南：")
-print("  若 ver 分布全是 '无ver字段' 或 '1' → 嫌疑A成立（旧口径封锁），")
-print("     解法=等新口径记录积累（10-9起），或放宽ver>=2限制")
-print("  若 ver=2 且 verdict 有值 → 嫌疑A排除，问题在回测匹配逻辑，")
-print("     下一步=贴出 backtest_4d.py 的 is_real_money 函数")
+print("  若 ver 分布全是 '无ver字段' 或 '1' → 旧口径封锁是主因，")
+print("     下一步我会给对应的修补脚本")
+print("  若 ver=2 且 verdict 有值 → 账本没问题，问题在回测匹配逻辑，")
+print("     下一步需要修 backtest_4d.py 的 is_real_money")
 print("=" * 60)
