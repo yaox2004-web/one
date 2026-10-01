@@ -37,6 +37,9 @@ jobs:
       - name: 账本法医诊断
         run: python3 scripts/diag_ledger.py
 
+      - name: 账本版本迁移（幂等，只首次生效）
+        run: python3 scripts/migrate_ledger_ver.py
+
       - name: 一键修补回测脚本
         run: |
           cd scripts
@@ -56,7 +59,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "胜率文件无变化"
           else
-            git commit -m "data: 回测胜率+修补后脚本 $(date -u +%Y%m%d)"
+            git commit -m "data: 回测胜率+账本迁移+修补后脚本 $(date -u +%Y%m%d)"
             git pull --rebase origin main
             git push
           fi
