@@ -33,6 +33,11 @@ jobs:
           cd scripts
           python3 fix_record_truth.py
 
+      - name: 一键修补回测统计口径（门槛5→30 + n字段）
+        run: |
+          cd scripts
+          python3 fix_backtest_stats.py
+
       - name: 全市场日线 + 1分钟 + 记账（一体化）
         run: |
           python3 << 'PYEOF'
@@ -320,6 +325,10 @@ jobs:
           cd scripts
           python3 record_truth.py
           cd ..
+
+      - name: 账本心跳检查（断更即标红）
+        run: |
+          python3 scripts/ledger_heartbeat.py
 
       - name: BC矿分析（市场宽度+账本截面）
         run: |
