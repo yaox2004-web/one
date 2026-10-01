@@ -1,20 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-SOS_前置链背景 解剖器 v0.1 (diag_sos13.py)
+SOS_前置链背景 解剖器 v0.2 (diag_sos13.py)
 ==========================================
-目的: payoff报告里"SOS_前置链背景"分组 n=13、T+20胜率76.9%,
+v0.2修复: 链快照的已确认事件在 'chain' 键(列表)里,
+         v0.1猜成了 events/confirmed/done, 导致前置链重建=0。
+         真实结构(探针实测): {日期: {"score":..,"type":..,"chain":[..],...}}
+
+目的: payoff报告里"SOS_前置链背景" n=13、T+20胜率76.9%,
      长得太美。逐个掏出来看, 防止"少数股票刷出来的假美人"。
 
-检查三件事:
-  1. 13个样本来自几只股票?(集中度)
-  2. 时间分布?(是不是都挤在同一段行情)
-  3. 逐个兑现轨迹(眼见为实)
-
 纯诊断: 只读不写账本, 不碰地基。
-自带"结构探针": 解析前先打印 events/chain 文件的真实结构,
-万一识别失败, 用户把探针输出贴回, AI拿到真实结构秒校准。
-版本: v0.1 (2026-10-02)
+版本: v0.2 (2026-10-02)
 """
 
 import os
@@ -32,6 +29,7 @@ WINDOWS = [1, 3, 5, 10, 20]
 CAL_WINDOW = 30   # 日历30天窗
 TD_WINDOW = 30    # 交易日30天窗
 TARGET_N = 13     # payoff报告的样本数
+PRE_SPRING_EXPECTED = 98  # payoff的前置链Spring口径
 
 BJ = timezone(timedelta(hours=8))
 
@@ -50,8 +48,7 @@ def parse_d(s):
     return datetime.strptime(s[:10], '%Y-%m-%d')
 
 
-# ============ 结构探针: 先自报家门 ============
-def probe(name, obj, max_chars=700):
+def probe(name, obj, max_chars=400):
     print(f"[探针] {name} 顶层类型: {type(obj).__name__}", end='')
     try:
         if isinstance(obj, dict):
@@ -62,115 +59,57 @@ def probe(name, obj, max_chars=700):
                 print(f"[探针] 首键'{keys[0]}'预览: {s[:max_chars]}")
         elif isinstance(obj, list):
             print(f", 共 {len(obj)} 项")
-            if obj:
-                s = json.dumps(obj[0], ensure_ascii=False, default=str)
-                print(f"[探针] 首项预览: {s[:max_chars]}")
-        else:
-            print()
     except Exception as e:
         print(f" (预览失败: {e})")
 
 
-# ============ 归一化: 多种可能结构都兜住 ============
 def extract_events_from_entry(entry):
-    """从事件条目里掏出事件名列表, 兼容多种写法"""
+    """事件条目: {"events": ["SOS"], "spring_real":.., "quant_pct":..}"""
     if isinstance(entry, list):
         return [str(x) for x in entry]
     if isinstance(entry, dict):
-        for key in ('events', 'event', 'ev', 'list', 'signals'):
-            if key in entry:
-                v = entry[key]
-                if isinstance(v, list):
-                    return [str(x) for x in v]
-                if isinstance(v, str):
-                    return [v]
+        v = entry.get('events')
+        if isinstance(v, list):
+            return [str(x) for x in v]
+        if isinstance(v, str):
+            return [v]
         return [str(k) for k in entry.keys()]
     return []
 
 
 def normalize_events(raw):
-    """归一成 {code: [(日期, [事件名...]), ...]}"""
+    """{code: {日期: 条目}} → {code: [(日期, [事件名...]), ...]}"""
     out = {}
-    if isinstance(raw, list):
-        tmp = defaultdict(list)
-        for item in raw:
-            if isinstance(item, dict) and 'code' in item and 'date' in item:
-                tmp[str(item['code'])].append((str(item['date'])[:10],
-                                               extract_events_from_entry(item)))
-        return dict(tmp)
-    if not isinstance(raw, dict):
-        return out
-    stocks = raw.get('stocks') if isinstance(raw.get('stocks'), dict) else raw
-    for code, val in stocks.items():
-        pairs = []
-        if isinstance(val, dict):
-            for k, v in val.items():
-                if looks_like_date(k):
-                    pairs.append((k[:10], extract_events_from_entry(v)))
-                elif isinstance(v, dict):
-                    for k2, v2 in v.items():
-                        if looks_like_date(k2):
-                            pairs.append((k2[:10], extract_events_from_entry(v2)))
-        elif isinstance(val, list):
-            for item in val:
-                if isinstance(item, dict) and 'date' in item:
-                    pairs.append((str(item['date'])[:10], extract_events_from_entry(item)))
+    for code, val in raw.items():
+        pairs = [(k[:10], extract_events_from_entry(v))
+                 for k, v in val.items() if looks_like_date(k)]
         if pairs:
             out[str(code)] = pairs
     return out
 
 
-def normalize_chain(raw):
-    """归一成 {code: [(日期, 快照dict), ...] 按日期升序}"""
-    out = {}
-    if not isinstance(raw, dict):
-        return out
-    stocks = raw.get('stocks') if isinstance(raw.get('stocks'), dict) else raw
-    for code, val in stocks.items():
-        snaps = []
-        if isinstance(val, dict):
-            for k, v in val.items():
-                if looks_like_date(k):
-                    snaps.append((k[:10], v if isinstance(v, dict) else {}))
-                elif isinstance(v, dict):
-                    for k2, v2 in v.items():
-                        if looks_like_date(k2):
-                            snaps.append((k2[:10], v2 if isinstance(v2, dict) else {}))
-        elif isinstance(val, list):
-            for item in val:
-                if isinstance(item, dict) and 'date' in item:
-                    snaps.append((str(item['date'])[:10], item))
-        if snaps:
-            snaps.sort(key=lambda x: x[0])
-            out[str(code)] = snaps
-    return out
-
-
 def snapshot_confirmed(snap):
-    """从链快照掏'已确认事件'集合: 兼容 events列表/confirmed列表/布尔旗标"""
+    """链快照: {"score":..,"type":..,"chain":["BC","UTAD"],...} → 事件集合"""
     conf = set()
     if not isinstance(snap, dict):
         return conf
-    for key in ('events', 'confirmed', 'done', 'phase_events', 'history'):
-        v = snap.get(key)
-        if isinstance(v, list):
-            conf |= {str(x) for x in v}
-        elif isinstance(v, str):
-            conf.add(v)
-        elif isinstance(v, dict):
-            for k2, v2 in v.items():
-                if v2:
-                    conf.add(str(k2))
-    for k, v in snap.items():
-        if isinstance(v, bool) and v and len(str(k)) <= 8:
-            conf.add(str(k))
-        elif isinstance(v, dict) and v.get('confirmed'):
-            conf.add(str(k))
+    v = snap.get('chain')
+    if isinstance(v, list):
+        conf |= {str(x) for x in v}
+    elif isinstance(v, str):
+        conf.add(v)
+    # 兜底: 万一还有别的形态
+    for key in ('events', 'confirmed', 'done'):
+        w = snap.get(key)
+        if isinstance(w, list):
+            conf |= {str(x) for x in w}
+        elif isinstance(w, str):
+            conf.add(w)
     return conf
 
 
 def chain_has_sc_ar_st(chain, code, date):
-    """事件日视角: 事件日(含)之前最近的链快照里, SC+AR+ST是否都确认"""
+    """事件日视角: 事件日(含)之前最近的链快照里, SC+AR+ST是否都在chain里"""
     snaps = chain.get(code)
     if not snaps:
         return False
@@ -187,7 +126,6 @@ def chain_has_sc_ar_st(chain, code, date):
 
 
 def load_kline(code):
-    """读单只K线 → {dates, closes, idx, name}"""
     code = str(code)
     paths = []
     if len(code) == 8 and code[:2] in ('sh', 'sz', 'bj'):
@@ -213,30 +151,24 @@ def load_kline(code):
 
 def main():
     print('=' * 86)
-    print('SOS_前置链背景 13样本解剖 v0.1')
+    print('SOS_前置链背景 13样本解剖 v0.2 (chain键修复版)')
     print('=' * 86)
 
-    # ---------- 0. 探针 ----------
     if not os.path.exists(EVENTS_PATH):
         print(f"[失败] 找不到 {EVENTS_PATH}")
         sys.exit(1)
     raw_ev = load_json(EVENTS_PATH)
     probe('wyckoff_events.json', raw_ev)
-    raw_ch = None
-    if os.path.exists(CHAIN_PATH):
-        raw_ch = load_json(CHAIN_PATH)
-        probe('wyckoff_chain.json', raw_ch)
-    else:
-        print(f"[警告] 找不到 {CHAIN_PATH}")
+    if not os.path.exists(CHAIN_PATH):
+        print(f"[失败] 找不到 {CHAIN_PATH}")
+        sys.exit(1)
+    raw_ch = load_json(CHAIN_PATH)
+    probe('wyckoff_chain.json', raw_ch)
 
+    # ---------- 1. 事件 ----------
     events = normalize_events(raw_ev)
     total = sum(len(v) for v in events.values())
     print(f"[事件] 归一化: {len(events)} 只股票, {total} 条事件日记录")
-    if total == 0:
-        print("[失败] 事件结构识别失败! 请把上面[探针]几行贴回给AI, 秒校准解析器")
-        sys.exit(1)
-
-    # ---------- 1. SOS 与 Spring ----------
     sos_list, spring_list = [], []
     for code, pairs in events.items():
         for d, evs in pairs:
@@ -247,24 +179,31 @@ def main():
                 spring_list.append((code, d))
     print(f"[事件] SOS: {len(sos_list)} 个 | Spring: {len(spring_list)} 个")
     if not sos_list or not spring_list:
-        print("[失败] 没找到SOS或Spring事件, 结构可能特殊, 贴[探针]输出给AI")
+        print("[失败] 没找到SOS或Spring事件")
         sys.exit(1)
 
-    # ---------- 2. 前置链Spring(重建) ----------
-    chain = normalize_chain(raw_ch) if raw_ch is not None else {}
+    # ---------- 2. 链快照 → 前置链Spring(重建) ----------
+    chain = {}
+    for code, val in raw_ch.items():
+        snaps = [(k[:10], v) for k, v in val.items()
+                 if looks_like_date(k) and isinstance(v, dict)]
+        snaps.sort(key=lambda x: x[0])
+        if snaps:
+            chain[str(code)] = snaps
     print(f"[链] 链快照: {len(chain)} 只股票")
-    pre_springs = defaultdict(list)  # code -> [日期]
-    if chain:
-        for code, d in spring_list:
-            if chain_has_sc_ar_st(chain, code, d):
-                pre_springs[code].append(d)
-        n_pre = sum(len(v) for v in pre_springs.values())
-        print(f"[链] 前置链Spring(重建): {n_pre} 个  (payoff口径为98, 若差异大说明解析器需校准)")
-    else:
-        print("[失败] 无链快照可读")
+
+    pre_springs = defaultdict(list)
+    for code, d in spring_list:
+        if chain_has_sc_ar_st(chain, code, d):
+            pre_springs[code].append(d)
+    n_pre = sum(len(v) for v in pre_springs.values())
+    print(f"[链] 前置链Spring(重建): {n_pre} 个  (payoff口径{PRE_SPRING_EXPECTED}, "
+          f"{'✅对齐' if abs(n_pre - PRE_SPRING_EXPECTED) <= 5 else '⚠️有偏差,但仍可解剖'})")
+    if n_pre == 0:
+        print("[失败] 前置链重建仍为0! 把[探针]输出贴回给AI")
         sys.exit(1)
 
-    # ---------- 3. 预加载K线 ----------
+    # ---------- 3. K线 ----------
     need = set(c for c, _ in sos_list) | set(pre_springs.keys())
     kl = {}
     for code in need:
@@ -299,10 +238,10 @@ def main():
     matched = matched_cal
     if len(matched_cal) != TARGET_N and len(matched_td) == TARGET_N:
         matched = matched_td
-        print(f"[窗] 采用交易日窗(与payoff对齐)")
+        print("[窗] 采用交易日窗(与payoff对齐)")
 
     if not matched:
-        print("[失败] 一个都没匹配上, 大概率结构解析有偏差, 贴[探针]输出给AI")
+        print("[失败] 一个都没匹配上, 贴[探针]输出给AI")
         sys.exit(1)
 
     # ---------- 5. 逐个解剖 ----------
@@ -368,7 +307,7 @@ def main():
     # ---------- 7. 落盘 ----------
     os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
     with open(OUT_PATH, 'w', encoding='utf-8') as f:
-        json.dump({'version': '0.1',
+        json.dump({'version': '0.2',
                    'generated_at': datetime.now(BJ).strftime('%Y-%m-%d %H:%M'),
                    'n_samples': n,
                    'n_stocks': len(cnt_by_stock),
