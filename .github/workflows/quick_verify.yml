@@ -1,0 +1,39 @@
+name: 快速验证（不拉数据·只算账·约1分钟）
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  quick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: 兑现率统计（用仓库已有数据）
+        run: |
+          python3 scripts/spring_payoff.py
+
+      - name: 600547追踪卡
+        run: |
+          python3 scripts/track_600547.py
+
+      - name: 提交 + 推送
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "无变化"
+          else
+            git commit -m "quick: 兑现率报告+追踪卡 $(date -u +%Y%m%d)"
+            git pull --rebase origin main
+            git push
+          fi
