@@ -269,6 +269,8 @@ jobs:
 
           # ============================================================
           # 3. 并发拉取1分钟数据（腾讯单源）
+          # 拉取深度1300根≈5.4个交易日，滚动窗口覆盖5个完整日，
+          # 残缺边缘日从"每天1个"降到"约每5天1个"，账本完整率大幅提升
           # ============================================================
           print("\n" + "=" * 60)
           print(f"[3/4] 并发拉取1分钟数据（{len(ALL_1MIN)}只）...")
@@ -280,7 +282,7 @@ jobs:
               for attempt in range(2):
                   try:
                       url = "https://ifzq.gtimg.cn/appstock/app/kline/mkline"
-                      params = {'param': f'{stock_code},m1,,640'}
+                      params = {'param': f'{stock_code},m1,,1300'}
                       r = requests.get(url, params=params, timeout=30)
                       data = r.json()
                       klines = data.get('data', {}).get(stock_code, {}).get('m1', [])
