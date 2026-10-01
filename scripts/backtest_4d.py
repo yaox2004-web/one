@@ -908,31 +908,31 @@ def main():
                     all_list.extend(all_trades[signal_name][pos][trend][regime][WINRATE_HOLD_DAYS])
 
                 all_returns = [t[0] for t in all_list]
-                if len(all_returns) >= 5:
+                if len(all_returns) >= 30:
                     winrate_data[pos][trend][signal_name] = {
-                        "win_rate": round(sum(1 for r in all_returns if r > 0) / len(all_returns) * 100, 1),
+                        "n": len(all_returns), "win_rate": round(sum(1 for r in all_returns if r > 0) / len(all_returns) * 100, 1),
                         "avg_ret": round(float(np.mean(all_returns)), 2)
                     }
 
                 real_returns = [t[0] for t in all_list if t[1] is True]
-                if len(real_returns) >= 5:
+                if len(real_returns) >= 30:
                     winrate_data[pos][trend][f"{signal_name}_真金"] = {
-                        "win_rate": round(sum(1 for r in real_returns if r > 0) / len(real_returns) * 100, 1),
+                        "n": len(real_returns), "win_rate": round(sum(1 for r in real_returns if r > 0) / len(real_returns) * 100, 1),
                         "avg_ret": round(float(np.mean(real_returns)), 2)
                     }
 
                 quant_returns = [t[0] for t in all_list if t[1] is False]
-                if len(quant_returns) >= 5:
+                if len(quant_returns) >= 30:
                     winrate_data[pos][trend][f"{signal_name}_量化"] = {
-                        "win_rate": round(sum(1 for r in quant_returns if r > 0) / len(quant_returns) * 100, 1),
+                        "n": len(quant_returns), "win_rate": round(sum(1 for r in quant_returns if r > 0) / len(quant_returns) * 100, 1),
                         "avg_ret": round(float(np.mean(quant_returns)), 2)
                     }
 
                 # 第三态细分：数据缺失/异常的"未知"样本单独统计
                 unknown_returns = [t[0] for t in all_list if t[1] is None]
-                if len(unknown_returns) >= 5:
+                if len(unknown_returns) >= 30:
                     winrate_data[pos][trend][f"{signal_name}_未知"] = {
-                        "win_rate": round(sum(1 for r in unknown_returns if r > 0) / len(unknown_returns) * 100, 1),
+                        "n": len(unknown_returns), "win_rate": round(sum(1 for r in unknown_returns if r > 0) / len(unknown_returns) * 100, 1),
                         "avg_ret": round(float(np.mean(unknown_returns)), 2)
                     }
 
