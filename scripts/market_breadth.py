@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-市场宽度分析 (market_breadth.py) v1.0
+市场宽度分析 (market_breadth.py) v1.2
 =================================================
 【矿脉C】全市场日线二次加工——回答"指数涨，是普涨还是权重股独舞？"
 
-数据源: data/kline/sh/*.json + data/kline/sz/*.json（全市场约5558只）
-不依赖1分钟数据，不碰账本，纯只读分析。
+数据源: data/kline/{sh,sz}/*.json（只统计沪深，北交所不参与——
+         流动性差、波动特性不同，混入会污染宽度信号）
 
 核心输出（每日）:
   adv_ratio   上涨家数占比（>0.55健康 / <0.45疲弱）
@@ -25,6 +25,7 @@ DATA_DIR = Path(__file__).parent.parent / "data"
 INDEX_PATH = DATA_DIR / "kline" / "sh" / "sh000001.json"
 OUT_PATH = DATA_DIR / "analysis" / "market_breadth.json"
 
+MARKETS = ["sh", "sz"]   # 只统计沪深（北交所不参与）
 LOOKBACK_DAYS = 120      # 只统计最近N个交易日
 MIN_STOCKS_PER_DAY = 10  # 当日有效样本下限（停牌潮保护）
 DIVERG_ADV_HIGH = 0.55   # 宽度高阈值
@@ -34,7 +35,7 @@ DIVERG_IDX_RET = 0.1     # 指数涨跌幅阈值%（过滤噪音）
 
 def main():
     print("=" * 60)
-    print("市场宽度分析（矿脉C：全市场日线二次加工）")
+    print("市场宽度分析（矿脉C：沪深全市场日线二次加工）")
     print("=" * 60)
 
     if not INDEX_PATH.exists():
@@ -49,10 +50,10 @@ def main():
     cutoff = idx_dates[-LOOKBACK_DAYS] if len(idx_dates) > LOOKBACK_DAYS else idx_dates[0]
     print(f"[宽度] 指数日历 {len(idx_dates)} 天，统计起点 {cutoff}")
 
-    # ---- 全市场逐股统计涨跌家数 ----
+    # ---- 沪深全市场逐股统计涨跌家数 ----
     updown = defaultdict(lambda: [0, 0])
     n_scanned = 0
-    for mkt in ["sh", "sz"]:
+    for mkt in MARKETS:
         d = DATA_DIR / "kline" / mkt
         if not d.exists():
             continue
@@ -78,7 +79,7 @@ def main():
                     updown[dt][0] += 1
                 elif c < p:
                     updown[dt][1] += 1
-    print(f"[宽度] 扫描 {n_scanned} 只股票")
+    print(f"[宽度] 扫描 {n_scanned} 只股票（仅沪深）")
 
     # ---- 合成每日宽度 + 背离判定 ----
     out = {}
