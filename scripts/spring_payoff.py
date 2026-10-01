@@ -1,31 +1,32 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-威科夫信号兑现率统计 v0.4  (Phase 5)
+威科夫信号兑现率统计 v0.5  (Phase 5)
 ======================================================================
 【铁律】信号分组绝不使用未来函数！
   - 信号必须在事件日收盘时已可判定
-  - T+N 兑现率使用未来价格属于"评分", 合法;
-    分组条件使用事件日之后的信息属于"偷看", 违法
-分组口径:
-  Spring_前置链   (✅可交易) Spring日链快照已含 SC+AR+ST
-  Spring_非前置链 (✅可交易) 前置条件不满足
-  Spring_完整链_回溯 (⚠️仅归因, 含未来信息, 禁止作交易信号)
-                    Spring后90天内出现score>=9完整链
-  Spring_真金     (账本双重确认, 历史不可回测, 攒样本)
-  SOS_全体
+  - T+N 兑现率是"评分"(合法); 分组条件用事件日之后信息是"偷看"(违法)
 
-链快照无未来函数的依据:
-  wyckoff_events.py 的 scan_stock() 在第 i 天写入链快照时,
-  events_hist 只累积到第 i 天——快照是逐日"当时视角",
-  date<=事件日 的快照不含任何未来事件。
+v0.5 新增:
+  - SOS_前置链背景: 该股30自然日内出现过"前置链Spring"(可交易)
+    逻辑: 前置链打底(SC+AR+ST+Spring) + SOS确认 = 完整策略进场点
+  - 窗口扩展: T+1/3/5/10/20 (前置链慢热, 巅峰可能在T+5之外)
+  - 诊断: 统计SOS被30天窗的捕获情况
+
+分组口径:
+  Spring_前置链        (✅) Spring日链快照已含 SC+AR+ST
+  Spring_非前置链      (✅)
+  SOS_前置链背景       (✅) 30自然日内有前置链Spring
+  SOS_无前置链背景     (✅)
+  Spring_完整链_回溯   (⚠️仅归因, 含未来信息, 禁止作交易信号)
+  Spring_真金 / SOS_全体 / Spring_全体
 ======================================================================
 """
 
 import json
 import os
 import sys
-from bisect import bisect_right
+from bisect import bisect_left, bisect_right
 from collections import defaultdict
 from datetime import datetime, timedelta
 
@@ -34,10 +35,11 @@ CHAIN_FILE  = "data/analysis/wyckoff_chain.json"
 KLINE_DIR   = "data/kline"
 OUTPUT_FILE = "data/analysis/payoff_report.json"
 
-WINDOWS    = [1, 3, 5]
+WINDOWS    = [1, 3, 5, 10, 20]
 MIN_SAMPLE = 30
-CHAIN_LINK_DAYS  = 90   # 仅用于回溯归因分组
-CHAIN_MIN_SCORE  = 9    # 仅用于回溯归因分组
+CHAIN_LINK_DAYS  = 90   # 仅回溯归因
+CHAIN_MIN_SCORE  = 9    # 仅回溯归因
+SOS_LOOKBACK_DAYS = 30  # 前置链Spring → SOS 的最大间隔(自然日)
 
 
 # ----------------------------------------------------------------------
@@ -68,7 +70,7 @@ def load_events():
 
 
 # ----------------------------------------------------------------------
-# 链快照读取: {code: ([日期升序], [payload...])}
+# 链快照读取
 # ----------------------------------------------------------------------
 def load_chain_snapshots():
     if not os.path.exists(CHAIN_FILE):
@@ -98,16 +100,15 @@ def snapshot_at(chains, code, event_date):
 
 
 def prechain_ok(snapshot):
-    """前置链: Spring日已知 SC+AR+ST 全部出现"""
+    """前置链: 事件日已知 SC+AR+ST 全部出现"""
     if snapshot is None:
         return False
-    chain = set(snapshot.get("chain", []))
-    return {"SC", "AR", "ST"} <= chain
+    return {"SC", "AR", "ST"} <= set(snapshot.get("chain", []))
 
 
 def chain_completed_after(chains, code, event_date,
                           days=CHAIN_LINK_DAYS, min_score=CHAIN_MIN_SCORE):
-    """⚠️ 回溯归因专用: 用了事件日之后的链信息, 严禁作交易信号"""
+    """⚠️ 回溯归因专用: 用了未来信息, 严禁作交易信号"""
     if code not in chains:
         return False
     dates, payloads = chains[code]
@@ -128,21 +129,27 @@ def chain_completed_after(chains, code, event_date,
 # ----------------------------------------------------------------------
 # K线读取
 # ----------------------------------------------------------------------
+_kline_cache = {}
+
 def load_kline(code):
+    if code in _kline_cache:
+        return _kline_cache[code]
     path = os.path.join(KLINE_DIR, code[:2], code + ".json")
-    if not os.path.exists(path):
-        return None
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-    except Exception:
-        return None
-    rows = []
-    for k in data.get("klines", []):
-        if isinstance(k, (list, tuple)) and len(k) >= 3:
-            rows.append((str(k[0])[:10], float(k[1]), float(k[2])))
-    rows.sort(key=lambda x: x[0])
-    return rows
+    kl = None
+    if os.path.exists(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            rows = []
+            for k in data.get("klines", []):
+                if isinstance(k, (list, tuple)) and len(k) >= 3:
+                    rows.append((str(k[0])[:10], float(k[1]), float(k[2])))
+            rows.sort(key=lambda x: x[0])
+            kl = rows
+        except Exception:
+            kl = None
+    _kline_cache[code] = kl
+    return kl
 
 
 def payoff_of(kline, event_date, n):
@@ -151,12 +158,11 @@ def payoff_of(kline, event_date, n):
         return None
     idx = dates.index(event_date)
     if idx + n >= len(kline):
-        return None
+        return None          # 右删失: 数据不够看T+N, 不计入
     c0 = kline[idx][2]
-    cn = kline[idx + n][2]
     if c0 <= 0:
         return None
-    return (cn - c0) / c0
+    return (kline[idx + n][2] - c0) / c0
 
 
 # ----------------------------------------------------------------------
@@ -164,18 +170,34 @@ def payoff_of(kline, event_date, n):
 # ----------------------------------------------------------------------
 def main():
     print("=" * 70)
-    print("威科夫信号兑现率统计 v0.4 (无未来函数版)")
+    print("威科夫信号兑现率统计 v0.5 (无未来函数版)")
     print("=" * 70)
 
     events = load_events()
     chains = load_chain_snapshots()
 
+    # ---- 第一步: 标记每个Spring是否前置链, 生成 {code: [前置Spring日期]} ----
+    prechain_springs = defaultdict(list)
+    n_pre = 0
+    for ev in events:
+        if ev["type"] != "Spring":
+            continue
+        if prechain_ok(snapshot_at(chains, ev["code"], ev["date"])):
+            prechain_springs[ev["code"]].append(ev["date"])
+            n_pre += 1
+    for c in prechain_springs:
+        prechain_springs[c].sort()
+    print(f"[前置] 前置链Spring(可交易): {n_pre} 个, "
+          f"分布在 {len(prechain_springs)} 只股票")
+
     events = [e for e in events if e["type"] in {"Spring", "SOS"}]
     print(f"[过滤] 目标信号(Spring/SOS)共 {len(events)} 个")
 
+    # ---- 第二步: 统计 ----
     results = defaultdict(lambda: defaultdict(list))
     missing_kline = set()
-    n_pre = n_retro = 0
+    n_retro = 0
+    sos_hit = sos_miss = 0   # 诊断: SOS对30天窗的捕获情况
 
     for ev in events:
         kl = load_kline(ev["code"])
@@ -184,20 +206,30 @@ def main():
             continue
 
         if ev["type"] == "Spring":
-            groups = ["Spring_全体"]
-            if prechain_ok(snapshot_at(chains, ev["code"], ev["date"])):
-                n_pre += 1
-                groups.append("Spring_前置链")
-            else:
-                groups.append("Spring_非前置链")
-            # ⚠️ 回溯归因分组: 含未来信息, 仅用于链检测器成色认证
+            is_pre = ev["date"] in prechain_springs.get(ev["code"], [])
+            groups = ["Spring_全体",
+                      "Spring_前置链" if is_pre else "Spring_非前置链"]
             if chain_completed_after(chains, ev["code"], ev["date"]):
                 n_retro += 1
                 groups.append("Spring_完整链_回溯")
             if ev["spring_real"]:
                 groups.append("Spring_真金")
-        else:
-            groups = ["SOS_全体"]
+        else:  # SOS
+            # 前置链背景: SOS当天(含)往前30自然日内有前置链Spring
+            plist = prechain_springs.get(ev["code"], [])
+            try:
+                d0 = datetime.strptime(ev["date"], "%Y-%m-%d")
+                lo = (d0 - timedelta(days=SOS_LOOKBACK_DAYS)).strftime("%Y-%m-%d")
+            except ValueError:
+                plist = []
+            i = bisect_left(plist, lo)
+            has_bg = i < len(plist) and plist[i] <= ev["date"]
+            if has_bg:
+                sos_hit += 1
+            else:
+                sos_miss += 1
+            groups = ["SOS_全体",
+                      "SOS_前置链背景" if has_bg else "SOS_无前置链背景"]
 
         for g in groups:
             for n in WINDOWS:
@@ -205,8 +237,9 @@ def main():
                 if r is not None:
                     results[g][n].append(r)
 
-    print(f"[前置] Spring日已确认SC+AR+ST(可交易): {n_pre} 个")
     print(f"[回溯] 后{CHAIN_LINK_DAYS}天走完score>={CHAIN_MIN_SCORE}链(仅归因): {n_retro} 个")
+    print(f"[SOS诊断] 30天窗捕获前置链背景: {sos_hit} 个 / 落在窗外: {sos_miss} 个"
+          + ("  ←窗外偏多, 可考虑放宽窗口" if sos_miss > 2 * sos_hit and sos_miss > 30 else ""))
     if missing_kline:
         print(f"[警告] {len(missing_kline)} 只股票找不到K线文件 "
               f"(示例: {sorted(missing_kline)[:3]})")
@@ -216,22 +249,26 @@ def main():
                        "win_def": "T+N收盘>事件日收盘",
                        "min_sample": MIN_SAMPLE,
                        "iron_rule": "信号分组无未来函数; 回溯分组仅归因",
+                       "sos_lookback_days": SOS_LOOKBACK_DAYS,
+                       "note": "T+10/T+20存在右删失: 近期事件数据不足不计入",
                        "tradeable": ["Spring_全体", "Spring_前置链",
-                                     "Spring_非前置链", "SOS_全体"],
+                                     "Spring_非前置链", "SOS_全体",
+                                     "SOS_前置链背景", "SOS_无前置链背景"],
                        "retrospective_only": ["Spring_完整链_回溯"]},
               "groups": {}}
 
+    hdr = f"{'分组':<22}{'样本':>6}" + "".join(
+        f"{'T+'+str(n)+'胜率':>10}" for n in WINDOWS) + f"{'T+20均收益':>12}"
     print()
-    print("=" * 84)
-    print(f"{'分组':<22}{'样本':>8}{'T+1胜率':>10}{'T+3胜率':>10}"
-          f"{'T+5胜率':>10}{'T+5均收益':>12}")
-    print("-" * 84)
+    print("=" * len(hdr))
+    print(hdr)
+    print("-" * len(hdr))
 
     for g in sorted(results.keys()):
         entry = {}
         n0 = len(results[g][WINDOWS[0]])
         tag = "⚠️回溯" if g.endswith("回溯") else "✅可交易"
-        line = f"{g:<22}{n0:>8}"
+        line = f"{g:<22}{n0:>6}"
         for n in WINDOWS:
             rets = results[g][n]
             if rets:
@@ -241,11 +278,11 @@ def main():
                 line += f"{win*100:>9.1f}%"
             else:
                 line += f"{'--':>10}"
-        rets5 = results[g][5]
-        if rets5:
-            avg5 = sum(rets5) / len(rets5)
-            entry["T5_avg_return"] = round(avg5 * 100, 2)
-            line += f"{avg5*100:>11.2f}%"
+        rets_max = results[g][max(WINDOWS)]
+        if rets_max:
+            avg = sum(rets_max) / len(rets_max)
+            entry["Tmax_avg_return"] = round(avg * 100, 2)
+            line += f"{avg*100:>11.2f}%"
         if n0 < MIN_SAMPLE:
             entry["note"] = "样本不足"
             line += "  (样本不足)"
@@ -253,7 +290,7 @@ def main():
         entry["tradeable"] = tag == "✅可交易"
         report["groups"][g] = entry
 
-    print("=" * 84)
+    print("=" * len(hdr))
 
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
