@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>兑现率报告</title>
+<style>
+body { font-family: -apple-system, sans-serif; margin: 12px; background: #fafafa; }
+h1 { font-size: 1.3em; }
+h2 { font-size: 1.1em; margin-top: 1.4em; }
+table { border-collapse: collapse; width: 100%; font-size: 0.85em; background: #fff; }
+th, td { border: 1px solid #ddd; padding: 6px 4px; text-align: center; }
+th { background: #444; color: #fff; position: sticky; top: 0; }
+td.gn { text-align: left; white-space: nowrap; }
+small { color: #999; font-size: 0.75em; }
+.dim { color: #bbb; }
+.ok { background: #2e7d32; color: #fff; font-size: 0.7em; padding: 1px 4px; border-radius: 3px; }
+.warn { background: #e65100; color: #fff; font-size: 0.7em; padding: 1px 4px; border-radius: 3px; }
+.note { color: #666; font-size: 0.85em; }
+.meta { color: #999; font-size: 0.8em; }
+</style>
+</head>
+<body>
+<h1>📊 兑现率日报</h1>
+<p class="meta">生成: 2026-10-02 00:54 (北京时间) · 数据时点: None</p>
+
+<h2>一、威科夫信号兑现率（Phase 5 v0.5）</h2>
+<p class="note">正式策略=前置链Spring收盘进场持20日。胜=T+N收盘>事件日收盘；n&lt;30标"不足"不下结论；回溯组含未来信息仅归因，禁止作交易信号。</p>
+<table>
+<tr><th>分组</th><th>T+1</th><th>T+3</th><th>T+5</th><th>T+10</th><th>T+20</th><th>T+20均收益</th></tr>
+<tr><td class="gn">SOS_全体 <span class="ok">✅可交易</span></td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td></tr><tr><td class="gn">SOS_前置链背景 <span class="ok">✅可交易</span></td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td></tr><tr><td class="gn">SOS_无前置链背景 <span class="ok">✅可交易</span></td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td></tr><tr><td class="gn">Spring_全体 <span class="ok">✅可交易</span></td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td></tr><tr><td class="gn">Spring_前置链 <span class="ok">✅可交易</span></td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td></tr><tr><td class="gn">Spring_完整链_回溯 <span class="warn">⚠️仅归因</span></td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td></tr><tr><td class="gn">Spring_真金 <span class="ok">✅可交易</span></td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td></tr><tr><td class="gn">Spring_非前置链 <span class="ok">✅可交易</span></td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td><td class="dim">--</td></tr>
+</table>
+
+<h2>二、死信号对照组（v0.1）</h2>
+<p class="note">基线=全市场任意日(全历史536万股票日)。放量破位为反指:恐慌破位有承接，恰是Spring逻辑的独立证据。</p>
+<table>
+<tr><th>分组</th><th>T+1</th><th>T+3</th><th>T+5</th><th>T+10</th><th>T+20</th><th>T+20均收益</th></tr>
+<tr><td class="gn">巨量阴线</td><td><span style="color:#1a6ec0;font-weight:600">44.0%</span><br><small>n=120794</small></td><td><span style="color:#1a6ec0;font-weight:600">42.4%</span><br><small>n=120583</small></td><td><span style="color:#1a6ec0;font-weight:600">42.4%</span><br><small>n=120371</small></td><td><span style="color:#1a6ec0;font-weight:600">44.2%</span><br><small>n=119969</small></td><td><span style="color:#1a6ec0;font-weight:600">45.2%</span><br><small>n=118828</small></td><td><span style="color:#d73027;font-weight:600">+0.73%</span></td></tr><tr><td class="gn">长上影线</td><td><span style="color:#1a6ec0;font-weight:600">47.6%</span><br><small>n=381761</small></td><td><span style="color:#1a6ec0;font-weight:600">46.6%</span><br><small>n=381047</small></td><td><span style="color:#1a6ec0;font-weight:600">46.2%</span><br><small>n=380081</small></td><td><span style="color:#1a6ec0;font-weight:600">46.8%</span><br><small>n=378257</small></td><td><span style="color:#1a6ec0;font-weight:600">46.1%</span><br><small>n=373945</small></td><td><span style="color:#d73027;font-weight:600">+0.71%</span></td></tr><tr><td class="gn">放量破位</td><td><span style="color:#1a6ec0;font-weight:600">47.6%</span><br><small>n=50001</small></td><td><span style="color:#e08214;font-weight:600">52.1%</span><br><small>n=49917</small></td><td><span style="color:#e08214;font-weight:600">54.0%</span><br><small>n=49857</small></td><td><span style="color:#e08214;font-weight:600">54.5%</span><br><small>n=49758</small></td><td><span style="color:#e08214;font-weight:600">56.6%</span><br><small>n=49233</small></td><td><span style="color:#d73027;font-weight:600">+3.93%</span></td></tr><tr><td class="gn">全市场任意日</td><td><span style="color:#1a6ec0;font-weight:600">47.4%</span><br><small>n=5357276</small></td><td><span style="color:#1a6ec0;font-weight:600">47.2%</span><br><small>n=5346184</small></td><td><span style="color:#1a6ec0;font-weight:600">47.2%</span><br><small>n=5335092</small></td><td><span style="color:#1a6ec0;font-weight:600">47.5%</span><br><small>n=5307367</small></td><td><span style="color:#1a6ec0;font-weight:600">47.3%</span><br><small>n=5251957</small></td><td><span style="color:#d73027;font-weight:600">+0.70%</span></td></tr>
+</table>
+<p class="note">铁律: 信号分组只用事件日收盘前已知信息(无未来函数)。本页由cron自动生成。</p>
+</body>
+</html>
