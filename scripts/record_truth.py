@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-真假量柱账本记录器 (record_truth.py) v2.1
+真假量柱账本记录器 (record_truth.py) v3.0
 =================================================
 版本历史:
   v1.0 (仓库版)     绝对阈值（CV<0.5/尾盘>0.3），实测严重脱靶：
                     ~90%误判"疑似量化"，且记账失败仍删原始数据
   v2.0 (2026-09-30) 双轨判定 + 校准阈值 + ver版本号 + 失败保命 + 指数剔除
-  v2.1 (本版)       新增量波特征（早盘量/尾盘量/脉冲数）入账本，
-                    供报告T3"量波选时"在1分钟数据销毁后兜底使用
+  v2.1             新增量波特征（早盘量/尾盘量/脉冲数）入账本
+  v2.2 (补丁C/B/D) 大盘量比market_vol_ratio + 残缺日保留策略 + 指数文件清理
+  v3.0 (本版)      【1分钟数据深挖 Phase 0+1】新增7个行为指纹字段+3个审计字段：
+                    vwap_hold_ratio / open_30min_pct / close_auction_pct /
+                    pullup_slope / weave_score / pm_reversal / open_premium_pct
+                    + bars / t_first / t_last（审计竞价段覆盖情况）
+                    判定逻辑（verdict/is_real/quant_pct）与v2.2完全一致，零改动。
 
-判定逻辑 v2:
-  v1.0 绝对阈值与1分钟数据真实分布脱靶，
-  实测（2026-09账本）: CV 0.78~1.70、尾盘占比 0.083~0.183，
-  导致 ~90% 判为"疑似量化"，真金/量化两档几乎为空。
-  v2 改为【历史相对分位】为主、【校准绝对阈值】为辅的双轨判定:
+判定逻辑 v2（未变）:
   - 该股有 ≥5 天账本历史 → 指标和自己过去20天比（分位）
   - 历史不足 → 用校准后的绝对阈值兜底
   - |量价相关| 无量纲，保留绝对阈值
@@ -29,7 +30,7 @@
 
 核心流程:
   按日期分组1分钟K线 → 只记账"完整"交易日（≥230根）
-  → 计算真假特征+量波特征 → 按月分片写入账本 → 删除原始数据
+  → 计算真假特征+量波特征+行为指纹 → 按月分片写入账本 → 删除原始数据
   → 记账失败的文件保留不删，次日重试
 """
 
@@ -49,7 +50,7 @@ LEDGER_DIR = DATA_DIR / "analysis" / "truth_ledger"
 MIN_FULL_DAY_BARS = 230
 
 # 账本口径版本号（回测/报告按此过滤，v1为失真旧口径）
-LEDGER_VERSION = 2
+LEDGER_VERSION = 3
 
 # ============================================================
 # 指数不入账本：指数无"主力对倒"概念，入账只会稀释统计
@@ -58,33 +59,38 @@ INDEX_CODES = {"sh000001", "sz399001", "sz399006"}
 
 # ============================================================
 # 校准后的绝对阈值（基于2026-09账本实测分布）
-# 实测: CV 0.78~1.70、尾盘占比 0.083~0.183、|corr| -0.36~+0.37
 # ============================================================
-CV_ABS_QUANT = 0.95      # 实测区间下沿附近算"异常均匀"
-TAIL_ABS_QUANT = 0.22    # 明显高于常态算"尾盘做量"
-CORR_ABS_QUANT = 0.30    # 相关系数无量纲，保留原值
+CV_ABS_QUANT = 0.95
+TAIL_ABS_QUANT = 0.22
+CORR_ABS_QUANT = 0.30
 
 # ============================================================
 # 相对分位判定参数
 # ============================================================
-HISTORY_LOOKBACK = 20        # 用该股过去20天账本记录做基准
-MIN_HISTORY_FOR_RELATIVE = 5 # 历史不足此数时退回绝对阈值
-CV_RANK_LOW = 0.20           # CV处于自身历史最低20% → 量化特征
-TAIL_RANK_HIGH = 0.80        # 尾盘占比处于自身历史最高20% → 量化特征
+HISTORY_LOOKBACK = 20
+MIN_HISTORY_FOR_RELATIVE = 5
+CV_RANK_LOW = 0.20
+TAIL_RANK_HIGH = 0.80
 
 # ============================================================
 # 连续打分的线性映射区间（用于 quant_pct）
 # ============================================================
-CV_MAP = (0.80, 1.40)        # cv<=0.80 → 100分(量化), >=1.40 → 0分
-TAIL_MAP = (0.12, 0.25)      # tail>=0.25 → 100分, <=0.12 → 0分
-CORR_MAP = (0.20, 0.40)      # |corr|<=0.20 → 100分, >=0.40 → 0分
+CV_MAP = (0.80, 1.40)
+TAIL_MAP = (0.12, 0.25)
+CORR_MAP = (0.20, 0.40)
 
 # ============================================================
 # 量波特征参数（与报告T3口径一致）
 # ============================================================
-WAVE_OPEN_BARS = 30          # 早盘前30分钟
-WAVE_CLOSE_BARS = 30         # 尾盘前30分钟
-WAVE_SURGE_RATIO = 2.0       # 单分钟≥2倍均量记为一个脉冲
+WAVE_OPEN_BARS = 30
+WAVE_CLOSE_BARS = 30
+WAVE_SURGE_RATIO = 2.0
+
+# ============================================================
+# v3.0 行为指纹参数
+# ============================================================
+WEAVE_BAND = 0.015        # 织布机判定带宽：|close/vwap-1| < 1.5%
+PM_MIN_MOVE = 0.001       # 午后反转判定的最小波动（0.1%）
 
 
 # ============================================================
@@ -112,10 +118,11 @@ def write_watchdog():
 ## 口径版本说明
 - ver=1：旧口径（绝对阈值与1分钟数据真实分布脱靶，~90%误判"疑似量化"，
   判定结果不可信，但其 cv/corr/tail_ratio 原始指标仍有参考价值）
-- ver>=2：校准后口径（相对分位+校准绝对阈值双轨判定，可信）
+- ver=2：校准后口径（相对分位+校准绝对阈值双轨判定，可信）
+- ver=3：v2口径 + 行为指纹字段（vwap_hold_ratio等7个）+ 审计字段（bars/t_first/t_last），
+  判定逻辑与v2完全一致
 - 回测统计时建议只取 ver>=2 的记录。
 """
-    # 只在文件不存在时写入，避免每天重复
     if not watchdog_path.exists():
         with open(watchdog_path, 'w', encoding='utf-8') as f:
             f.write(content)
@@ -130,6 +137,18 @@ def extract_date_from_timestamp(ts):
         return s[:10]
     if len(s) >= 8 and s[:8].isdigit():
         return f"{s[:4]}-{s[4:6]}-{s[6:8]}"
+    return None
+
+
+def parse_hhmm(ts):
+    """v3.0: 从时间戳提取当日分钟数（09:31 → 571）。
+    兼容 '2026-10-09 09:31:00' 和 '20261009093100' 两种格式。"""
+    digits = ''.join(ch for ch in str(ts) if ch.isdigit())
+    if len(digits) >= 12:
+        try:
+            return int(digits[8:10]) * 60 + int(digits[10:12])
+        except ValueError:
+            return None
     return None
 
 
@@ -150,6 +169,18 @@ def _linear_score(value, lo, hi, invert=False):
     t = (value - lo) / (hi - lo)
     t = min(max(t, 0.0), 1.0)
     return round((1 - t if not invert else t) * 100, 1)
+
+
+def get_day_last_close(day_klines):
+    """v3.0: 取某日最后一根有效K线的收盘价（用于次日open_premium_pct）"""
+    last = None
+    for k in day_klines:
+        try:
+            if len(k) > 5:
+                last = float(k[2])
+        except Exception:
+            continue
+    return last
 
 
 # ============================================================
@@ -183,26 +214,28 @@ class HistoryIndex:
 
 
 # ============================================================
-# 核心分析：单日1分钟K线 → 真假特征 + 量波特征
+# 核心分析：单日1分钟K线 → 真假特征 + 量波特征 + 行为指纹
 # ============================================================
-def analyze_1min_volatility(day_klines, hist_index, code, date_str):
-    """输入单日完整的1分钟K线 + 该股历史索引，
-    返回 (verdict, is_real, quant_pct, cv, corr, tail_ratio,
-          wave_morning, wave_close, wave_pulses)"""
+def analyze_1min_volatility(day_klines, hist_index, code, date_str, prev_close=None):
+    """输入单日完整的1分钟K线 + 该股历史索引 + 前一交易日收盘价，
+    返回账本条目 dict（失败返回 None）。
+    v3.0: 判定逻辑（verdict/is_real/quant_pct）与v2.2逐字节一致；
+          仅新增行为指纹字段与审计字段。"""
 
     if not day_klines or len(day_klines) < MIN_FULL_DAY_BARS:
-        return None, None, None, None, None, None, None, None, None
+        return None
 
-    volumes, closes = [], []
+    volumes, closes, hhmm = [], [], []
     for k in day_klines:
         try:
             if len(k) > 5:
                 volumes.append(float(k[5]))
                 closes.append(float(k[2]))
+                hhmm.append(parse_hhmm(k[0]))
         except Exception:
             continue
     if len(volumes) < 30:
-        return None, None, None, None, None, None, None, None, None
+        return None
 
     vol_mean = np.mean(volumes)
     vol_std = np.std(volumes)
@@ -221,14 +254,14 @@ def analyze_1min_volatility(day_klines, hist_index, code, date_str):
     total_vol = sum(volumes)
     tail_ratio = sum(volumes[-30:]) / total_vol if total_vol > 0 else 0
 
-    # ---- 量波特征（供报告T3"量波选时"在1分钟数据销毁后使用）----
+    # ---- 量波特征（v2.1，供报告T3"量波选时"使用）----
     vols_arr = np.array(volumes)
     total_v = vols_arr.sum()
     wave_morning = float(vols_arr[:30].sum() / total_v) if total_v > 0 else 0
     wave_close = float(vols_arr[-30:].sum() / total_v) if total_v > 0 else 0
-    wave_pulses = int((vols_arr >= vols_arr.mean() * 2.0).sum())
+    wave_pulses = int((vols_arr >= vols_arr.mean() * WAVE_SURGE_RATIO).sum())
 
-    # ===== 双轨判定：相对分位优先，绝对阈值兜底 =====
+    # ===== 双轨判定：相对分位优先，绝对阈值兜底（与v2.2一致）=====
     cvs_h, corrs_h, tails_h = hist_index.history(code, date_str)
     use_relative = len(cvs_h) >= MIN_HISTORY_FOR_RELATIVE
 
@@ -247,7 +280,6 @@ def analyze_1min_volatility(day_klines, hist_index, code, date_str):
         if tail_ratio >= TAIL_ABS_QUANT:
             quant_score += 1
         basis = "绝对阈值"
-    # 相关系数无量纲，始终用绝对阈值
     if abs_corr < CORR_ABS_QUANT:
         quant_score += 1
 
@@ -261,28 +293,73 @@ def analyze_1min_volatility(day_klines, hist_index, code, date_str):
         verdict = "真金白银"
         is_real = True
 
-    # ===== 连续 quant_pct（三指标线性打分取均值，替代阶跃贡献度）=====
+    # ===== 连续 quant_pct（三指标线性打分取均值）=====
     cv_score = _linear_score(cv, CV_MAP[0], CV_MAP[1])
     tail_score = _linear_score(tail_ratio, TAIL_MAP[0], TAIL_MAP[1], invert=True)
     corr_score = _linear_score(abs_corr, CORR_MAP[0], CORR_MAP[1])
     quant_pct = round((cv_score + tail_score + corr_score) / 3, 1)
 
-    return (verdict, is_real, quant_pct,
-            round(cv, 2), round(corr, 2), round(tail_ratio, 3),
-            wave_morning, wave_close, wave_pulses)
+    # ===== v3.0 行为指纹（沙盘验证：5/7字段强分离）=====
+    c = np.array(closes)
+    v = np.array(volumes)
+    entry = {
+        "is_real": is_real,
+        "verdict": verdict,
+        "quant_pct": quant_pct,
+        "cv": round(cv, 2),
+        "corr": round(corr, 2),
+        "tail_ratio": round(tail_ratio, 3),
+        "wave_morning": wave_morning,
+        "wave_close": wave_close,
+        "wave_pulses": wave_pulses,
+    }
+
+    # 审计字段（Phase 0）：竞价段覆盖情况由 t_first/t_last 直接暴露
+    entry["bars"] = len(c)
+    if hhmm and hhmm[0] is not None:
+        entry["t_first"] = f"{hhmm[0]//60:02d}:{hhmm[0]%60:02d}"
+        entry["t_last"] = f"{hhmm[-1]//60:02d}:{hhmm[-1]%60:02d}"
+
+    if total_v > 0:
+        vwap = np.cumsum(c * v) / np.cumsum(v)
+        entry["vwap_hold_ratio"] = round(float((c >= vwap).mean()), 3)
+        entry["weave_score"] = round(float((np.abs(c / vwap - 1) < WEAVE_BAND).mean()), 3)
+    if len(c) >= 30:
+        entry["open_30min_pct"] = round(float((c[29] / c[0] - 1) * 100), 3)
+    if len(c) >= 31:
+        entry["pullup_slope"] = round(float((c[-1] / c[-31] - 1) * 100 / 30), 4)
+        entry["close_auction_pct"] = round(float((c[-1] / c[-4] - 1) * 100), 3)
+    # 午后反转：按时间切分上午/下午（无时间戳则用第120根兜底）
+    if hhmm and hhmm[0] is not None:
+        m = sum(1 for t in hhmm if t <= 11 * 60 + 30)
+    else:
+        m = min(120, len(c) - 1)
+    if 1 < m < len(c) - 1:
+        mr = c[m - 1] / c[0] - 1
+        pr = c[-1] / c[m] - 1
+        if abs(mr) > PM_MIN_MOVE and abs(pr) > PM_MIN_MOVE:
+            entry["pm_reversal"] = 1 if np.sign(mr) != np.sign(pr) else 0
+        else:
+            entry["pm_reversal"] = None
+    # 跨日溢价（前一交易日收盘价，来自同一文件的更早日期）
+    if prev_close and prev_close > 0:
+        entry["open_premium_pct"] = round(float((c[0] / prev_close - 1) * 100), 3)
+
+    entry["_basis"] = basis  # 内部调试用，写入前剔除
+    entry.pop("_basis", None)
+
+    return entry
 
 
 # ============================================================
 # 账本读写（按月分片）
 # ============================================================
 def get_ledger_path(date_str):
-    """根据日期返回账本文件路径（按月分片）"""
     month = date_str[:7]
     return LEDGER_DIR / f"{month}.json"
 
 
 def load_ledger(date_str):
-    """加载指定月份的账本"""
     path = get_ledger_path(date_str)
     if not path.exists():
         return {}
@@ -303,9 +380,6 @@ def save_ledger(date_str, ledger):
     tmp_path.replace(path)
 
 
-# ============================================================
-# 主函数
-# ============================================================
 # ============================================================
 # 【v2.2 补丁C】大盘背景量：上证当日量能 / 自身5日均量
 # ============================================================
@@ -336,15 +410,17 @@ def load_market_volume():
         return {}
 
 
+# ============================================================
+# 主函数
+# ============================================================
 def main():
-    # ============ 写入看门狗声明 ============
     write_watchdog()
 
     bj_now = datetime.now(timezone.utc) + timedelta(hours=8)
     print(f"[账本] 北京时间: {bj_now.strftime('%Y-%m-%d %H:%M:%S')}")
     today_str = bj_now.strftime('%Y-%m-%d')
     print(f"[账本] 完整交易日标准: ≥{MIN_FULL_DAY_BARS}根1分钟K线")
-    print(f"[账本] 判定口径: v{LEDGER_VERSION}（相对分位+校准绝对阈值双轨）")
+    print(f"[账本] 判定口径: v{LEDGER_VERSION}（v2双轨判定 + 行为指纹字段）")
     print(f"[账本] 写入协议: 只追加，不覆盖")
 
     if not KLINE_1MIN_DIR.exists():
@@ -356,24 +432,23 @@ def main():
         print("[账本] 无1分钟数据文件，跳过")
         return
 
-    # 构建历史索引（用于相对分位判定）
     hist_index = HistoryIndex()
     mkt_vol = load_market_volume()
 
     print(f"[账本] 待处理 {len(files)} 个文件\n")
 
     monthly_ledgers = {}
-    failed_files = {}   # 记录"含完整交易日却记账失败"的文件，稍后保留不删
+    failed_files = {}
     verdict_stats = {"量化对倒": 0, "疑似量化": 0, "真金白银": 0}
     updated = 0
     skipped_incomplete = 0
     skipped_exists = 0
     skipped_index = 0
+    fingerprint_days = 0  # v3.0: 含行为指纹的记录数
 
     for f in files:
         code = f.stem
 
-        # 指数不入账本
         if code in INDEX_CODES:
             skipped_index += 1
             continue
@@ -385,14 +460,24 @@ def main():
             if not klines:
                 continue
 
-            # 按日期分组
             by_date = {}
             for k in klines:
                 d = extract_date_from_timestamp(k[0])
                 if d:
                     by_date.setdefault(d, []).append(k)
 
+            last_close_map = {}  # v3.0: {日期: 当日收盘}，供次日算溢价
+
             for d, day_klines in sorted(by_date.items()):
+                # v3.0: 先取昨日收盘（无论今天是否已记账，昨日收盘都有效）
+                prev_dates = [pd_ for pd_ in last_close_map if pd_ < d]
+                prev_close = last_close_map[sorted(prev_dates)[-1]] if prev_dates else None
+
+                # 更新收盘价缓存（即使今天残缺/已记账，明日仍可引用）
+                day_last = get_day_last_close(day_klines)
+                if day_last:
+                    last_close_map[d] = day_last
+
                 if len(day_klines) < MIN_FULL_DAY_BARS:
                     skipped_incomplete += 1
                     print(f"  [残缺] {code} {d} 仅{len(day_klines)}根(<{MIN_FULL_DAY_BARS})")
@@ -412,57 +497,38 @@ def main():
                     skipped_exists += 1
                     continue
 
-                res = analyze_1min_volatility(day_klines, hist_index, code, d)
+                entry = analyze_1min_volatility(day_klines, hist_index, code, d, prev_close)
 
-                if res[0] is None:
-                    # 完整交易日却分析失败：记入失败清单，稍后保留该文件，
-                    # 防止"没记账又被删"丢真相
+                if entry is None:
                     failed_files.setdefault(f, []).append(d)
                     continue
 
-                (verdict, is_real, quant_pct,
-                 cv, corr, tail, wave_morning, wave_close, wave_pulses) = res
+                entry["market_vol_ratio"] = mkt_vol.get(d)
+                entry["ver"] = LEDGER_VERSION
 
-                if code not in ledger:
-                    ledger[code] = {}
-
-                # ★★★ 你问的那段就在这里！整个账本写入代码块（完整版已整合）★★★
-                ledger.setdefault(code, {})[d] = {
-                    "is_real": is_real,
-                    "verdict": verdict,
-                    "quant_pct": quant_pct,
-                    "cv": cv,
-                    "corr": corr,
-                    "tail_ratio": tail,
-                    "wave_morning": wave_morning,   # ← 新增：早盘量占比
-                    "wave_close": wave_close,       # ← 新增：尾盘量占比
-                    "wave_pulses": wave_pulses,     # ← 新增：放量脉冲数
-                    "market_vol_ratio": mkt_vol.get(d),
-                    "ver": LEDGER_VERSION,
-                }
+                ledger.setdefault(code, {})[d] = entry
                 updated += 1
-                verdict_stats[verdict] += 1
+                verdict_stats[entry["verdict"]] += 1
+                if "vwap_hold_ratio" in entry:
+                    fingerprint_days += 1
 
                 if updated <= 20 or updated % 500 == 0:
-                    print(f"  {code} {d} ✅ {verdict} (量化{quant_pct}%)")
+                    fp = f", vwap_hold={entry.get('vwap_hold_ratio')}" if "vwap_hold_ratio" in entry else ""
+                    print(f"  {code} {d} ✅ {entry['verdict']} (量化{entry['quant_pct']}%{fp})")
 
         except Exception as e:
             print(f"  {code} 处理失败: {e}")
-            # 整个文件处理异常也视为失败，保留文件以便次日重试，不直接删除
             failed_files.setdefault(f, []).append(f"异常:{type(e).__name__}")
 
-    # 保存所有月份分片
     for month, ledger in monthly_ledgers.items():
         save_ledger(f"{month}-01", ledger)
         total = sum(len(v) for v in ledger.values())
         print(f"[账本] {month}.json: {len(ledger)} 只股票, {total} 条记录")
 
-    print(f"\n[统计] 更新: {updated} 条，跳过不完整: {skipped_incomplete} 条，"
+    print(f"\n[统计] 更新: {updated} 条（含行为指纹 {fingerprint_days} 条），跳过不完整: {skipped_incomplete} 条，"
           f"已存在: {skipped_exists} 条，指数跳过: {skipped_index} 条")
     print(f"[分布] 真金白银: {verdict_stats['真金白银']} | "
-          f"疑似量化: {verdict_stats['疑似量化']} | "
-          f"量化对倒: {verdict_stats['量化对倒']}")
-    # 自检告警：如果三个档位又塌缩到单一档位，说明阈值再次脱靶
+          f"疑似量化: {verdict_stats['疑似量化']} | 量化对倒: {verdict_stats['量化对倒']}")
     if updated > 0 and verdict_stats["量化对倒"] == 0 and verdict_stats["真金白银"] == 0:
         print("[告警] ⚠️ 全部落在'疑似'一档——阈值可能再次脱靶，请检查实测分布！")
 
@@ -471,15 +537,12 @@ def main():
     kept = 0
     for f in files:
         if f.stem in INDEX_CODES:
-            # 补丁D：指数原始数据不入账本，也同样删除，防磁盘无限堆积
             try:
                 f.unlink()
                 deleted += 1
             except Exception:
                 pass
             continue
-        # 安全删除：仅当该文件没有"完整交易日记账失败"时才删；
-        # 失败文件保留并告警，避免"既没记账、文件也被删"导致历史真相永久丢失
         if failed_files.get(f):
             kept += 1
             print(f"[清理] ⚠️ 保留 {f.name}，完整交易日记账失败、需人工排查: {failed_files[f]}")
