@@ -321,6 +321,11 @@ jobs:
           python3 record_truth.py
           cd ..
 
+      - name: BC矿分析（市场宽度+账本截面）
+        run: |
+          python3 scripts/market_breadth.py
+          python3 scripts/cross_section.py
+
       - name: 提交 + 推送
         run: |
           git config user.name "github-actions[bot]"
@@ -329,7 +334,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "无变化"
           else
-            git commit -m "data: 全市场行情+账本+修补后脚本 $(date -u +%Y%m%d)"
+            git commit -m "data: 全市场行情+账本+BC矿分析 $(date -u +%Y%m%d)"
             git pull --rebase origin main
             git push
           fi
