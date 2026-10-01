@@ -306,43 +306,12 @@ def save_ledger(date_str, ledger):
 # ============================================================
 # 主函数
 # ============================================================
-# ============================================================
-# 【v2.2 补丁C】大盘背景量：上证当日量能 / 自身5日均量
-# ============================================================
-def load_market_volume():
-    path = DATA_DIR / "kline" / "sh" / "sh000001.json"
-    if not path.exists():
-        print("[大盘量比] 指数日线数据缺失，market_vol_ratio 将为空")
-        return {}
-    try:
-        with open(path, 'r', encoding='utf-8') as f:
-            klines = json.load(f).get('klines', [])
-        dates, vols = [], []
-        for k in klines:
-            try:
-                dates.append(str(k[0])[:10])
-                vols.append(float(k[5]))
-            except Exception:
-                continue
-        out = {}
-        for i in range(len(dates)):
-            prev = vols[max(0, i - 5):i]
-            if prev and sum(prev) > 0:
-                out[dates[i]] = round(vols[i] / (sum(prev) / len(prev)), 2)
-        print(f"[大盘量比] 指数量比就绪: {len(out)} 天")
-        return out
-    except Exception as e:
-        print(f"[大盘量比] 加载失败: {e}")
-        return {}
-
-
 def main():
     # ============ 写入看门狗声明 ============
     write_watchdog()
 
     bj_now = datetime.now(timezone.utc) + timedelta(hours=8)
     print(f"[账本] 北京时间: {bj_now.strftime('%Y-%m-%d %H:%M:%S')}")
-    today_str = bj_now.strftime('%Y-%m-%d')
     print(f"[账本] 完整交易日标准: ≥{MIN_FULL_DAY_BARS}根1分钟K线")
     print(f"[账本] 判定口径: v{LEDGER_VERSION}（相对分位+校准绝对阈值双轨）")
     print(f"[账本] 写入协议: 只追加，不覆盖")
@@ -358,7 +327,6 @@ def main():
 
     # 构建历史索引（用于相对分位判定）
     hist_index = HistoryIndex()
-    mkt_vol = load_market_volume()
 
     print(f"[账本] 待处理 {len(files)} 个文件\n")
 
@@ -395,11 +363,6 @@ def main():
             for d, day_klines in sorted(by_date.items()):
                 if len(day_klines) < MIN_FULL_DAY_BARS:
                     skipped_incomplete += 1
-                    print(f"  [残缺] {code} {d} 仅{len(day_klines)}根(<{MIN_FULL_DAY_BARS})")
-                    # 补丁B：只有"今天"的残缺日明天能补全→保留文件；
-                    # 历史残缺日已超出640根滚动窗口，永远补不全，保留无意义
-                    if d >= today_str:
-                        failed_files.setdefault(f, []).append(f"残缺:{d}:{len(day_klines)}根")
                     continue
 
                 month = d[:7]
@@ -437,7 +400,6 @@ def main():
                     "wave_morning": wave_morning,   # ← 新增：早盘量占比
                     "wave_close": wave_close,       # ← 新增：尾盘量占比
                     "wave_pulses": wave_pulses,     # ← 新增：放量脉冲数
-                    "market_vol_ratio": mkt_vol.get(d),
                     "ver": LEDGER_VERSION,
                 }
                 updated += 1
@@ -471,12 +433,6 @@ def main():
     kept = 0
     for f in files:
         if f.stem in INDEX_CODES:
-            # 补丁D：指数原始数据不入账本，也同样删除，防磁盘无限堆积
-            try:
-                f.unlink()
-                deleted += 1
-            except Exception:
-                pass
             continue
         # 安全删除：仅当该文件没有"完整交易日记账失败"时才删；
         # 失败文件保留并告警，避免"既没记账、文件也被删"导致历史真相永久丢失
