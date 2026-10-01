@@ -6,7 +6,9 @@
       5
     ],
     "win_def": "T+N收盘>事件日收盘",
-    "min_sample": 30
+    "min_sample": 30,
+    "chain_link_days": 90,
+    "chain_min_score": 9
   },
   "groups": {
     "SOS_全体": {
@@ -27,19 +29,29 @@
       "T5_winrate": 53.5,
       "T5_avg_return": 1.11
     },
+    "Spring_完整链": {
+      "T1_n": 20,
+      "T1_winrate": 50.0,
+      "T3_n": 20,
+      "T3_winrate": 65.0,
+      "T5_n": 20,
+      "T5_winrate": 70.0,
+      "T5_avg_return": 7.3,
+      "note": "样本不足"
+    },
     "Spring_真金": {
       "T1_n": 1,
       "T1_winrate": 100.0,
       "note": "样本不足"
     },
-    "Spring_非真金": {
-      "T1_n": 2104,
+    "Spring_非完整链": {
+      "T1_n": 2085,
       "T1_winrate": 46.5,
-      "T3_n": 2098,
-      "T3_winrate": 46.3,
-      "T5_n": 2095,
-      "T5_winrate": 53.5,
-      "T5_avg_return": 1.11
+      "T3_n": 2078,
+      "T3_winrate": 46.1,
+      "T5_n": 2075,
+      "T5_winrate": 53.3,
+      "T5_avg_return": 1.05
     }
   }
 }
