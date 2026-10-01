@@ -1,35 +1,31 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-威科夫信号兑现率统计 v0.3  (Phase 5)
+威科夫信号兑现率统计 v0.4  (Phase 5)
 ======================================================================
-真实事件格式（2026-10-01 实测确认）:
-  {"股票代码": {"日期": {"events": [...], "spring_real": .., "quant_pct": ..}}}
-链文件格式:
-  {"股票代码": {"日期": {"score": 9, "type": "吸筹", "chain": [...], ...}}}
+【铁律】信号分组绝不使用未来函数！
+  - 信号必须在事件日收盘时已可判定
+  - T+N 兑现率使用未来价格属于"评分", 合法;
+    分组条件使用事件日之后的信息属于"偷看", 违法
+分组口径:
+  Spring_前置链   (✅可交易) Spring日链快照已含 SC+AR+ST
+  Spring_非前置链 (✅可交易) 前置条件不满足
+  Spring_完整链_回溯 (⚠️仅归因, 含未来信息, 禁止作交易信号)
+                    Spring后90天内出现score>=9完整链
+  Spring_真金     (账本双重确认, 历史不可回测, 攒样本)
+  SOS_全体
 
-纯读取型脚本:
-  读: data/analysis/wyckoff_events.json
-      data/analysis/wyckoff_chain.json
-      data/kline/{sh,sz,bj}/{code}.json
-  写: data/analysis/payoff_report.json
-
-统计口径:
-  - 胜 = T+N 收盘 > 事件日收盘
-  - 窗口: T+1 / T+3 / T+5
-  - 分组:
-      Spring_全体
-      Spring_完整链   (Spring后90天内该股出现score>=9的完整吸筹链)
-      Spring_非完整链
-      Spring_真金     (账本双重确认, 历史不可回测, 攒样本)
-      SOS_全体
-  - 样本 < 30 标注"样本不足"
+链快照无未来函数的依据:
+  wyckoff_events.py 的 scan_stock() 在第 i 天写入链快照时,
+  events_hist 只累积到第 i 天——快照是逐日"当时视角",
+  date<=事件日 的快照不含任何未来事件。
 ======================================================================
 """
 
 import json
 import os
 import sys
+from bisect import bisect_right
 from collections import defaultdict
 from datetime import datetime, timedelta
 
@@ -40,8 +36,8 @@ OUTPUT_FILE = "data/analysis/payoff_report.json"
 
 WINDOWS    = [1, 3, 5]
 MIN_SAMPLE = 30
-CHAIN_LINK_DAYS  = 90   # Spring后多少自然日内出现完整链算"链内弹簧"
-CHAIN_MIN_SCORE  = 9
+CHAIN_LINK_DAYS  = 90   # 仅用于回溯归因分组
+CHAIN_MIN_SCORE  = 9    # 仅用于回溯归因分组
 
 
 # ----------------------------------------------------------------------
@@ -50,7 +46,6 @@ CHAIN_MIN_SCORE  = 9
 def load_events():
     with open(EVENTS_FILE, "r", encoding="utf-8") as f:
         raw = json.load(f)
-
     events = []
     for code, dates in raw.items():
         if not isinstance(dates, dict):
@@ -58,18 +53,13 @@ def load_events():
         for date, payload in dates.items():
             if not isinstance(payload, dict):
                 continue
-            ev_types = payload.get("events", [])
-            spring_real = payload.get("spring_real")
-            quant_pct = payload.get("quant_pct")
-            for t in ev_types:
+            for t in payload.get("events", []):
                 events.append({
                     "code": str(code),
                     "type": str(t),
                     "date": str(date)[:10],
-                    "spring_real": spring_real,
-                    "quant_pct": quant_pct,
+                    "spring_real": payload.get("spring_real"),
                 })
-
     print(f"[事件] 共解析出 {len(events)} 个事件")
     real_cnt = sum(1 for e in events
                    if e["type"] == "Spring" and e["spring_real"])
@@ -78,48 +68,65 @@ def load_events():
 
 
 # ----------------------------------------------------------------------
-# 链读取: {code: [(日期, score), ...] 按日期升序}
+# 链快照读取: {code: ([日期升序], [payload...])}
 # ----------------------------------------------------------------------
-def load_chain_scores():
+def load_chain_snapshots():
     if not os.path.exists(CHAIN_FILE):
-        print(f"[链] 未找到 {CHAIN_FILE}, 跳过完整链分组")
+        print(f"[链] 未找到 {CHAIN_FILE}, 前置链/回溯分组跳过")
         return {}
     with open(CHAIN_FILE, "r", encoding="utf-8") as f:
         raw = json.load(f)
-
     chains = {}
     for code, dates in raw.items():
         if not isinstance(dates, dict):
             continue
-        recs = []
-        for d, payload in dates.items():
-            if isinstance(payload, dict) and "score" in payload:
-                recs.append((str(d)[:10], float(payload["score"])))
-        recs.sort(key=lambda x: x[0])
+        recs = sorted((str(d)[:10], p) for d, p in dates.items()
+                      if isinstance(p, dict))
         if recs:
-            chains[str(code)] = recs
-    print(f"[链] 已加载 {len(chains)} 只股票的链记录")
+            chains[str(code)] = ([d for d, _ in recs], [p for _, p in recs])
+    print(f"[链] 已加载 {len(chains)} 只股票的链快照")
     return chains
 
 
-def chain_completed_after(chain_recs, event_date,
+def snapshot_at(chains, code, event_date):
+    """事件日(含)之前最近一条链快照——当时视角, 无未来函数"""
+    if code not in chains:
+        return None
+    dates, payloads = chains[code]
+    i = bisect_right(dates, event_date) - 1
+    return payloads[i] if i >= 0 else None
+
+
+def prechain_ok(snapshot):
+    """前置链: Spring日已知 SC+AR+ST 全部出现"""
+    if snapshot is None:
+        return False
+    chain = set(snapshot.get("chain", []))
+    return {"SC", "AR", "ST"} <= chain
+
+
+def chain_completed_after(chains, code, event_date,
                           days=CHAIN_LINK_DAYS, min_score=CHAIN_MIN_SCORE):
-    """Spring事件日之后 days 自然日内, 该股是否出现 score>=min_score 的链记录"""
+    """⚠️ 回溯归因专用: 用了事件日之后的链信息, 严禁作交易信号"""
+    if code not in chains:
+        return False
+    dates, payloads = chains[code]
     try:
         d0 = datetime.strptime(event_date, "%Y-%m-%d")
     except ValueError:
         return False
     limit = (d0 + timedelta(days=days)).strftime("%Y-%m-%d")
-    for d, s in chain_recs:
-        if d > limit:
+    i = bisect_right(dates, event_date) - 1
+    for j in range(i + 1, len(dates)):
+        if dates[j] > limit:
             break
-        if d >= event_date and s >= min_score:
+        if float(payloads[j].get("score", 0)) >= min_score:
             return True
     return False
 
 
 # ----------------------------------------------------------------------
-# K线读取: {"name":..,"klines":[[日期,开,收,高,低,量],...]}
+# K线读取
 # ----------------------------------------------------------------------
 def load_kline(code):
     path = os.path.join(KLINE_DIR, code[:2], code + ".json")
@@ -130,7 +137,6 @@ def load_kline(code):
             data = json.load(f)
     except Exception:
         return None
-
     rows = []
     for k in data.get("klines", []):
         if isinstance(k, (list, tuple)) and len(k) >= 3:
@@ -158,19 +164,18 @@ def payoff_of(kline, event_date, n):
 # ----------------------------------------------------------------------
 def main():
     print("=" * 70)
-    print("威科夫信号兑现率统计 v0.3 (Phase 5)")
+    print("威科夫信号兑现率统计 v0.4 (无未来函数版)")
     print("=" * 70)
 
     events = load_events()
-    chains = load_chain_scores()
+    chains = load_chain_snapshots()
 
-    targets = {"Spring", "SOS"}
-    events = [e for e in events if e["type"] in targets]
+    events = [e for e in events if e["type"] in {"Spring", "SOS"}]
     print(f"[过滤] 目标信号(Spring/SOS)共 {len(events)} 个")
 
     results = defaultdict(lambda: defaultdict(list))
     missing_kline = set()
-    linked_count = 0
+    n_pre = n_retro = 0
 
     for ev in events:
         kl = load_kline(ev["code"])
@@ -179,12 +184,16 @@ def main():
             continue
 
         if ev["type"] == "Spring":
-            recs = chains.get(ev["code"], [])
-            linked = chain_completed_after(recs, ev["date"])
-            if linked:
-                linked_count += 1
-            groups = ["Spring_全体",
-                      "Spring_完整链" if linked else "Spring_非完整链"]
+            groups = ["Spring_全体"]
+            if prechain_ok(snapshot_at(chains, ev["code"], ev["date"])):
+                n_pre += 1
+                groups.append("Spring_前置链")
+            else:
+                groups.append("Spring_非前置链")
+            # ⚠️ 回溯归因分组: 含未来信息, 仅用于链检测器成色认证
+            if chain_completed_after(chains, ev["code"], ev["date"]):
+                n_retro += 1
+                groups.append("Spring_完整链_回溯")
             if ev["spring_real"]:
                 groups.append("Spring_真金")
         else:
@@ -196,8 +205,8 @@ def main():
                 if r is not None:
                     results[g][n].append(r)
 
-    print(f"[链] Spring中属于完整链(score>={CHAIN_MIN_SCORE}, "
-          f"后{CHAIN_LINK_DAYS}天内确认): {linked_count} 个")
+    print(f"[前置] Spring日已确认SC+AR+ST(可交易): {n_pre} 个")
+    print(f"[回溯] 后{CHAIN_LINK_DAYS}天走完score>={CHAIN_MIN_SCORE}链(仅归因): {n_retro} 个")
     if missing_kline:
         print(f"[警告] {len(missing_kline)} 只股票找不到K线文件 "
               f"(示例: {sorted(missing_kline)[:3]})")
@@ -206,20 +215,23 @@ def main():
     report = {"meta": {"window": WINDOWS,
                        "win_def": "T+N收盘>事件日收盘",
                        "min_sample": MIN_SAMPLE,
-                       "chain_link_days": CHAIN_LINK_DAYS,
-                       "chain_min_score": CHAIN_MIN_SCORE},
+                       "iron_rule": "信号分组无未来函数; 回溯分组仅归因",
+                       "tradeable": ["Spring_全体", "Spring_前置链",
+                                     "Spring_非前置链", "SOS_全体"],
+                       "retrospective_only": ["Spring_完整链_回溯"]},
               "groups": {}}
 
     print()
-    print("=" * 80)
-    print(f"{'分组':<20}{'样本':>8}{'T+1胜率':>10}{'T+3胜率':>10}"
+    print("=" * 84)
+    print(f"{'分组':<22}{'样本':>8}{'T+1胜率':>10}{'T+3胜率':>10}"
           f"{'T+5胜率':>10}{'T+5均收益':>12}")
-    print("-" * 80)
+    print("-" * 84)
 
     for g in sorted(results.keys()):
         entry = {}
         n0 = len(results[g][WINDOWS[0]])
-        line = f"{g:<20}{n0:>8}"
+        tag = "⚠️回溯" if g.endswith("回溯") else "✅可交易"
+        line = f"{g:<22}{n0:>8}"
         for n in WINDOWS:
             rets = results[g][n]
             if rets:
@@ -237,10 +249,11 @@ def main():
         if n0 < MIN_SAMPLE:
             entry["note"] = "样本不足"
             line += "  (样本不足)"
-        print(line)
+        print(f"{line}  {tag}")
+        entry["tradeable"] = tag == "✅可交易"
         report["groups"][g] = entry
 
-    print("=" * 80)
+    print("=" * 84)
 
     os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
