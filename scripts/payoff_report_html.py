@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-兑现率可视化报告 v0.2 (payoff_report_html.py)
+兑现率可视化报告 v0.3 (payoff_report_html.py)
 ==============================================
-v0.2修复: 真实结构(探针实测)为扁平键——
-  {组名: {"T1_n":..,"T1_winrate":..,"T10_n":..,"T20_winrate":..,
-          "Tmax_avg_return":..,"tradeable":..,"note":..}}
-  v0.1找的是嵌套键"T+1":{...}, 全扑空, 表格全是"--"。
-  修复: 键名映射 T+1→T1_winrate/T1_n, 均收益→Tmax_avg_return。
+v0.3升级(用户需求):
+  - 深色背景主题(用户偏好)
+  - 手机自适应(华为Mate30 Pro实测口径): 表格横向可滑+首列吸边+字号适配
+v0.2修复: payoff扁平键 T1_winrate/T1_n/Tmax_avg_return
+  (v0.1猜嵌套结构扑空, 第6起格式事故, 探针活捉)
 
-其余不变: 只读不写地基, 输出 docs/payoff_report.html
-版本: v0.2 (2026-10-02)
+结构依据(探针实测): groups={组名: {T1_n,T1_winrate,...,Tmax_avg_return,tradeable,note}}
+版本: v0.3 (2026-10-02)
 """
 
 import os
@@ -24,7 +24,6 @@ PAYOFF_PATH = 'data/analysis/payoff_report.json'
 DEATH_PATH = 'data/analysis/death_signal_report.json'
 OUT_PATH = 'docs/payoff_report.html'
 WINDOWS = ['T+1', 'T+3', 'T+5', 'T+10', 'T+20']
-# 窗口标签 → payoff_report.json 的扁平键前缀
 WIN_KEY = {'T+1': 'T1', 'T+3': 'T3', 'T+5': 'T5', 'T+10': 'T10', 'T+20': 'T20'}
 MIN_SAMPLE = 30
 BJ = timezone(timedelta(hours=8))
@@ -52,10 +51,20 @@ def probe(name, obj, max_chars=500):
         print(f" (预览失败: {e})")
 
 
-# ============ 归一化 ============
+def find_date_like(raw):
+    """在meta里自动找长得像日期的值, 兜底'None'问题"""
+    meta = raw.get('meta') if isinstance(raw, dict) else None
+    if isinstance(meta, dict):
+        for k, v in meta.items():
+            s = str(v)
+            if len(s) >= 8 and (s[:2] == '20' or '-' in s[:6]):
+                return f"{s} ({k})"
+    if isinstance(raw, dict) and isinstance(raw.get('generated_at'), str):
+        return raw['generated_at']
+    return '当日'
+
 
 def normalize_payoff_groups(raw):
-    """真实结构: groups是dict {组名: {T1_n, T1_winrate, ..., tradeable}}"""
     groups_raw = raw.get('groups') if isinstance(raw, dict) else None
     if not isinstance(groups_raw, dict):
         return []
@@ -63,14 +72,13 @@ def normalize_payoff_groups(raw):
     for name, g in groups_raw.items():
         if not isinstance(g, dict):
             continue
-        tradeable = bool(g.get('tradeable'))
-        retro = '回溯' in name
         wins = {}
         for w in WINDOWS:
             k = WIN_KEY[w]
             wins[w] = (g.get(f'{k}_winrate'), g.get(f'{k}_n'))
         out.append({'name': str(name),
-                    'tradeable': tradeable, 'retro': retro,
+                    'tradeable': bool(g.get('tradeable')),
+                    'retro': '回溯' in str(name),
                     'wins': wins,
                     't20': g.get('Tmax_avg_return'),
                     'note': g.get('note', '')})
@@ -78,7 +86,6 @@ def normalize_payoff_groups(raw):
 
 
 def normalize_death_groups(raw):
-    """死信号报告是AI自己写的, 结构确认: groups是list"""
     out = []
     for g in raw.get('groups', []):
         wins = {}
@@ -92,38 +99,39 @@ def normalize_death_groups(raw):
     return out
 
 
-# ============ HTML 渲染 ============
+# ============ 深色主题渲染 ============
 
 def rate_color(r):
+    """深色背景下提亮: 红=高胜率(A股习惯), 蓝=低"""
     if r >= 60:
-        return '#d73027'   # A股习惯: 红=好
+        return '#ff5d5d'   # 亮红
     if r >= 52:
-        return '#e08214'
+        return '#ffb340'   # 亮橙
     if r > 48:
-        return '#333333'
-    return '#1a6ec0'
+        return '#d4d4d4'   # 中性灰白
+    return '#5da9ff'       # 亮蓝
 
 
 def cell_html(rate, n):
     if rate is None or not isinstance(rate, (int, float)):
         return '<td class="dim">--</td>'
     insufficient = (n is not None and n < MIN_SAMPLE)
-    color = '#999' if insufficient else rate_color(rate)
+    color = '#8a8a8a' if insufficient else rate_color(rate)
     if insufficient:
         sub = f'<small>n={n}·不足</small>'
     elif n is not None:
         sub = f'<small>n={n}</small>'
     else:
         sub = ''
-    return (f'<td><span style="color:{color};font-weight:600">'
+    return (f'<td><span style="color:{color};font-weight:700">'
             f'{rate:.1f}%</span><br>{sub}</td>')
 
 
 def t20_html(t20):
     if t20 is None or not isinstance(t20, (int, float)):
         return '<td class="dim">--</td>'
-    color = '#d73027' if t20 > 0 else '#1a6ec0'
-    return f'<td><span style="color:{color};font-weight:600">{t20:+.2f}%</span></td>'
+    color = '#ff5d5d' if t20 > 0 else '#5da9ff'
+    return f'<td><span style="color:{color};font-weight:700">{t20:+.2f}%</span></td>'
 
 
 def render_table(groups, title, note=''):
@@ -142,10 +150,12 @@ def render_table(groups, title, note=''):
     return f'''
 <h2>{title}</h2>
 {note_html}
+<div class="scroll">
 <table>
-<tr><th>分组</th><th>T+1</th><th>T+3</th><th>T+5</th><th>T+10</th><th>T+20</th><th>T+20均收益</th></tr>
+<tr><th class="gn">分组</th><th>T+1</th><th>T+3</th><th>T+5</th><th>T+10</th><th>T+20</th><th>均收益</th></tr>
 {''.join(rows)}
-</table>'''
+</table>
+</div>'''
 
 
 def render_page(payoff_groups, death_groups, generated_at):
@@ -153,7 +163,7 @@ def render_page(payoff_groups, death_groups, generated_at):
     if payoff_groups:
         payoff_table = render_table(
             payoff_groups, '一、威科夫信号兑现率（Phase 5 v0.5）',
-            '正式策略=前置链Spring收盘进场持20日。胜=T+N收盘>事件日收盘；'
+            '正式策略=前置链Spring收盘进场持20日。胜=T+N收盘&gt;事件日收盘；'
             'n&lt;30标"不足"不下结论；回溯组含未来信息仅归因，禁止作交易信号。')
     death_table = ''
     if death_groups:
@@ -166,22 +176,42 @@ def render_page(payoff_groups, death_groups, generated_at):
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
 <title>兑现率报告</title>
 <style>
-body {{ font-family: -apple-system, sans-serif; margin: 12px; background: #fafafa; }}
-h1 {{ font-size: 1.3em; }}
-h2 {{ font-size: 1.1em; margin-top: 1.4em; }}
-table {{ border-collapse: collapse; width: 100%; font-size: 0.85em; background: #fff; }}
-th, td {{ border: 1px solid #ddd; padding: 6px 4px; text-align: center; }}
-th {{ background: #444; color: #fff; }}
-td.gn {{ text-align: left; white-space: nowrap; }}
-small {{ color: #999; font-size: 0.75em; }}
-.dim {{ color: #bbb; }}
-.ok {{ background: #2e7d32; color: #fff; font-size: 0.7em; padding: 1px 4px; border-radius: 3px; }}
-.warn {{ background: #e65100; color: #fff; font-size: 0.7em; padding: 1px 4px; border-radius: 3px; }}
-.note {{ color: #666; font-size: 0.85em; }}
-.meta {{ color: #999; font-size: 0.8em; }}
+* {{ -webkit-tap-highlight-color: transparent; }}
+body {{
+  font-family: -apple-system, "HarmonyOS Sans SC", "HuaweiFont", sans-serif;
+  margin: 0; padding: 14px 10px 30px;
+  background: #121212; color: #e0e0e0;
+}}
+h1 {{ font-size: 1.25em; color: #fff; }}
+h2 {{ font-size: 1.05em; margin: 1.5em 0 0.6em; color: #f0f0f0;
+     border-left: 4px solid #ff5d5d; padding-left: 8px; }}
+.meta {{ color: #8a8a8a; font-size: 0.78em; }}
+.note {{ color: #9e9e9e; font-size: 0.8em; line-height: 1.5; margin: 0.5em 0 0.6em; }}
+.scroll {{
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  border-radius: 10px; border: 1px solid #2a2a2a; background: #1c1c1c;
+}}
+table {{ border-collapse: collapse; width: 100%; min-width: 560px; font-size: 0.85em; }}
+th, td {{ border-bottom: 1px solid #2a2a2a; padding: 9px 6px; text-align: center; white-space: nowrap; }}
+th {{ background: #262626; color: #bbb; font-weight: 500; position: sticky; top: 0; }}
+tr:last-child td {{ border-bottom: none; }}
+td.gn, th.gn {{
+  text-align: left; position: sticky; left: 0; z-index: 2;
+  background: #1c1c1c; max-width: 46vw;
+}}
+th.gn {{ background: #262626; z-index: 3; }}
+td.gn {{ white-space: normal; word-break: break-all; font-weight: 600; color: #f0f0f0; }}
+small {{ color: #777; font-size: 0.72em; }}
+.dim {{ color: #555; }}
+.ok {{ background: #1b4d2a; color: #6ee08a; font-size: 0.7em;
+      padding: 2px 5px; border-radius: 4px; font-weight: 500; }}
+.warn {{ background: #4d2a00; color: #ffab40; font-size: 0.7em;
+        padding: 2px 5px; border-radius: 4px; font-weight: 500; }}
+tr:hover td {{ background: #222; }}
 </style>
 </head>
 <body>
@@ -196,7 +226,7 @@ small {{ color: #999; font-size: 0.75em; }}
 
 def main():
     print('=' * 70)
-    print('兑现率可视化报告 v0.2 (扁平键修复版)')
+    print('兑现率可视化报告 v0.3 (深色主题+手机自适应)')
     print('=' * 70)
 
     if not os.path.exists(PAYOFF_PATH):
@@ -224,13 +254,14 @@ def main():
         except Exception as e:
             print(f"[警告] 死信号报告读取失败(不影响主表): {e}")
 
-    gen_at = raw.get('meta', {}).get('generated_at') if isinstance(raw.get('meta'), dict) else raw.get('generated_at')
+    gen_at = find_date_like(raw)
+    print(f"[日期] 数据时点: {gen_at}")
     page = render_page(payoff_groups, death_groups, gen_at)
     os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
     with open(OUT_PATH, 'w', encoding='utf-8') as f:
         f.write(page)
     print(f"✅ 已生成: {OUT_PATH} ({len(page)//1024}KB)")
-    print("✅ 终态校验通过: 兑现率HTML已落盘(含数字版)")
+    print("✅ 终态校验通过: 兑现率HTML已落盘(深色版)")
 
 
 if __name__ == '__main__':
