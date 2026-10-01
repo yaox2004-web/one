@@ -38,6 +38,7 @@ jobs:
         run: |
           cd scripts
           python3 fix_backtest.py
+          python3 fix_backtest2.py
 
       - name: 跑回测脚本
         run: |
