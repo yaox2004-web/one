@@ -34,6 +34,11 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: 一键修补回测脚本
+        run: |
+          cd scripts
+          python3 fix_backtest.py
+
       - name: 跑回测脚本
         run: |
           cd scripts
