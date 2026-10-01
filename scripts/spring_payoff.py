@@ -1,22 +1,28 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-威科夫信号兑现率统计 v0.2  (Phase 5)
+威科夫信号兑现率统计 v0.3  (Phase 5)
 ======================================================================
 真实事件格式（2026-10-01 实测确认）:
-  {"股票代码": {"日期": {"events": ["Spring",...],
-                          "spring_real": true/null,
-                          "quant_pct": 10}}}
+  {"股票代码": {"日期": {"events": [...], "spring_real": .., "quant_pct": ..}}}
+链文件格式:
+  {"股票代码": {"日期": {"score": 9, "type": "吸筹", "chain": [...], ...}}}
 
 纯读取型脚本:
   读: data/analysis/wyckoff_events.json
+      data/analysis/wyckoff_chain.json
       data/kline/{sh,sz,bj}/{code}.json
   写: data/analysis/payoff_report.json
 
 统计口径:
   - 胜 = T+N 收盘 > 事件日收盘
   - 窗口: T+1 / T+3 / T+5
-  - 分组: Spring全体 / Spring真金 / Spring非真金 / SOS全体
+  - 分组:
+      Spring_全体
+      Spring_完整链   (Spring后90天内该股出现score>=9的完整吸筹链)
+      Spring_非完整链
+      Spring_真金     (账本双重确认, 历史不可回测, 攒样本)
+      SOS_全体
   - 样本 < 30 标注"样本不足"
 ======================================================================
 """
@@ -25,17 +31,21 @@ import json
 import os
 import sys
 from collections import defaultdict
+from datetime import datetime, timedelta
 
 EVENTS_FILE = "data/analysis/wyckoff_events.json"
+CHAIN_FILE  = "data/analysis/wyckoff_chain.json"
 KLINE_DIR   = "data/kline"
 OUTPUT_FILE = "data/analysis/payoff_report.json"
 
 WINDOWS    = [1, 3, 5]
 MIN_SAMPLE = 30
+CHAIN_LINK_DAYS  = 90   # Spring后多少自然日内出现完整链算"链内弹簧"
+CHAIN_MIN_SCORE  = 9
 
 
 # ----------------------------------------------------------------------
-# 事件读取（按真实三层套娃结构）
+# 事件读取
 # ----------------------------------------------------------------------
 def load_events():
     with open(EVENTS_FILE, "r", encoding="utf-8") as f:
@@ -61,14 +71,51 @@ def load_events():
                 })
 
     print(f"[事件] 共解析出 {len(events)} 个事件")
-    types = {}
-    for e in events:
-        types[e["type"]] = types.get(e["type"], 0) + 1
-    print(f"[事件] 类型分布: {dict(sorted(types.items(), key=lambda x: -x[1]))}")
     real_cnt = sum(1 for e in events
                    if e["type"] == "Spring" and e["spring_real"])
     print(f"[事件] Spring中真金弹簧(spring_real=true): {real_cnt} 个")
     return events
+
+
+# ----------------------------------------------------------------------
+# 链读取: {code: [(日期, score), ...] 按日期升序}
+# ----------------------------------------------------------------------
+def load_chain_scores():
+    if not os.path.exists(CHAIN_FILE):
+        print(f"[链] 未找到 {CHAIN_FILE}, 跳过完整链分组")
+        return {}
+    with open(CHAIN_FILE, "r", encoding="utf-8") as f:
+        raw = json.load(f)
+
+    chains = {}
+    for code, dates in raw.items():
+        if not isinstance(dates, dict):
+            continue
+        recs = []
+        for d, payload in dates.items():
+            if isinstance(payload, dict) and "score" in payload:
+                recs.append((str(d)[:10], float(payload["score"])))
+        recs.sort(key=lambda x: x[0])
+        if recs:
+            chains[str(code)] = recs
+    print(f"[链] 已加载 {len(chains)} 只股票的链记录")
+    return chains
+
+
+def chain_completed_after(chain_recs, event_date,
+                          days=CHAIN_LINK_DAYS, min_score=CHAIN_MIN_SCORE):
+    """Spring事件日之后 days 自然日内, 该股是否出现 score>=min_score 的链记录"""
+    try:
+        d0 = datetime.strptime(event_date, "%Y-%m-%d")
+    except ValueError:
+        return False
+    limit = (d0 + timedelta(days=days)).strftime("%Y-%m-%d")
+    for d, s in chain_recs:
+        if d > limit:
+            break
+        if d >= event_date and s >= min_score:
+            return True
+    return False
 
 
 # ----------------------------------------------------------------------
@@ -111,10 +158,11 @@ def payoff_of(kline, event_date, n):
 # ----------------------------------------------------------------------
 def main():
     print("=" * 70)
-    print("威科夫信号兑现率统计 v0.2 (Phase 5)")
+    print("威科夫信号兑现率统计 v0.3 (Phase 5)")
     print("=" * 70)
 
     events = load_events()
+    chains = load_chain_scores()
 
     targets = {"Spring", "SOS"}
     events = [e for e in events if e["type"] in targets]
@@ -122,6 +170,7 @@ def main():
 
     results = defaultdict(lambda: defaultdict(list))
     missing_kline = set()
+    linked_count = 0
 
     for ev in events:
         kl = load_kline(ev["code"])
@@ -130,8 +179,14 @@ def main():
             continue
 
         if ev["type"] == "Spring":
+            recs = chains.get(ev["code"], [])
+            linked = chain_completed_after(recs, ev["date"])
+            if linked:
+                linked_count += 1
             groups = ["Spring_全体",
-                      "Spring_真金" if ev["spring_real"] else "Spring_非真金"]
+                      "Spring_完整链" if linked else "Spring_非完整链"]
+            if ev["spring_real"]:
+                groups.append("Spring_真金")
         else:
             groups = ["SOS_全体"]
 
@@ -141,6 +196,8 @@ def main():
                 if r is not None:
                     results[g][n].append(r)
 
+    print(f"[链] Spring中属于完整链(score>={CHAIN_MIN_SCORE}, "
+          f"后{CHAIN_LINK_DAYS}天内确认): {linked_count} 个")
     if missing_kline:
         print(f"[警告] {len(missing_kline)} 只股票找不到K线文件 "
               f"(示例: {sorted(missing_kline)[:3]})")
@@ -148,19 +205,21 @@ def main():
     # ---- 汇总 ---------------------------------------------------------
     report = {"meta": {"window": WINDOWS,
                        "win_def": "T+N收盘>事件日收盘",
-                       "min_sample": MIN_SAMPLE},
+                       "min_sample": MIN_SAMPLE,
+                       "chain_link_days": CHAIN_LINK_DAYS,
+                       "chain_min_score": CHAIN_MIN_SCORE},
               "groups": {}}
 
     print()
     print("=" * 80)
-    print(f"{'分组':<18}{'样本':>8}{'T+1胜率':>10}{'T+3胜率':>10}"
+    print(f"{'分组':<20}{'样本':>8}{'T+1胜率':>10}{'T+3胜率':>10}"
           f"{'T+5胜率':>10}{'T+5均收益':>12}")
     print("-" * 80)
 
     for g in sorted(results.keys()):
         entry = {}
         n0 = len(results[g][WINDOWS[0]])
-        line = f"{g:<18}{n0:>8}"
+        line = f"{g:<20}{n0:>8}"
         for n in WINDOWS:
             rets = results[g][n]
             if rets:
