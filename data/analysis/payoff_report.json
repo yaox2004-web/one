@@ -26,13 +26,13 @@
   },
   "groups": {
     "SOS_全体": {
-      "T1_n": 2178,
-      "T1_winrate": 52.2,
-      "T3_n": 2177,
+      "T1_n": 2181,
+      "T1_winrate": 52.3,
+      "T3_n": 2178,
       "T3_winrate": 50.3,
-      "T5_n": 2173,
-      "T5_winrate": 49.6,
-      "T10_n": 2166,
+      "T5_n": 2176,
+      "T5_winrate": 49.5,
+      "T10_n": 2167,
       "T10_winrate": 49.4,
       "T20_n": 2158,
       "T20_winrate": 49.7,
@@ -55,13 +55,13 @@
       "tradeable": true
     },
     "SOS_无前置链背景": {
-      "T1_n": 2165,
-      "T1_winrate": 52.1,
-      "T3_n": 2164,
+      "T1_n": 2168,
+      "T1_winrate": 52.2,
+      "T3_n": 2165,
       "T3_winrate": 50.2,
-      "T5_n": 2160,
-      "T5_winrate": 49.6,
-      "T10_n": 2153,
+      "T5_n": 2163,
+      "T5_winrate": 49.5,
+      "T10_n": 2154,
       "T10_winrate": 49.3,
       "T20_n": 2145,
       "T20_winrate": 49.6,
@@ -69,11 +69,11 @@
       "tradeable": true
     },
     "Spring_全体": {
-      "T1_n": 2194,
-      "T1_winrate": 45.8,
+      "T1_n": 2292,
+      "T1_winrate": 45.9,
       "T3_n": 2191,
       "T3_winrate": 45.3,
-      "T5_n": 2181,
+      "T5_n": 2187,
       "T5_winrate": 52.3,
       "T10_n": 2137,
       "T10_winrate": 50.7,
@@ -83,8 +83,8 @@
       "tradeable": true
     },
     "Spring_前置链": {
-      "T1_n": 101,
-      "T1_winrate": 41.6,
+      "T1_n": 103,
+      "T1_winrate": 42.7,
       "T3_n": 101,
       "T3_winrate": 41.6,
       "T5_n": 101,
@@ -112,8 +112,8 @@
       "tradeable": false
     },
     "Spring_真金": {
-      "T1_n": 11,
-      "T1_winrate": 27.3,
+      "T1_n": 13,
+      "T1_winrate": 23.1,
       "T3_n": 10,
       "T3_winrate": 20.0,
       "T5_n": 8,
@@ -124,11 +124,11 @@
       "tradeable": true
     },
     "Spring_非前置链": {
-      "T1_n": 2093,
+      "T1_n": 2189,
       "T1_winrate": 46.0,
       "T3_n": 2090,
       "T3_winrate": 45.5,
-      "T5_n": 2080,
+      "T5_n": 2086,
       "T5_winrate": 51.9,
       "T10_n": 2036,
       "T10_winrate": 50.1,
