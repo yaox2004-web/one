@@ -25,8 +25,8 @@
  },
  "2026-05-26": {
   "adv_ratio": 0.254,
-  "up": 1299,
-  "down": 3825,
+  "up": 1300,
+  "down": 3824,
   "idx_ret": -0.17,
   "adv_ma5": 0.382,
   "divergence": false
