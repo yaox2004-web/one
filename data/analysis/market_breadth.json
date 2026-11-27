@@ -1,18 +1,10 @@
 {
- "2026-06-03": {
-  "adv_ratio": 0.319,
-  "up": 1636,
-  "down": 3492,
-  "idx_ret": 0.22,
-  "adv_ma5": 0.319,
-  "divergence": true
- },
  "2026-06-04": {
   "adv_ratio": 0.249,
   "up": 1284,
   "down": 3863,
   "idx_ret": -0.64,
-  "adv_ma5": 0.284,
+  "adv_ma5": 0.249,
   "divergence": false
  },
  "2026-06-05": {
@@ -20,7 +12,7 @@
   "up": 2937,
   "down": 2133,
   "idx_ret": -0.74,
-  "adv_ma5": 0.383,
+  "adv_ma5": 0.414,
   "divergence": true
  },
  "2026-06-08": {
@@ -36,7 +28,7 @@
   "up": 3194,
   "down": 1864,
   "idx_ret": 1.28,
-  "adv_ma5": 0.381,
+  "adv_ma5": 0.397,
   "divergence": false
  },
  "2026-06-10": {
@@ -957,6 +949,14 @@
   "down": 3371,
   "idx_ret": 0.01,
   "adv_ma5": 0.341,
+  "divergence": false
+ },
+ "2026-11-27": {
+  "adv_ratio": 0.965,
+  "up": 5015,
+  "down": 182,
+  "idx_ret": 3.73,
+  "adv_ma5": 0.523,
   "divergence": false
  }
 }
